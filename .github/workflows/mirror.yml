@@ -1,10 +1,7 @@
 name: Mirror Workflow
 on:
-  workflow_run:
-    workflows: ["All Checks"]
-    branches-ignore: 'ga-ignore-*'
-    types:
-      - completed
+  [ push ]
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
