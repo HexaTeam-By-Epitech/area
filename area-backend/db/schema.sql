@@ -1,94 +1,98 @@
-Table users {
-  id uuid [pk]
-  email varchar(255) [unique, not null]
-  password_hash varchar(255)
-  is_verified boolean [default: false, not null]
-  is_active boolean [default: false, not null]
-  created_at timestamp [default: `now()`]
-  updated_at timestamp [default: `now()`]
-  deleted_at timestamp [default: null]
-}
+-- Users table
+CREATE TABLE IF NOT EXISTS users (
+                                     id UUID PRIMARY KEY,
+                                     email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255),
+    is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    is_active BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now(),
+    deleted_at TIMESTAMP DEFAULT NULL
+    );
 
-Table oauth_providers {
-  id int [pk, increment]
-  name varchar(50) [not null]
-  is_active boolean [default: false, not null]
-}
+-- OAuth providers
+CREATE TABLE IF NOT EXISTS oauth_providers (
+                                               id SERIAL PRIMARY KEY,
+                                               name VARCHAR(50) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT FALSE
+    );
 
-Table user_oauth_accounts {
-  id uuid [pk]
-  user_id uuid [ref: > users.id, not null]
-  provider_id int [ref: > oauth_providers.id, not null]
-  provider_user_id varchar(255) [not null]
-  access_token text
-  refresh_token text
-  is_active boolean [default: false, not null]
-  created_at timestamp [default: `now()`]
-  updated_at timestamp [default: `now()`]
-  deleted_at timestamp [default: null]
+-- User OAuth accounts
+CREATE TABLE IF NOT EXISTS user_oauth_accounts (
+                                                   id UUID PRIMARY KEY,
+                                                   user_id UUID NOT NULL REFERENCES users(id),
+    provider_id INT NOT NULL REFERENCES oauth_providers(id),
+    provider_user_id VARCHAR(255) NOT NULL,
+    access_token TEXT,
+    refresh_token TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now(),
+    deleted_at TIMESTAMP DEFAULT NULL,
+    UNIQUE(provider_id, provider_user_id),
+    UNIQUE(user_id, provider_id)
+    );
 
-  indexes {
-    (provider_id, provider_user_id) [unique]
-    (user_id, provider_id) [unique]
-  }
-}
+-- Services table
+CREATE TABLE IF NOT EXISTS services (
+                                        id UUID PRIMARY KEY,
+                                        name VARCHAR(100) NOT NULL,
+    description TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT FALSE
+    );
 
-Table services {
-  id uuid [pk]
-  name varchar(100) [not null]
-  description text
-  is_active boolean [default: false, not null]
-}
+-- Actions table
+CREATE TABLE IF NOT EXISTS actions (
+                                       id UUID PRIMARY KEY,
+                                       service_id UUID NOT NULL REFERENCES services(id),
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    config_schema JSONB,
+    is_active BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now(),
+    deleted_at TIMESTAMP DEFAULT NULL
+    );
 
-Table actions {
-  id uuid [pk]
-  service_id uuid [ref: > services.id, not null]
-  name varchar(100) [not null]
-  description text
-  config_schema jsonb
-  is_active boolean [default: false, not null]
-  created_at timestamp [default: `now()`]
-  updated_at timestamp [default: `now()`]
-  deleted_at timestamp [default: null]
-}
+-- Reactions table
+CREATE TABLE IF NOT EXISTS reactions (
+                                         id UUID PRIMARY KEY,
+                                         service_id UUID NOT NULL REFERENCES services(id),
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    config_schema JSONB,
+    is_active BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now(),
+    deleted_at TIMESTAMP DEFAULT NULL
+    );
 
-Table reactions {
-  id uuid [pk]
-  service_id uuid [ref: > services.id, not null]
-  name varchar(100) [not null]
-  description text
-  config_schema jsonb
-  is_active boolean [default: false, not null]
-  created_at timestamp [default: `now()`]
-  updated_at timestamp [default: `now()`]
-  deleted_at timestamp [default: null]
-}
+-- Areas table
+CREATE TABLE IF NOT EXISTS areas (
+                                     id UUID PRIMARY KEY,
+                                     user_id UUID NOT NULL REFERENCES users(id),
+    action_id UUID NOT NULL REFERENCES actions(id),
+    reaction_id UUID NOT NULL REFERENCES reactions(id),
+    config JSONB,
+    is_active BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now(),
+    deleted_at TIMESTAMP DEFAULT NULL
+    );
 
-Table areas {
-  id uuid [pk]
-  user_id uuid [ref: > users.id, not null]
-  action_id uuid [ref: > actions.id, not null]
-  reaction_id uuid [ref: > reactions.id, not null]
-  config jsonb
-  is_active boolean [default: false, not null]
-  created_at timestamp [default: `now()`]
-  updated_at timestamp [default: `now()`]
-  deleted_at timestamp [default: null]
-}
+-- Event logs table
+CREATE TABLE IF NOT EXISTS event_logs (
+                                          id UUID PRIMARY KEY,
+                                          user_id UUID REFERENCES users(id),
+    area_id UUID REFERENCES areas(id),
+    event_type VARCHAR(100) NOT NULL,
+    description TEXT,
+    metadata JSONB,
+    created_at TIMESTAMP DEFAULT now()
+    );
 
-Table event_logs {
-  id uuid [pk]
-  user_id uuid [ref: > users.id]
-  area_id uuid [ref: > areas.id]
-  event_type varchar(100) [not null]
-  description text
-  metadata jsonb
-  created_at timestamp [default: `now()`]
-
-  indexes {
-    (user_id)
-    (area_id)
-    (event_type)
-    (created_at)
-  }
-}
+-- Indexes for event_logs
+CREATE INDEX IF NOT EXISTS idx_event_logs_user_id ON event_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_event_logs_area_id ON event_logs(area_id);
+CREATE INDEX IF NOT EXISTS idx_event_logs_event_type ON event_logs(event_type);
+CREATE INDEX IF NOT EXISTS idx_event_logs_created_at ON event_logs(created_at);
