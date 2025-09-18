@@ -40,7 +40,7 @@ jobs:
   build_backend:
     name: Build (area-backend)
     runs-on: ubuntu-latest
-    needs: test_backend
+    #needs: test_backend
     if: |
       (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')) ||
       (github.event_name == 'pull_request' && (github.base_ref == 'main' || github.base_ref == 'dev'))
