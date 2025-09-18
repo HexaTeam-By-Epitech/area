@@ -96,5 +96,10 @@ Do NOT open issues publicly. Send a report directly to `report.hexateam@gmail.co
 - Keep PRs focused on a single feature or fix.
 
 ### Labels
-- Use labels consistently to indicate:
-    - `bug`, `feature`, `documentation`
+Use labels consistently to indicate the type and status of issues and pull requests.
+- `bug`: For issues reporting a defect or unexpected behavior.
+- `feature`: For requests or PRs introducing new functionality.
+- `documentation`: For changes or issues related to documentation.
+- Add other relevant labels as needed (e.g., `help wanted`, `good first issue`, `enhancement`, `question`).
+- When opening an issue or PR, select the most appropriate labels to help maintainers triage and prioritize.
+- If unsure which label to use, leave a comment and maintainers will assist.
