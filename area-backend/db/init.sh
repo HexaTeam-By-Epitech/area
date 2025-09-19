@@ -5,6 +5,10 @@ set -e
 # Load variables from .env
 export $(grep -v '^#' ../.env | xargs)
 
+# Use host and port if defined
+PGHOST=${PGHOST:-localhost}
+PGPORT=${PGPORT:-5432}
+
 # Generate a random password if DB_PASSWORD is empty
 if [ -z "$DB_PASSWORD" ]; then
     DB_PASSWORD=$(openssl rand -base64 12)
@@ -19,32 +23,31 @@ if [ -z "$DB_PASSWORD" ]; then
 fi
 
 # Check if user exists
-USER_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'")
+USER_EXISTS=$(sudo -u postgres psql -h "$PGHOST" -p "$PGPORT" -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'")
 if [ "$USER_EXISTS" != "1" ]; then
     echo "Creating PostgreSQL user $DB_USER..."
-    sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
+    sudo -u postgres psql -h "$PGHOST" -p "$PGPORT" -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
 else
     echo "User $DB_USER already exists, skipping creation."
-    # Update the password in case it's different
-    sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
+    sudo -u postgres psql -h "$PGHOST" -p "$PGPORT" -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
 fi
 
 # Check if database exists
-DB_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'")
+DB_EXISTS=$(sudo -u postgres psql -h "$PGHOST" -p "$PGPORT" -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'")
 if [ "$DB_EXISTS" != "1" ]; then
     echo "Creating database $DB_NAME..."
-    sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+    sudo -u postgres psql -h "$PGHOST" -p "$PGPORT" -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
 else
     echo "Database $DB_NAME already exists, skipping creation."
 fi
 
 # Apply schema
-psql -U $DB_USER -d $DB_NAME -W -f "$(dirname "$0")/schema.sql"
+psql -h "$PGHOST" -p "$PGPORT" -U $DB_USER -d $DB_NAME -W -f "$(dirname "$0")/schema.sql"
 echo "Schema applied."
 
 # Apply seed if exists
 if [ -f "$(dirname "$0")/seed.sql" ]; then
-    psql -U $DB_USER -d $DB_NAME -W -f "$(dirname "$0")/seed.sql"
+    psql -h "$PGHOST" -p "$PGPORT" -U $DB_USER -d $DB_NAME -W -f "$(dirname "$0")/seed.sql"
     echo "Seed data applied."
 fi
 

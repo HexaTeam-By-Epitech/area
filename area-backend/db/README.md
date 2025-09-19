@@ -9,6 +9,8 @@ Before initializing the database, create a `.env` file at area-backend folder (i
 ```env
 DB_USER=area_user
 DB_NAME=areadb
+PGHOST=localhost
+PGPORT=5432
 DB_PASSWORD=
 ```
 
@@ -166,16 +168,6 @@ sudo -u postgres psql -c "ALTER USER area_user WITH PASSWORD 'newpassword';"
 
 * Ensure there are **no duplicate or malformed lines** for `area_user` in `pg_hba.conf`.
 * For any connection issues, always check that the PostgreSQL cluster is running and listening on port `5432`.
-
----
-
-## Migrations
-
-Place PostgreSQL migration scripts in:
-
-```
-db/migrations/
-```
 
 ---
 
