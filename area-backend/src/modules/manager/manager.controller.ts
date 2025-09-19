@@ -16,3 +16,4 @@ export class ManagerController {
     return this.managerService.getAction(action, user);
   }
 }
+

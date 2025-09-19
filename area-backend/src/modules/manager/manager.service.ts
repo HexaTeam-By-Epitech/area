@@ -5,7 +5,9 @@ let placeholderUsersArray = new Map<number, Map<string, CallableFunction>>();
 
 
 // example of map element
-placeholderActionMap.set("exampleKey", () => { return "exampleValue"; });
+placeholderActionMap.set("exampleKey", () => { return "exampleValue"; }); // function will be fetched from actions/serviceName/exampleActionName
+
+// Adding the element in the array for player of id 1 (will be replaced by a unique token in the future)
 placeholderUsersArray.set(1, placeholderActionMap);
 
 
@@ -19,4 +21,3 @@ export class ManagerService {
     return 'Element not found.';
   }
 }
-
