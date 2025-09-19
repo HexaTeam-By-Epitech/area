@@ -4,7 +4,7 @@
 
 ### 1. Configure your `.env`
 
-Before initializing the database, create a `.env` file at the root of the project (if it doesn't exist):
+Before initializing the database, create a `.env` file at area-backend folder (if it doesn't exist):
 
 ```env
 DB_USER=area_user
