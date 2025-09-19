@@ -4,6 +4,8 @@ import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { ActionModule } from './modules/action/action.module';
 import { ReactionModule } from './modules/reaction/reaction.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -11,7 +13,9 @@ import { ReactionModule } from './modules/reaction/reaction.module';
       isGlobal: true,
     }),
     ActionModule,
-    ReactionModule
+    ReactionModule,
+    AuthModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

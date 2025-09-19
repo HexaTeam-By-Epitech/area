@@ -9,36 +9,36 @@ export class UsersService {
     constructor(private prisma: PrismaService) {}
 
     async findAll() {
-        return this.prisma.user.findMany();
+        return this.prisma.users.findMany();
     }
 
     async findOne(id: string) {
-        const user = await this.prisma.user.findUnique({ where: { id } });
+        const user = await this.prisma.users.findUnique({ where: { id } });
         if (!user) throw new NotFoundException('User not found');
         return user;
     }
 
     async findByEmail(email: string) {
-        return this.prisma.user.findUnique({ where: { email } });
+        return this.prisma.users.findUnique({ where: { email } });
     }
 
     async createUser(data: CreateUserDto) {
         const passwordHash = await bcrypt.hash(data.password, 10);
-        return this.prisma.user.create({
+        return this.prisma.users.create({
             data: {
                 email: data.email,
-                passwordHash,
-                isVerified: false,
-                isActive: true,
+                password_hash: passwordHash,
+                is_verified: false,
+                is_active: true,
             },
         });
     }
 
     async updateUser(id: string, data: UpdateUserDto) {
-        return this.prisma.user.update({ where: { id }, data });
+        return this.prisma.users.update({ where: { id }, data });
     }
 
     async deleteUser(id: string) {
-        return this.prisma.user.delete({ where: { id } });
+        return this.prisma.users.delete({ where: { id } });
     }
 }
