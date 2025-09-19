@@ -29,7 +29,8 @@ This script performs the following:
 * Applies `schema.sql`.
 * Applies `seed.sql` if present.
 
-> **Note:** The script no longer modifies `pg_hba.conf` automatically. You must ensure that the following line exists for proper password authentication:
+> **Note:** The script no longer modifies `pg_hba.conf` automatically. You must ensure that the following line exists for proper password authentication (
+for more details see the section "Use a clean configuration"):
 
 ```
 local   all   area_user   md5
@@ -111,21 +112,23 @@ journalctl -xeu postgresql@16-main.service
 sudo cp /etc/postgresql/16/main/pg_hba.conf /etc/postgresql/16/main/pg_hba.conf.bak
 ```
 
-2. Use a clean configuration:
+2. Use a clean configuration (the ligne about area_user need to be in the exact same order):
 
 ```conf
 # Database administrative login by Unix domain socket
 local   all             postgres                                peer
 
-# Allow local connections for area_user
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
 local   all             area_user                               md5
 
-# Default local connections
+# "local" is for Unix domain socket connections only
 local   all             all                                     peer
+# IPv4 local connections:
 host    all             all             127.0.0.1/32            scram-sha-256
+# IPv6 local connections:
 host    all             all             ::1/128                 scram-sha-256
-
-# Replication
+# Allow replication connections from localhost, by a user with the
+# replication privilege.
 local   replication     all                                     peer
 host    replication     all             127.0.0.1/32            scram-sha-256
 host    replication     all             ::1/128                 scram-sha-256
