@@ -4,7 +4,7 @@
 
 ### 1. Configure your `.env`
 
-Before any initialization, create a `.env` file at the project root (if it doesn’t exist):
+Before initializing the database, create a `.env` file at the root of the project (if it doesn't exist):
 
 ```env
 DB_USER=area_user
@@ -12,83 +12,163 @@ DB_NAME=areadb
 DB_PASSWORD=
 ```
 
-- If `DB_PASSWORD` is empty, it will be **randomly generated** by `init.sh`.
-- The generated password will be automatically written to `.env`.
+* If `DB_PASSWORD` is empty, `init.sh` will **generate a random secure password** for `$DB_USER`.
+* The generated password will automatically be updated in the `.env` file.
 
 ### 2. Run the initialization script
-
-This script creates the PostgreSQL user, database, applies the schema, and configures access:
 
 ```sh
 ./init.sh
 ```
 
-The script performs the following:
+This script performs the following:
 
-- Checks if the PostgreSQL user (`area_user`) exists; creates it if not.
-- Checks if the database (`areadb`) exists; creates it if not.
-- Automatically applies `schema.sql`.
-- Updates `.env` with a secure random password if `DB_PASSWORD` is empty.
-- Adds the following line to `pg_hba.conf` if missing:
+* Creates the PostgreSQL user `$DB_USER` if it does not exist.
+* Updates the password of the user with the value in `.env` (or the generated password).
+* Creates the database `$DB_NAME` if it does not exist, owned by `$DB_USER`.
+* Applies `schema.sql`.
+* Applies `seed.sql` if present.
 
-  ```
-  local   all   area_user   md5
-  ```
+> **Note:** The script no longer modifies `pg_hba.conf` automatically. You must ensure that the following line exists for proper password authentication:
 
-- **Sudo privileges are required** to modify `pg_hba.conf`.
-
-### 3. (Optional) Apply test seed data
-
-```sh
-psql -U $DB_USER -d $DB_NAME -f seed.sql
+```
+local   all   area_user   md5
 ```
 
-> Use the password stored in `.env` if prompted.
-
----
-
-## Full Reset
-
-Completely delete the PostgreSQL user and database:
+* This line is necessary so that `psql` connects using the password (`md5`) rather than `peer`.
+* If it's missing, add it manually and restart PostgreSQL:
 
 ```sh
-./reset.sh
-```
-
-> This script uses `sudo -u postgres dropdb` and `dropuser`.
-
----
-
-## Configuration
-
-Copy the example configuration and adapt it to your environment:
-
-```sh
-cp config.example.json config.json
+sudo systemctl restart postgresql
 ```
 
 ---
 
-## Manual database access
+### 3. Access the database
 
-To manually connect to the database:
+To access the database manually:
 
 ```sh
 psql -U area_user -d areadb -W
 ```
 
-- The password is defined in `.env`.
-- Make sure `pg_hba.conf` contains a line like:
+* Enter the password stored in `.env` when prompted.
+* List tables:
 
-  ```
-  local   all   area_user   md5
-  ```
+```sql
+\dt
+```
+
+* Describe a table:
+
+```sql
+\d users
+```
+
+* Exit `psql`:
+
+```sql
+\q
+```
+
+---
+
+
+## Common PostgreSQL errors and solutions
+
+### 1. `psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: No such file or directory`
+
+This means PostgreSQL is **not running** or the socket cannot be found.
+
+**Check cluster status:**
+
+```sh
+pg_lsclusters
+```
+
+* `Status` should be `online`. If it's `down`, start it:
+
+```sh
+sudo pg_ctlcluster 16 main start
+```
+
+* If that fails, inspect the systemd service:
+
+```sh
+sudo systemctl status postgresql@16-main.service
+journalctl -xeu postgresql@16-main.service
+```
+
+**Most common cause:** `pg_hba.conf` is corrupted or contains invalid lines.
+
+---
+
+### 2. Fix `pg_hba.conf` issues
+
+1. Backup current file:
+
+```sh
+sudo cp /etc/postgresql/16/main/pg_hba.conf /etc/postgresql/16/main/pg_hba.conf.bak
+```
+
+2. Use a clean configuration:
+
+```conf
+# Database administrative login by Unix domain socket
+local   all             postgres                                peer
+
+# Allow local connections for area_user
+local   all             area_user                               md5
+
+# Default local connections
+local   all             all                                     peer
+host    all             all             127.0.0.1/32            scram-sha-256
+host    all             all             ::1/128                 scram-sha-256
+
+# Replication
+local   replication     all                                     peer
+host    replication     all             127.0.0.1/32            scram-sha-256
+host    replication     all             ::1/128                 scram-sha-256
+```
+
+3. Check file permissions:
+
+```sh
+sudo chown postgres:postgres /etc/postgresql/16/main/pg_hba.conf
+sudo chmod 600 /etc/postgresql/16/main/pg_hba.conf
+```
+
+4. Restart PostgreSQL:
+
+```sh
+sudo systemctl restart postgresql@16-main
+```
+
+5. Confirm cluster is online:
+
+```sh
+pg_lsclusters
+```
+
+---
+
+### 3. Other tips
+
+* Avoid running `init.sh` without a valid `.env` file; it may generate an empty user or fail to update passwords.
+* If you lose the password for `area_user`:
+
+```sh
+sudo -u postgres psql -c "ALTER USER area_user WITH PASSWORD 'newpassword';"
+```
+
+* Ensure there are **no duplicate or malformed lines** for `area_user` in `pg_hba.conf`.
+* For any connection issues, always check that the PostgreSQL cluster is running and listening on port `5432`.
 
 ---
 
 ## Migrations
 
-Store all PostgreSQL migration scripts in:
+Place PostgreSQL migration scripts in:
 
 ```
 db/migrations/
@@ -98,7 +178,7 @@ db/migrations/
 
 ## Fixtures / Tests
 
-Test datasets should be placed in:
+Place test datasets in:
 
 ```
 db/fixtures/
@@ -108,18 +188,11 @@ db/fixtures/
 
 ## Logs / Audit: `event_logs`
 
-The `event_logs` table records all major events related to `areas`, `actions`, or errors.
+The `event_logs` table tracks important events related to `areas`, `actions`, or errors.
 
-Key fields:
+Main columns:
 
-- `event_type`: type of event (e.g., `action_triggered`, `reaction_executed`, `error`)
-- `description`: summary of the event
-- `metadata`: additional info (JSON format)
-- `created_at`: timestamp
-
----
-
-## Notes
-
-- Do not manually change the password in `.env` without updating the PostgreSQL user accordingly.
-- If the password is lost or invalid, delete the user and re-run `init.sh` to regenerate a valid `.env` and credentials.
+* `event_type` : type of event (`action_triggered`, `reaction_executed`, `error`)
+* `description` : summary of the event
+* `metadata` : additional details (JSON)
+* `created_at` : timestamp

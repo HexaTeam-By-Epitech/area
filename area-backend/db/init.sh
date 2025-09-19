@@ -18,14 +18,6 @@ if [ -z "$DB_PASSWORD" ]; then
     fi
 fi
 
-# Ensure the pg_hba.conf has md5 for the user
-PG_HBA_FILE=$(sudo -u postgres psql -tAc "SHOW hba_file;" | tr -d ' ')
-if ! grep -q "^local\s\+all\s\+$DB_USER\s\+md5" "$PG_HBA_FILE"; then
-    echo "Adding md5 auth for $DB_USER in pg_hba.conf..."
-    echo "local   all   $DB_USER   md5" | sudo tee -a "$PG_HBA_FILE"
-    sudo systemctl restart postgresql
-fi
-
 # Check if user exists
 USER_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'")
 if [ "$USER_EXISTS" != "1" ]; then
