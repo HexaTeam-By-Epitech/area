@@ -1,0 +1,232 @@
+openapi: 3.0.0
+paths:
+  /:
+    get:
+      operationId: AppController_getHello
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags:
+        - App
+  /action:
+    post:
+      operationId: ActionController_create
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: &a1
+        - Action
+    get:
+      operationId: ActionController_findAll
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a1
+  /action/{id}:
+    get:
+      operationId: ActionController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a1
+    put:
+      operationId: ActionController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a1
+    delete:
+      operationId: ActionController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a1
+  /reaction:
+    post:
+      operationId: ReactionController_create
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      tags: &a2
+        - Reaction
+    get:
+      operationId: ReactionController_findAll
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: *a2
+  /reaction/{id}:
+    get:
+      operationId: ReactionController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a2
+    put:
+      operationId: ReactionController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a2
+    delete:
+      operationId: ReactionController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a2
+  /auth/register:
+    post:
+      operationId: AuthController_register
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterDto"
+      responses:
+        "201":
+          description: ""
+      tags: &a3
+        - Auth
+  /auth/login:
+    post:
+      operationId: AuthController_login
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginDto"
+      responses:
+        "201":
+          description: ""
+      tags: *a3
+  /users:
+    get:
+      operationId: UsersController_findAll
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      tags: &a4
+        - Users
+    post:
+      operationId: UsersController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserDto"
+      responses:
+        "201":
+          description: ""
+      tags: *a4
+  /users/{id}:
+    get:
+      operationId: UsersController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a4
+    put:
+      operationId: UsersController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserDto"
+      responses:
+        "200":
+          description: ""
+      tags: *a4
+    delete:
+      operationId: UsersController_remove
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      tags: *a4
+info:
+  title: AREA API
+  description: Documentation de l'API AREA
+  version: "1.0"
+  contact: {}
+tags: []
+servers: []
+components:
+  schemas:
+    RegisterDto:
+      type: object
+      properties: {}
+    LoginDto:
+      type: object
+      properties: {}
+    CreateUserDto:
+      type: object
+      properties: {}
+    UpdateUserDto:
+      type: object
+      properties: {}
