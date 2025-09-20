@@ -7,10 +7,10 @@ export class ManagerController {
 
   @Post(':action/:user')
   display(@Param('action') action: string, @Param('user') user: string): string {
-    if (action == null) {
+    if (!action || action.trim() === '') {
       return 'No action provided.';
     }
-    if (user == null) {
+    if (!user || user.trim() === '') {
       return 'Access denied.';
     }
     return this.managerService.getAction(action, user);
