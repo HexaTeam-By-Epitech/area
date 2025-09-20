@@ -69,7 +69,7 @@ describe('Auth Email Verification e2e', () => {
             expect(response.body.message).toContain('User registered successfully');
             expect(response.body.userId).toBeDefined();
 
-            // Vérifier que les services ont été appelés
+            // Check that the services have been called
             expect(mockEmailService.generateVerificationCode).toHaveBeenCalled();
             expect(mockEmailService.sendVerificationEmail).toHaveBeenCalledWith(email, '123456');
             expect(mockRedisService.setVerificationCode).toHaveBeenCalledWith(
@@ -83,7 +83,7 @@ describe('Auth Email Verification e2e', () => {
             const email = faker.internet.email();
             const password = 'SuperSecret123';
 
-            // Premier enregistrement
+            // First registration
             await request(app.getHttpServer())
                 .post('/auth/register')
                 .send({ email, password })
@@ -103,7 +103,7 @@ describe('Auth Email Verification e2e', () => {
             const password = 'SuperSecret123';
             const verificationCode = '123456';
 
-            // Enregistrer l'utilisateur
+            // Register the user
             await request(app.getHttpServer())
                 .post('/auth/register')
                 .send({ email, password })
@@ -119,7 +119,7 @@ describe('Auth Email Verification e2e', () => {
 
             expect(response.body.message).toBe('Email verified successfully');
 
-            // Vérifier que le code a été supprimé de Redis
+            // Check that the code has been deleted from Redis
             expect(mockRedisService.deleteVerificationCode).toHaveBeenCalledWith(
                 `verification:${email}`
             );
@@ -131,7 +131,7 @@ describe('Auth Email Verification e2e', () => {
             const verificationCode = '123456';
             const wrongCode = '654321';
 
-            // Enregistrer l'utilisateur
+            // Register the user
             await request(app.getHttpServer())
                 .post('/auth/register')
                 .send({ email, password })
@@ -153,7 +153,7 @@ describe('Auth Email Verification e2e', () => {
             const password = 'SuperSecret123';
             const verificationCode = '123456';
 
-            // Enregistrer l'utilisateur
+            // Register the user
             await request(app.getHttpServer())
                 .post('/auth/register')
                 .send({ email, password })
@@ -191,7 +191,7 @@ describe('Auth Email Verification e2e', () => {
             const email = faker.internet.email();
             const password = 'SuperSecret123';
 
-            // Enregistrer l'utilisateur
+            // Register the user
             await request(app.getHttpServer())
                 .post('/auth/register')
                 .send({ email, password })
@@ -226,7 +226,7 @@ describe('Auth Email Verification e2e', () => {
             const password = 'SuperSecret123';
             const verificationCode = '123456';
 
-            // Enregistrer et vérifier l'utilisateur
+            // Register and verify the user
             await request(app.getHttpServer())
                 .post('/auth/register')
                 .send({ email, password })
@@ -238,7 +238,7 @@ describe('Auth Email Verification e2e', () => {
                 .send({ email, verificationCode })
                 .expect(201);
 
-            // Essayer de renvoyer le code
+            // Try to resend the code
             const response = await request(app.getHttpServer())
                 .post('/auth/resend-verification')
                 .send({ email })
@@ -253,13 +253,13 @@ describe('Auth Email Verification e2e', () => {
             const email = faker.internet.email();
             const password = 'SuperSecret123';
 
-            // Enregistrer l'utilisateur (non vérifié)
+            // Register the user (not verified)
             await request(app.getHttpServer())
                 .post('/auth/register')
                 .send({ email, password })
                 .expect(201);
 
-            // Essayer de se connecter
+            // Try to login
             const response = await request(app.getHttpServer())
                 .post('/auth/login')
                 .send({ email, password })
@@ -273,20 +273,20 @@ describe('Auth Email Verification e2e', () => {
             const password = 'SuperSecret123';
             const verificationCode = '123456';
 
-            // Enregistrer l'utilisateur
+            // Register the user
             await request(app.getHttpServer())
                 .post('/auth/register')
                 .send({ email, password })
                 .expect(201);
 
-            // Vérifier l'email
+            // Verify the email
             mockRedisService.getVerificationCode.mockResolvedValue(verificationCode);
             await request(app.getHttpServer())
                 .post('/auth/verify-email')
                 .send({ email, verificationCode })
                 .expect(201);
 
-            // Se connecter
+            // Login
             const response = await request(app.getHttpServer())
                 .post('/auth/login')
                 .send({ email, password })
@@ -302,7 +302,7 @@ describe('Auth Email Verification e2e', () => {
             const verificationCode = '123456';
             const wrongPassword = 'WrongPassword123';
 
-            // Enregistrer et vérifier l'utilisateur
+            // Register and verify the user
             await request(app.getHttpServer())
                 .post('/auth/register')
                 .send({ email, password })

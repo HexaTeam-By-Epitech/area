@@ -2,7 +2,7 @@
 # db/init.sh
 set -e
 
-# Détecte le chemin du .env par rapport à ce script
+# Detect the path to .env relative to this script
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/../.env"
 
@@ -12,7 +12,7 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 export $(grep -v '^#' "$ENV_FILE" | xargs)
 
-# Configuration par défaut (compatible avec votre docker-compose.yml)
+# Default configuration (compatible with your docker-compose.yml)
 DB_USER=${DB_USER:-area}
 DB_PASSWORD=${DB_PASSWORD:-areapassword}
 DB_NAME=${DB_NAME:-areadb}
@@ -38,9 +38,9 @@ echo "Using DB_PORT: $DB_PORT"
 # Export password for superuser
 export PGPASSWORD="$DB_PASSWORD"
 
-# Fonction pour détecter si PostgreSQL est dans Docker
+# Function to detect if PostgreSQL is running in Docker
 detect_postgres_location() {
-    # Vérifier si le conteneur Docker existe et est en cours d'exécution
+    # Check if the Docker container exists and is running
     if docker ps --format "table {{.Names}}" | grep -q "postgres-area"; then
         echo "docker"
     else
@@ -48,7 +48,7 @@ detect_postgres_location() {
     fi
 }
 
-# Fonction pour exécuter une commande psql
+# Function to execute a psql command
 execute_psql() {
     local sql_file="$1"
     local location="$2"
@@ -62,11 +62,11 @@ execute_psql() {
     fi
 }
 
-# Détecter l'environnement PostgreSQL
+# Detect PostgreSQL environment
 POSTGRES_LOCATION=$(detect_postgres_location)
 echo "PostgreSQL detected in: $POSTGRES_LOCATION"
 
-# Vérifier la connexion à la base de données
+# Check database connection
 echo "Testing database connection..."
 if [ "$POSTGRES_LOCATION" = "docker" ]; then
     if ! docker exec postgres-area psql -U $DB_USER -d $DB_NAME -c "SELECT 1;" > /dev/null 2>&1; then

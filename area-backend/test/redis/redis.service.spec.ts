@@ -42,7 +42,7 @@ describe('RedisService', () => {
 
     describe('onModuleDestroy', () => {
         it('should disconnect from Redis on module destruction', async () => {
-            // Simuler une connexion existante
+            // Simulate an existing connection
             (service as any).client = mockRedisClient;
 
             await service.onModuleDestroy();
@@ -51,7 +51,7 @@ describe('RedisService', () => {
         });
 
         it('should handle case when client is not initialized', async () => {
-            // Ne pas initialiser le client
+            // Do not initialize the client
             (service as any).client = null;
 
             await expect(service.onModuleDestroy()).resolves.not.toThrow();

@@ -63,7 +63,7 @@ describe('AuthService', () => {
             expect(user.id).toEqual('2');
             expect(user.email).toEqual('b@b.com');
             
-            // Vérifier que les services ont été appelés
+            // Verify that the services have been called
             expect(mockEmailService.generateVerificationCode).toHaveBeenCalled();
             expect(mockEmailService.sendVerificationEmail).toHaveBeenCalledWith('b@b.com', '123456');
             expect(mockRedisService.setVerificationCode).toHaveBeenCalledWith('verification:b@b.com', '123456', 600);

@@ -2,12 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { EmailService } from '../../src/modules/email/email.service';
 import * as nodemailer from 'nodemailer';
 
-// Mock nodemailer
+// Mock nodemailer to avoid real SMTP calls during tests
 const mockTransporter = {
     sendMail: jest.fn(),
     verify: jest.fn(),
 };
 
+// Replace nodemailer's createTransport with a mock
 jest.mock('nodemailer', () => ({
     createTransport: jest.fn(() => mockTransporter),
 }));
@@ -16,34 +17,32 @@ describe('EmailService', () => {
     let service: EmailService;
 
     beforeEach(async () => {
+        // Create a testing module with the EmailService
         const module: TestingModule = await Test.createTestingModule({
             providers: [EmailService],
         }).compile();
 
         service = module.get<EmailService>(EmailService);
-        jest.clearAllMocks();
+        jest.clearAllMocks(); // Reset mocks before each test
     });
 
     describe('generateVerificationCode', () => {
         it('should generate a 6-digit code', () => {
             const code = service.generateVerificationCode();
-
-            expect(code).toMatch(/^\d{6}$/);
+            expect(code).toMatch(/^\d{6}$/); // Code should be 6 digits
             expect(code.length).toBe(6);
         });
 
         it('should generate different codes on multiple calls', () => {
             const code1 = service.generateVerificationCode();
             const code2 = service.generateVerificationCode();
-
-            // Il est très peu probable que deux codes générés aléatoirement soient identiques
+            // Very unlikely to get the same code twice in a row
             expect(code1).not.toBe(code2);
         });
 
         it('should generate codes within valid range (100000-999999)', () => {
             const code = service.generateVerificationCode();
             const numericCode = parseInt(code);
-
             expect(numericCode).toBeGreaterThanOrEqual(100000);
             expect(numericCode).toBeLessThanOrEqual(999999);
         });
