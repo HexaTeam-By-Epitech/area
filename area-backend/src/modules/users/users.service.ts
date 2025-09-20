@@ -71,4 +71,92 @@ export class UsersService {
     async deleteUser(id: string) {
         return this.prisma.users.delete({where: {id}});
     }
+
+    async findById(id: string) {
+        return this.prisma.users.findUnique({where: {id}});
+    }
+
+    async findUserOAuthAccount(userId: string, provider: 'google') {
+        const providerId = 1;
+        return this.prisma.user_oauth_accounts.findUnique({
+            where: {user_id_provider_id: {user_id: userId, provider_id: providerId}},
+        });
+    }
+
+    async updateOAuthTokens(
+        userId: string,
+        provider: 'google',
+        input: { accessToken?: string; accessTokenExpiresAt?: Date; refreshToken?: string },
+    ) {
+        const providerId = 1;
+        return this.prisma.user_oauth_accounts.update({
+            where: {user_id_provider_id: {user_id: userId, provider_id: providerId}},
+            data: {
+                access_token: input.accessToken ?? undefined,
+                refresh_token: input.refreshToken ?? undefined,
+                updated_at: new Date(),
+            },
+        });
+    }
+
+    async upsertOAuthUser(input: {
+        provider: 'google';
+        providerId: number;
+        providerUserId: string;
+        email: string;
+        name?: string;
+        avatarUrl?: string;
+        accessToken?: string | null;
+        refreshToken?: string | null;
+        accessTokenExpiresAt?: Date | null;
+    }) {
+        const {
+            providerId,
+            providerUserId,
+            email,
+            name,
+            avatarUrl,
+            accessToken = null,
+            refreshToken = null,
+            accessTokenExpiresAt = null,
+        } = input;
+
+        let user = await this.prisma.users.findUnique({where: {email}});
+        if (!user) {
+            user = await this.prisma.users.create({
+                data: {
+                    email,
+                    is_verified: true,
+                    is_active: true,
+                },
+            });
+        }
+
+        await this.prisma.user_oauth_accounts.upsert({
+            where: {
+                provider_id_provider_user_id: {
+                    provider_id: providerId,
+                    provider_user_id: providerUserId,
+                },
+            },
+            update: {
+                user_id: user.id,
+                access_token: accessToken ?? undefined,
+                refresh_token: refreshToken ?? undefined,
+                is_active: true,
+                updated_at: new Date(),
+            },
+            create: {
+                id: crypto.randomUUID(),
+                user_id: user.id,
+                provider_id: providerId,
+                provider_user_id: providerUserId,
+                access_token: accessToken,
+                refresh_token: refreshToken,
+                is_active: true,
+            },
+        });
+
+        return user;
+    }
 }
