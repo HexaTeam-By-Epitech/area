@@ -5,5 +5,10 @@ export class UpdateUserDto {
     @ApiPropertyOptional({ description: 'Whether the user is active' })
     @IsOptional()
     @IsBoolean()
-    isActive?: boolean;
+    is_active?: boolean;
+
+    @ApiPropertyOptional({ description: 'Whether the user is verified' })
+    @IsOptional()
+    @IsBoolean()
+    is_verified?: boolean;
 }

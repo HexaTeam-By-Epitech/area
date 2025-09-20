@@ -27,7 +27,7 @@ describe('AuthController', () => {
     it('register: should return userId', async () => {
         authService.register.mockResolvedValue({ id: '1' });
         const res = await controller.register({ email: 'a@a.com', password: 'password' });
-        expect(res).toEqual({ message: 'User registered', userId: '1' });
+        expect(res).toEqual({ message: 'User registered successfully. Please check your email for verification code.', userId: '1' });
     });
 
     it('login: should return userId', async () => {
