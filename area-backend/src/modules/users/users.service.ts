@@ -39,7 +39,7 @@ export class UsersService {
 
     /**
      * Create a new user in the database.
-     * @param data - Data for creating the user (email, password hash)
+     * @param data - Data for creating the user (email, password hash, verification status)
      * @returns The created user object
      */
     async createUser(data: CreateUserDto) {
@@ -47,7 +47,7 @@ export class UsersService {
             data: {
                 email: data.email, // User's email address
                 password_hash: data.password_hash, // Hashed password
-                is_verified: false, // New users are not verified by default
+                is_verified: data.is_verified ?? false, // Use provided value or default to false
                 is_active: true, // New users are active by default
             },
         });
