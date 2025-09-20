@@ -2,8 +2,7 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
-import { ActionModule } from './modules/action/action.module';
-import { ReactionModule } from './modules/reaction/reaction.module';
+import { ManagerModule } from './modules/manager/manager.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 
@@ -12,8 +11,7 @@ import { UsersModule } from './modules/users/users.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    ActionModule,
-    ReactionModule,
+    ManagerModule,
     AuthModule,
     UsersModule,
   ],
