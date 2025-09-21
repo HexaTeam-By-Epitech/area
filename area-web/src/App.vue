@@ -19,6 +19,7 @@ onMounted(() => {
   window.addEventListener('switchToLogin', switchToLogin)
   window.addEventListener('switchToRegister', switchToRegister)
 })
+
 onUnmounted(() => {
   window.removeEventListener('switchToLogin', switchToLogin)
   window.removeEventListener('switchToRegister', switchToRegister)
@@ -50,4 +51,5 @@ body {
   width: 100%;
   height: 100%;
 }
+
 </style>

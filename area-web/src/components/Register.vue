@@ -38,6 +38,8 @@
       <div v-if="apiError" class="api-error">{{ apiError }}</div>
       <div v-if="successMessage" class="success-message">{{ successMessage }}</div>
 
+      <div id="google-signin-button"></div>
+
       <p class="login-link">
         Already have an account? <a href="#" @click.prevent="goToLogin">Login</a>
       </p>
@@ -47,9 +49,41 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
-onMounted(() => document.title = 'Register - Area')
+onMounted(() => {
+  document.title = 'Register - Area'
+
+  if (window.google && window.google.accounts) {
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleResponse
+    })
+
+    window.google.accounts.id.renderButton(
+        document.getElementById('google-signin-button'),
+        { theme: 'outline', size: 'large', width: '100%' }
+    )
+  }
+})
+
 onUnmounted(() => document.title = 'Area')
+
+const handleGoogleResponse = async (response: any) => {
+  if (!response.credential) return;
+
+  try {
+    const res = await fetch('/auth/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: response.credential }),
+    });
+    const data = await res.json();
+    console.log('Google login success:', data);
+  } catch (err) {
+    console.error('Google login error:', err);
+  }
+};
 
 const email = ref('')
 const password = ref('')
