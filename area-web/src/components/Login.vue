@@ -49,6 +49,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { handleGoogleResponse } from '../utils/googleAuth'
 
 onMounted(() => document.title = 'Login - Area')
 onUnmounted(() => document.title = 'Area')
@@ -124,21 +125,6 @@ onMounted(() => {
   }
 })
 
-const handleGoogleResponse = async (response: any) => {
-  if (!response.credential) return;
-
-  try {
-    const res = await fetch('/auth/google', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: response.credential }),
-    });
-    const data = await res.json();
-    console.log('Google login success:', data);
-  } catch (err) {
-    console.error('Google login error:', err);
-  }
-};
 </script>
 
 <style scoped>
