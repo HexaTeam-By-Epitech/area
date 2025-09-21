@@ -87,10 +87,13 @@ jobs:
       - name: Install dependencies
         run: npm i
 
-      - name: Build (Expo export for web)
+      - name: Run unit tests (jest-expo)
+        run: npm test --silent
+
+      - name: Build (Expo export for Android bundle)
         env:
           CI: true
-        run: npx expo export --platform web --output-dir dist-web
+        run: npx expo export --platform android --output-dir dist-android
 
   build_web:
     name: Build (area-web)
