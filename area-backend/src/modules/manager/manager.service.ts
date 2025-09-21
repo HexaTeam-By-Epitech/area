@@ -10,7 +10,6 @@ placeholderActionMap.set("exampleKey", () => { return "exampleValue"; }); // fun
 // Adding the element in the array for player of id 1 (will be replaced by a unique token in the future)
 placeholderUsersArray.set(1, placeholderActionMap);
 
-
 @Injectable()
 export class ManagerService {
     getAction(action: string, user: string): string {

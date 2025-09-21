@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ManagerController } from './manager.controller';
 import { ManagerService } from './manager.service';
+import { LikeService } from '../actions/spotify/like.service';
 
 @Module({
   imports: [
@@ -10,6 +11,6 @@ import { ManagerService } from './manager.service';
     }),
   ],
   controllers: [ManagerController],
-  providers: [ManagerService],
+  providers: [ManagerService, LikeService],
 })
 export class ManagerModule {}
