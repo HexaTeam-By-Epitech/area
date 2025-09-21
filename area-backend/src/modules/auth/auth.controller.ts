@@ -83,4 +83,30 @@ export class AuthController {
         const tokenInfo = await this.authService.refreshGoogleAccessToken(userId);
         return {message: 'Refreshed', ...tokenInfo};
     }
+
+    @Get('spotify')
+    @ApiOperation({summary: 'Start Spotify OAuth (Authorization Code flow)'})
+    @ApiResponse({status: 302, description: 'Redirect to Spotify consent screen'})
+    async startSpotifyOAuth(@Res() res: express.Response, @Query('userId') userId?: string) {
+        const url = this.authService.buildSpotifyAuthUrl(userId);
+        return res.redirect(url);
+    }
+
+    @Get('spotify/callback')
+    @ApiOperation({summary: 'Spotify OAuth callback (exchanges code and stores tokens)'})
+    @ApiResponse({status: 200, description: 'Spotify OAuth successful'})
+    async spotifyCallback(@Query('code') code: string, @Query('state') state?: string) {
+        const result = await this.authService.handleSpotifyOAuthCallback(code, state);
+        return {message: 'Login successful', ...result};
+    }
+
+    @Post('spotify/refresh')
+    @HttpCode(200)
+    @ApiOperation({summary: 'Refresh Spotify access token using stored refresh token'})
+    @ApiBody({schema: {properties: {userId: {type: 'string'}}, required: ['userId']}})
+    @ApiResponse({status: 200, description: 'Access token refreshed'})
+    async refreshSpotifyAccess(@Body('userId') userId: string) {
+        const tokenInfo = await this.authService.refreshSpotifyAccessToken(userId);
+        return {message: 'Refreshed', ...tokenInfo};
+    }
 }
