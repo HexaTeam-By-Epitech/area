@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <div class="register-card">
-      <h1 class="register-title">Create your account</h1>
+      <h1 class="register-title">Login to your account</h1>
 
       <form @submit.prevent="handleSubmit" class="register-form">
         <div class="form-group">
@@ -31,7 +31,7 @@
         </div>
 
         <button type="submit" :disabled="isLoading || !isFormValid">
-          {{ isLoading ? 'Creating account...' : 'Register' }}
+          {{ isLoading ? 'Logging in...' : 'Login' }}
         </button>
       </form>
 
@@ -39,7 +39,7 @@
       <div v-if="successMessage" class="success-message">{{ successMessage }}</div>
 
       <p class="login-link">
-        Already have an account? <a href="#" @click.prevent="goToLogin">Login</a>
+        Don't have an account? <a href="#" @click.prevent="goToRegister">Register</a>
       </p>
     </div>
   </div>
@@ -48,7 +48,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
-onMounted(() => document.title = 'Register - Area')
+onMounted(() => document.title = 'Login - Area')
 onUnmounted(() => document.title = 'Area')
 
 const email = ref('')
@@ -82,16 +82,16 @@ const handleSubmit = async () => {
   if (!validateEmail() || !validatePassword()) return
   isLoading.value = true
   try {
-    const response = await fetch('/auth/register', {
+    const response = await fetch('/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.value, password: password.value })
     })
     if (!response.ok) {
       const data = await response.json().catch(() => ({}))
-      throw new Error(data.message || 'Registration failed')
+      throw new Error(data.message || 'Login failed')
     }
-    successMessage.value = 'Account created successfully!'
+    successMessage.value = 'Login successful!'
     email.value = ''
     password.value = ''
   } catch (err) {
@@ -99,8 +99,9 @@ const handleSubmit = async () => {
   } finally { isLoading.value = false }
 }
 
-const goToLogin = () => {
-  window.dispatchEvent(new CustomEvent('switchToLogin'))
+const goToRegister = () => {
+  // Utilisé par App.vue pour changer de page
+  window.dispatchEvent(new CustomEvent('switchToRegister'))
 }
 </script>
 
@@ -213,5 +214,4 @@ const goToLogin = () => {
 .login-link a:hover {
   text-decoration: underline
 }
-
 </style>

@@ -1,11 +1,28 @@
 <template>
   <div id="app">
-    <Register />
+    <Register v-if="currentPage === 'register'" />
+    <Login v-else />
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
 import Register from './components/Register.vue'
+import Login from './components/Login.vue'
+
+const currentPage = ref('register')
+
+const switchToLogin = () => currentPage.value = 'login'
+const switchToRegister = () => currentPage.value = 'register'
+
+onMounted(() => {
+  window.addEventListener('switchToLogin', switchToLogin)
+  window.addEventListener('switchToRegister', switchToRegister)
+})
+onUnmounted(() => {
+  window.removeEventListener('switchToLogin', switchToLogin)
+  window.removeEventListener('switchToRegister', switchToRegister)
+})
 </script>
 
 <style>
