@@ -94,6 +94,12 @@ const handleSubmit = async () => {
       const data = await response.json().catch(() => ({}))
       throw new Error(data.message || 'Login failed')
     }
+    const data = await response.json();
+    if (data.userId) {
+      localStorage.setItem('userToken', data.userId)
+      localStorage.setItem('userEmail', email.value)
+      window.dispatchEvent(new CustomEvent('loginSuccess'))
+    }
     successMessage.value = 'Login successful!'
     email.value = ''
     password.value = ''
@@ -103,7 +109,6 @@ const handleSubmit = async () => {
 }
 
 const goToRegister = () => {
-  // Utilisé par App.vue pour changer de page
   window.dispatchEvent(new CustomEvent('switchToRegister'))
 }
 
