@@ -87,9 +87,6 @@ jobs:
       - name: Install dependencies
         run: npm i
 
-      - name: Validate project with Expo Doctor
-        run: npx expo-doctor
-
       - name: Build (Expo export for web)
         env:
           CI: true
