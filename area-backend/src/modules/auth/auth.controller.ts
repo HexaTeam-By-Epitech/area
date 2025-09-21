@@ -66,6 +66,15 @@ export class AuthController {
         return res.redirect(url);
     }
 
+    @Post('google')
+    @ApiOperation({ summary: 'Login with Google ID token' })
+    @ApiBody({ schema: { properties: { token: { type: 'string' } }, required: ['token'] } })
+    @ApiResponse({ status: 200, description: 'Login successful' })
+    @ApiResponse({ status: 401, description: 'Invalid Google token' })
+    async loginWithGoogle(@Body('token') token: string) {
+        return this.authService.signInWithGoogleIdToken(token);
+    }
+
     @Get('google/callback')
     @ApiOperation({summary: 'Google OAuth callback (exchanges code and stores tokens)'})
     @ApiResponse({status: 200, description: 'Google OAuth successful'})
