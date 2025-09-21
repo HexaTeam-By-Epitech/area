@@ -4,23 +4,19 @@ import { UsersService } from '../../users/users.service';
 import axios from 'axios';
 
 @Injectable()
-export class LikeService {
+export class SpotifyLikeService {
   constructor(
     private readonly redisService: RedisService,
     private readonly usersService: UsersService,
   ) {}
 
-  async hasSpotifyLikes(userId: string): Promise<boolean> {
+  async hasSpotifyLikes(userId: string): Promise<number> {
     const cacheKey = `spotify:likes:${userId}`;
-    const cached = await this.redisService.getVerificationCode(cacheKey);
-    if (cached !== null) {
-      return cached === 'true';
-    }
 
     // Get user's Spotify OAuth tokens
-    const oauth = await this.usersService.findUserOAuthAccount(userId, 'google');
+    const oauth = await this.usersService.findUserOAuthAccount(userId, 'spotify');
     if (!oauth || !oauth.access_token) {
-      return false;
+      return -1; // No Spotify account linked
     }
 
     // Poll Spotify API for liked tracks
@@ -34,6 +30,6 @@ export class LikeService {
     // Cache result for 60 seconds
     await this.redisService.setVerificationCode(cacheKey, hasLikes ? 'true' : 'false', 60);
 
-    return hasLikes;
+    return (hasLikes) ? 0 : 1; // 0 if user has likes, 1 if no likes
   }
-}
+} // -1 = missing token, 0 = has likes, 1 = no likes
