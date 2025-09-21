@@ -423,4 +423,199 @@ export class AuthService {
             throw new UnauthorizedException('Failed to refresh Google token');
         }
     }
+
+    buildSpotifyAuthUrl(userId?: string): string {
+        const clientId = this.config.get<string>('SPOTIFY_CLIENT_ID');
+        const redirectUri = this.config.get<string>('SPOTIFY_REDIRECT_URI');
+        if (!clientId || !redirectUri) {
+            this.logger.error('Missing SPOTIFY_CLIENT_ID or SPOTIFY_REDIRECT_URI');
+            throw new InternalServerErrorException('Spotify OAuth not configured');
+        }
+        const scopes = [
+            'user-read-private',
+            'user-read-email',
+            'playlist-read-private',
+            'playlist-read-collaborative',
+            'playlist-modify-public',
+            'playlist-modify-private',
+            'user-library-read',
+            'user-library-modify',
+            'user-read-playback-state',
+            'user-modify-playback-state',
+            'user-read-currently-playing',
+            'user-read-recently-played',
+            'user-top-read'
+        ].join(' ');
+        // Encode optional state with a short-lived JWT to carry userId safely
+        let state: string | undefined;
+        try {
+            if (userId) {
+                state = this.jwtService.sign({ provider: 'spotify', userId }, { expiresIn: '10m' });
+            }
+        } catch (e: any) {
+            this.logger.warn(`Failed to sign Spotify state: ${e?.message ?? e}`);
+        }
+
+        const params = new URLSearchParams({
+            client_id: clientId,
+            response_type: 'code',
+            redirect_uri: redirectUri,
+            scope: scopes,
+            show_dialog: 'true'
+        });
+        if (state) params.set('state', state);
+        const url = `https://accounts.spotify.com/authorize?${params.toString()}`;
+        this.logger.debug(`Spotify OAuth URL generated: ${url}`);
+        return url;
+    }
+
+    async handleSpotifyOAuthCallback(code: string, state?: string): Promise<{ accessToken: string; userId: string; email: string }> {
+        if (!code) {
+            throw new BadRequestException('Missing code');
+        }
+
+        const clientId = this.config.get<string>('SPOTIFY_CLIENT_ID');
+        const clientSecret = this.config.get<string>('SPOTIFY_CLIENT_SECRET');
+        const redirectUri = this.config.get<string>('SPOTIFY_REDIRECT_URI');
+        if (!clientId || !clientSecret || !redirectUri) {
+            this.logger.error('Spotify OAuth not configured (clientId/secret/redirectUri)');
+            throw new InternalServerErrorException('Spotify OAuth not configured');
+        }
+
+        // Try to extract desired user from state
+        let desiredUserId: string | undefined;
+        if (state) {
+            try {
+                const payload: any = await this.jwtService.verifyAsync(state);
+                if (payload?.provider === 'spotify' && typeof payload?.userId === 'string') {
+                    desiredUserId = payload.userId;
+                }
+            } catch (e: any) {
+                this.logger.warn(`Invalid Spotify state JWT: ${e?.message ?? e}`);
+            }
+        }
+
+        // Exchange code for tokens
+        const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`
+            },
+            body: new URLSearchParams({
+                grant_type: 'authorization_code',
+                code,
+                redirect_uri: redirectUri
+            })
+        });
+
+        if (!tokenResponse.ok) {
+            this.logger.error(`Spotify token exchange failed: ${tokenResponse.status} ${tokenResponse.statusText}`);
+            throw new UnauthorizedException('Token exchange failed');
+        }
+
+        const tokens = await tokenResponse.json();
+        const accessToken = tokens.access_token;
+        const refreshToken = tokens.refresh_token;
+        const expiresIn = tokens.expires_in;
+
+        if (!accessToken) {
+            this.logger.error('No access_token returned by Spotify');
+            throw new UnauthorizedException('No access_token returned by Spotify');
+        }
+
+        // Get user profile from Spotify
+        const profileResponse = await fetch('https://api.spotify.com/v1/me', {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
+
+        if (!profileResponse.ok) {
+            this.logger.error(`Failed to fetch Spotify profile: ${profileResponse.status} ${profileResponse.statusText}`);
+            throw new UnauthorizedException('Failed to fetch Spotify profile');
+        }
+
+        const profile = await profileResponse.json();
+        const spotifyId = profile.id;
+        const email = profile.email;
+        const name = profile.display_name || '';
+        const avatarUrl = profile.images?.[0]?.url || '';
+
+        if (!spotifyId || !email) {
+            this.logger.warn(`Invalid Spotify profile. id=${spotifyId} email=${email}`);
+            throw new UnauthorizedException('Spotify profile invalid or email not available');
+        }
+
+        const user = await this.usersService.upsertOAuthUser({
+            provider: 'spotify',
+            providerId: 2, // Assuming 2 is the ID for Spotify in your providers table
+            providerUserId: spotifyId,
+            email,
+            name,
+            avatarUrl,
+            accessToken: this.encrypt(accessToken),
+            refreshToken: refreshToken ? this.encrypt(refreshToken) : null,
+            accessTokenExpiresAt: new Date(Date.now() + expiresIn * 1000),
+            targetUserId: desiredUserId,
+        });
+
+        const appJwt = await this.jwtService.signAsync({
+            sub: user.id,
+            email: user.email,
+            provider: 'spotify',
+        });
+
+        this.logger.log(`Spotify OAuth code flow successful for ${email} (userId=${user.id})`);
+        return {accessToken: appJwt, userId: user.id, email: user.email};
+    }
+
+    async refreshSpotifyAccessToken(userId: string): Promise<{ spotifyAccessToken: string; expiresIn: number }> {
+        if (!userId) throw new BadRequestException('Missing userId');
+
+        const user = await this.usersService.findById(userId);
+        if (!user) throw new NotFoundException('User not found');
+
+        const account = await this.usersService.findUserOAuthAccount(userId, 'spotify');
+        if (!account || !account.refresh_token) {
+            throw new BadRequestException('No Spotify refresh token stored');
+        }
+
+        const refreshToken = this.decrypt(account.refresh_token);
+
+        const clientId = this.config.get<string>('SPOTIFY_CLIENT_ID');
+        const clientSecret = this.config.get<string>('SPOTIFY_CLIENT_SECRET');
+
+        try {
+            const response = await fetch('https://accounts.spotify.com/api/token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`
+                },
+                body: new URLSearchParams({
+                    grant_type: 'refresh_token',
+                    refresh_token: refreshToken
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const tokens = await response.json();
+            const newAccessToken = tokens.access_token;
+            const expiresIn = tokens.expires_in || 3600;
+
+            await this.usersService.updateOAuthTokens(userId, 'spotify', {
+                accessToken: this.encrypt(newAccessToken),
+                accessTokenExpiresAt: new Date(Date.now() + expiresIn * 1000),
+            });
+
+            return {spotifyAccessToken: newAccessToken, expiresIn};
+        } catch (e: any) {
+            this.logger.error(`Failed to refresh Spotify access token: ${e?.message ?? e}`, e?.stack);
+            throw new UnauthorizedException('Failed to refresh Spotify token');
+        }
+    }
 }

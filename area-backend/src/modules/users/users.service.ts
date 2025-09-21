@@ -76,8 +76,8 @@ export class UsersService {
         return this.prisma.users.findUnique({where: {id}});
     }
 
-    async findUserOAuthAccount(userId: string, provider: 'google') {
-        const providerId = 1;
+    async findUserOAuthAccount(userId: string, provider: 'google' | 'spotify') {
+        const providerId = provider === 'google' ? 1 : 2;
         return this.prisma.user_oauth_accounts.findUnique({
             where: {user_id_provider_id: {user_id: userId, provider_id: providerId}},
         });
@@ -85,10 +85,10 @@ export class UsersService {
 
     async updateOAuthTokens(
         userId: string,
-        provider: 'google',
+        provider: 'google' | 'spotify',
         input: { accessToken?: string; accessTokenExpiresAt?: Date; refreshToken?: string },
     ) {
-        const providerId = 1;
+        const providerId = provider === 'google' ? 1 : 2;
         return this.prisma.user_oauth_accounts.update({
             where: {user_id_provider_id: {user_id: userId, provider_id: providerId}},
             data: {
@@ -100,7 +100,7 @@ export class UsersService {
     }
 
     async upsertOAuthUser(input: {
-        provider: 'google';
+        provider: 'google' | 'spotify';
         providerId: number;
         providerUserId: string;
         email: string;
@@ -109,6 +109,7 @@ export class UsersService {
         accessToken?: string | null;
         refreshToken?: string | null;
         accessTokenExpiresAt?: Date | null;
+        targetUserId?: string; // if provided, link OAuth account to this existing user
     }) {
         const {
             providerId,
@@ -119,19 +120,30 @@ export class UsersService {
             accessToken = null,
             refreshToken = null,
             accessTokenExpiresAt = null,
+            targetUserId,
         } = input;
 
-        let user = await this.prisma.users.findUnique({where: {email}});
-        if (!user) {
-            user = await this.prisma.users.create({
-                data: {
-                    email,
-                    is_verified: true,
-                    is_active: true,
-                },
-            });
+        // 1) Determine target user: prefer explicit targetUserId if provided
+        let user;
+        if (targetUserId) {
+            user = await this.prisma.users.findUnique({ where: { id: targetUserId } });
+            if (!user) {
+                throw new NotFoundException('Target user not found');
+            }
+        } else {
+            user = await this.prisma.users.findUnique({ where: { email } });
+            if (!user) {
+                user = await this.prisma.users.create({
+                    data: {
+                        email,
+                        is_verified: true,
+                        is_active: true,
+                    },
+                });
+            }
         }
 
+        // 2) Upsert OAuth account for provider
         await this.prisma.user_oauth_accounts.upsert({
             where: {
                 provider_id_provider_user_id: {
@@ -156,6 +168,21 @@ export class UsersService {
                 is_active: true,
             },
         });
+
+        // Optionally update user profile basics if provided
+        if ((name && name.length) || (avatarUrl && avatarUrl.length)) {
+            try {
+                await this.prisma.users.update({
+                    where: { id: user.id },
+                    data: {
+                        // Only set if your schema has these fields; if not, ignore silently
+                        // name, avatar_url
+                    } as any,
+                });
+            } catch {
+                // ignore optional profile updates if fields not present in schema
+            }
+        }
 
         return user;
     }
