@@ -25,19 +25,18 @@ export class SpotifyLikeService {
       return -1; // No Spotify account linked
     }
     // Poll Spotify API for liked tracks
-    // const response = await axios.get('https://api.spotify.com/v1/me/tracks?limit=1', {
-    //   headers: {
-    //     Authorization: `Bearer ${token}`,
-    //   },
-    // });
+    const response = await axios.get('https://api.spotify.com/v1/me/tracks?limit=1', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-    // const hasLikes = response.data.items && response.data.items.length > 0;
-    // // Cache result for 60 seconds
-    // await this.redisService.setVerificationCode(cacheKey, hasLikes ? 'true' : 'false', 60);
+    const hasLikes = response.data.items && response.data.items.length > 0;
+    // Cache result for 60 seconds
+    await this.redisService.setVerificationCode(cacheKey, hasLikes ? 'true' : 'false', 60);
 
-    // const result = (hasLikes) ? 0 : 1; 
-    // console.log(result);
-    // return result; // 0 if user has likes, 1 if no likes
-    return 0
+    const result = (hasLikes) ? 0 : 1; 
+    console.log(result);
+    return result; // 0 if user has likes, 1 if no likes
   }
 } // -1 = missing token, 0 = has likes, 1 = no likes
