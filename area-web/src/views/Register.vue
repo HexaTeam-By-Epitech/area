@@ -33,7 +33,20 @@
         <button type="submit" :disabled="isLoading || !isFormValid">
           {{ isLoading ? 'Creating account...' : 'Register' }}
         </button>
-      </form>
+        </form>
+      <div v-if="isLoading">
+        <form action="/auth/verify-email">
+        <label for="emailcode">Code reçu par mail</label>
+        <input
+            id="emailcode"
+            type="number"
+            placeholder="000000"
+            class="form-group"
+        />
+          <input type="submit" value="Verify">
+        </form>
+    </div>
+
 
       <div v-if="apiError" class="api-error">{{ apiError }}</div>
       <div v-if="successMessage" class="success-message">{{ successMessage }}</div>
@@ -122,6 +135,7 @@ const handleSubmit = async () => {
   } catch (err) {
     apiError.value = err instanceof Error ? err.message : 'Error'
   } finally { isLoading.value = false }
+  //} finally {}
 }
 
 const goToLogin = () => {
