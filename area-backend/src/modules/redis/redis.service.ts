@@ -51,6 +51,14 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     await this.client.setEx(key, expirationSeconds, code);
   }
 
+  async getValue(key: string): Promise<string | null> {
+    return await this.client.get(key);
+  }
+  
+  async setValue(key: string, value: string, expirationSeconds: number = 3600): Promise<void> {
+    await this.client.setEx(key, expirationSeconds, value);
+  }
+
   /**
    * Retrieve a verification code from Redis
    * @param key - Unique key to identify the code
