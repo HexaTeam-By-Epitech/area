@@ -1,4 +1,4 @@
-# AREA Monorepo
+# AREA
 
 A multi-platform automation project (IFTTT-like) with:
 
