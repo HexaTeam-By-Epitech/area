@@ -59,7 +59,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         this.actionCallbacks.set('spotify_has_likes', {
             name: 'spotify_has_likes',
             callback: async (userId: string) => {
-                return await this.spotifyLikeService.hasSpotifyLikes(userId);
+                return await this.spotifyLikeService.hasNewSpotifyLike(userId);
             },
             description: 'Check if user has liked songs on Spotify'
         });
@@ -334,9 +334,9 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         // Execute every 30 seconds
         this.intervalId = setInterval(async () => {
             await this.executeAllActiveAreas();
-        }, 30000);
+        }, 10000);
 
-        this.logger.log('Started area execution loop (30-second intervals)');
+        this.logger.log('Started area execution loop (10-second intervals)');
     }
 
     /**

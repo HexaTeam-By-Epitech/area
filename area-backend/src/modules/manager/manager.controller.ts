@@ -75,17 +75,5 @@ export class ManagerController {
       userId,
     };
   }
-
-  /**
-   * Manual trigger for testing area execution
-   */
-  @Post('manual-trigger')
-  async triggerExecution() {
-    await this.managerService.triggerAreaExecution();
-    return {
-      message: 'Area execution triggered manually',
-      timestamp: new Date().toISOString(),
-    };
-  }
 }
 
