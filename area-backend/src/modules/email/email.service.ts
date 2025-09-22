@@ -64,7 +64,7 @@ export class EmailService {
    */
   private generateVerificationEmailTemplate(code: string): string {
     return `<!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
