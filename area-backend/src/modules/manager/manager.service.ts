@@ -64,17 +64,6 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
             description: 'Check if user has liked songs on Spotify'
         });
 
-        // Example: Weather action (placeholder)
-        this.actionCallbacks.set('weather_temperature_above', {
-            name: 'weather_temperature_above',
-            callback: async (userId: string, config: { threshold: number; city: string }) => {
-                // Placeholder for weather API integration
-                // return temperature > config.threshold ? 0 : 1;
-                return Math.random() > 0.5 ? 0 : 1; // Mock implementation
-            },
-            description: 'Trigger when temperature is above threshold'
-        });
-
         // Example: Time-based action
         this.actionCallbacks.set('time_schedule', {
             name: 'time_schedule',
@@ -104,17 +93,6 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
             description: 'Send email notification'
         });
 
-        // Discord notification reaction
-        this.reactionCallbacks.set('discord_message', {
-            name: 'discord_message',
-            callback: async (userId: string, actionResult: any, config: { webhook: string; message: string }) => {
-                // Placeholder for Discord webhook integration
-                this.logger.log(`Sending Discord message for user ${userId}: ${config.message}`);
-                return { sent: true, platform: 'discord' };
-            },
-            description: 'Send Discord message'
-        });
-
         // Log event reaction
         this.reactionCallbacks.set('log_event', {
             name: 'log_event',
@@ -139,7 +117,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
     /**
      * Bind an action and reaction together for a user
      */
-    async bindAction(userId: string, actionName: string, reactionName: string, config?: any): Promise<string> {
+    async bindAction(userId: string, actionName: string, reactionName: string): Promise<string> {
         // Validate that action and reaction exist
         if (!this.actionCallbacks.has(actionName)) {
             throw new BadRequestException(`Action '${actionName}' not found`);
@@ -222,7 +200,6 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                 user_id: userId,
                 action_id: action.id,
                 reaction_id: reaction.id,
-                config: config || {},
                 is_active: true
             }
         });
@@ -234,11 +211,10 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
             userId,
             actionName,
             reactionName,
-            config
         };
         
         await this.redisService.setVerificationCode(
-            cacheKey, 
+            cacheKey,
             JSON.stringify(areaExecution), 
             86400 // 24 hours
         );

@@ -1,13 +1,13 @@
 import { Controller, Get, Param, Post, Body, Delete, HttpCode, HttpStatus } from '@nestjs/common';
 import { ManagerService, ActionCallback, ReactionCallback } from './manager.service';
+import { ApiBody } from '@nestjs/swagger/dist/decorators/api-body.decorator';
+import { ApiParam, ApiProperty } from '@nestjs/swagger';
 
-interface BindActionDto {
+class BindActionDto {
+  @ApiProperty({ description: 'Name of the action to bind', example: 'new_email' })
   actionName: string;
+  @ApiProperty({ description: 'Name of the reaction to bind', example: 'send_email' })
   reactionName: string;
-  config?: {
-    action?: any;
-    reaction?: any;
-  };
 }
 
 @Controller('manager')
@@ -34,15 +34,13 @@ export class ManagerController {
    * Bind an action to a reaction for a user
    */
   @Post('areas/:userId')
-  async bindAction(
-    @Param('userId') userId: string,
-    @Body() bindActionDto: BindActionDto,
-  ) {
+  @ApiBody({ type: BindActionDto })
+  @ApiParam({ name: 'userId', description: 'ID of the user' })
+  async bindAction(@Param('userId') userId: string, @Body() bindActionDto: BindActionDto) {
     const areaId = await this.managerService.bindAction(
       userId,
       bindActionDto.actionName,
       bindActionDto.reactionName,
-      bindActionDto.config,
     );
     return {
       message: 'Area created successfully',
@@ -81,7 +79,7 @@ export class ManagerController {
   /**
    * Manual trigger for testing area execution
    */
-  @Post('trigger')
+  @Post('manual-trigger')
   async triggerExecution() {
     await this.managerService.triggerAreaExecution();
     return {

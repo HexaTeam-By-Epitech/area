@@ -6,6 +6,7 @@ import { PrismaModule } from '../../prisma/prisma.module';
 import { RedisModule } from '../redis/redis.module';
 import { SpotifyLikeService } from '../actions/spotify/like.service';
 import { UsersModule } from '../users/users.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { UsersModule } from '../users/users.module';
     PrismaModule,
     RedisModule,
     UsersModule,
+    AuthModule
   ],
   controllers: [ManagerController],
   providers: [ManagerService, SpotifyLikeService],

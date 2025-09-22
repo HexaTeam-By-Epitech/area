@@ -265,7 +265,7 @@ export class AuthService {
         return out.toString('base64');
     }
 
-    private decrypt(b64: string): string {
+    decrypt(b64: string): string {
         const key = Buffer.from(this.encKey);
         const buf = Buffer.from(b64, 'base64');
         const out = Buffer.alloc(buf.length);
