@@ -110,6 +110,12 @@ const handleSubmit = async () => {
       const data = await response.json().catch(() => ({}))
       throw new Error(data.message || 'Registration failed')
     }
+    const data = await response.json();
+    if (data.userId) {
+      localStorage.setItem('userToken', data.userId)
+      localStorage.setItem('userEmail', email.value)
+      window.dispatchEvent(new CustomEvent('loginSuccess'))
+    }
     successMessage.value = 'Account created successfully!'
     email.value = ''
     password.value = ''

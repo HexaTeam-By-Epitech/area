@@ -17,9 +17,25 @@ jobs:
   test_backend:
     name: Unit tests (area-backend)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: area_test
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U postgres" 
+          --health-interval 10s 
+          --health-timeout 5s 
+          --health-retries 5
     defaults:
       run:
         working-directory: area-backend
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/area_test
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,6 +49,9 @@ jobs:
 
       - name: Install dependencies
         run: npm i
+
+      - name: Prepare database schema (Prisma db push)
+        run: npx prisma db push --accept-data-loss
 
       - name: Run unit tests
         run: npm test --silent

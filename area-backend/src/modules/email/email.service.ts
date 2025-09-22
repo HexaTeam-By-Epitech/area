@@ -47,6 +47,53 @@ export class EmailService {
   }
 
   /**
+   * Verify SMTP connection configuration.
+   * @returns true if connection succeeds, false otherwise
+   */
+  async verifyConnection(): Promise<boolean> {
+    try {
+      await this.transporter.verify();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Build the HTML template for the verification email (French content as expected by tests).
+   */
+  private generateVerificationEmailTemplate(code: string): string {
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AREA - Vérification de compte</title>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 24px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .header { background-color: #4CAF50; color: #ffffff; padding: 16px 24px; }
+    .content { padding: 24px; }
+    .code { font-size: 28px; font-weight: bold; letter-spacing: 4px; background: #f0f0f0; padding: 12px 16px; border-radius: 5px; text-align: center; }
+    .footer { color: #666; font-size: 12px; padding: 16px 24px; border-top: 1px solid #eee; }
+  </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>AREA - Vérification de compte</h1>
+      </div>
+      <div class="content">
+        <p>Voici votre code de vérification. Ce code expire dans 10 minutes.</p>
+        <div class="code">${code}</div>
+      </div>
+      <div class="footer">© ${this.currentYear} AREA</div>
+    </div>
+  </body>
+  </html>`;
+  }
+
+  /**
    * Send a verification email with the 6-digit code.
    * @param to - Recipient email address
    * @param code - Verification code to send
@@ -54,20 +101,20 @@ export class EmailService {
    */
   async sendVerificationEmail(to: string, code: string): Promise<void> {
     try {
+      const html = this.generateVerificationEmailTemplate(code);
       // Compose email content
       const mailOptions = {
         from: process.env.SMTP_FROM || process.env.SMTP_USER,
         to,
-        subject: 'Your Verification Code',
-        text: `Your verification code is: ${code}`,
-        html: `<p>Your verification code is: <b>${code}</b></p><p>&copy; ${this.currentYear}</p>`,
-      };
+        subject: 'Vérification de votre compte AREA',
+        html,
+      } as const;
       // Send email using transporter
       await this.transporter.sendMail(mailOptions);
       this.logger.log(`Verification email sent to ${to}`);
     } catch (error) {
       this.logger.error('Error sending verification email:', error);
-      throw error;
+      throw new Error('Failed to send verification email');
     }
   }
 }

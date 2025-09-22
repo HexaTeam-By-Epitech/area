@@ -3,6 +3,8 @@ import { AuthService } from '../../src/modules/auth/auth.service';
 import { UsersService } from '../../src/modules/users/users.service';
 import { RedisService } from '../../src/modules/redis/redis.service';
 import { EmailService } from '../../src/modules/email/email.service';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 
 const mockUsersService = {
@@ -22,6 +24,15 @@ const mockEmailService = {
     sendVerificationEmail: jest.fn(),
 };
 
+const mockConfigService = {
+    get: jest.fn(() => undefined),
+};
+
+const mockJwtService = {
+    signAsync: jest.fn(),
+    sign: jest.fn(),
+};
+
 describe('AuthService', () => {
     let service: AuthService;
     let usersService: typeof mockUsersService;
@@ -33,6 +44,8 @@ describe('AuthService', () => {
                 { provide: UsersService, useValue: mockUsersService },
                 { provide: RedisService, useValue: mockRedisService },
                 { provide: EmailService, useValue: mockEmailService },
+                { provide: ConfigService, useValue: mockConfigService },
+                { provide: JwtService, useValue: mockJwtService },
             ],
         }).compile();
 

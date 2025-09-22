@@ -72,6 +72,9 @@
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
   },
+  "prisma": {
+    "schema": "src/prisma/schema.prisma"
+  },
   "jest": {
     "moduleFileExtensions": [
       "js",
@@ -79,6 +82,9 @@
       "ts"
     ],
     "rootDir": "test",
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.ts"
+    ],
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
