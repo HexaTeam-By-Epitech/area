@@ -7,12 +7,12 @@ assignees: ''
 
 ---
 
-# Titre : [Courte description]
+# Title : [Short description]
 
 ## Description
-Explication claire et concise de la tâche ou bug.
+Clear and precise explanation of the isssue.
 
-## Critères d’acceptation
+## Acceptance criterias
 - [ ] Critère 1
 - [ ] Critère 2
 
@@ -21,9 +21,8 @@ Explication claire et concise de la tâche ou bug.
 - [ ] Feature
 - [ ] Refactor
 - [ ] Docs
-- [ ] Autre (préciser)
-
+- [ ] Other (Please be precise)
 ## Notes / Informations complémentaires
-- Captures d’écran
+- Screenshots
 - Logs
-- Références / documentation
+- References / documentation
