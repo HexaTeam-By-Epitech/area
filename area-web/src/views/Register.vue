@@ -30,7 +30,7 @@
           <span v-if="passwordError" class="error-message">{{ passwordError }}</span>
         </div>
 
-        <button type="submit" :disabled="isLoading || !isFormValid">
+        <button type="submit" style="width: 100%;" :disabled="isLoading || !isFormValid">
           {{ isLoading ? 'Creating account...' : 'Register' }}
         </button>
         </form>
@@ -195,22 +195,6 @@ const goToLogin = () => {
 
 .register-form input.error {
   border-color: #ef4444
-}
-
-.register-form button {
-  width: 100%;
-  padding: clamp(10px, 2vw, 14px);
-  background-color: #3b82f6;
-  border: none;
-  border-radius: 0.5em;
-  color: white;
-  font-size: clamp(0.95rem, 1.8vw, 1.1rem);
-  cursor: pointer;
-}
-
-.register-form button:disabled {
-  background-color: #9ca3af;
-  cursor: not-allowed
 }
 
 .api-error, .success-message {

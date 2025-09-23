@@ -7,7 +7,7 @@ const props = defineProps({
 
 <template>
   <RouterLink custom v-slot="{ navigate, href }" :to="props.link" >
-    <div class="nav-card" @click="navigate" :ref="href" role="link">
+    <div class="nav-card" style="cursor: pointer" @click="navigate" :ref="href" role="link">
       <p>{{ props.msg }}</p>
     </div>
   </RouterLink>
@@ -15,9 +15,10 @@ const props = defineProps({
 
 <style scoped>
 .nav-card {
-  background: #3b82f6;
+  background: var(--button-color);
   padding-left: 2rem;
   padding-right: 2rem;
   border-radius: 5px;
+  border: none;
 }
 </style>

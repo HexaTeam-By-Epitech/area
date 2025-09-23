@@ -10,6 +10,7 @@ import NavCard from "./NavCard.vue";
       <NavCard :link="'/login'" :msg="'Login'" />
       <NavCard :link="'/register'" :msg="'Register'" />
     </nav>
+    <br>
   </div>
 </template>
 
