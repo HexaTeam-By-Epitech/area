@@ -1,16 +1,20 @@
-# Feature Request
+---
+name: Feature request
+about: Suggest an idea for this project
+title: ''
+labels: ''
+assignees: ''
 
-## Summary
-Brief description of the feature you want. Explain what problem it solves or what value it adds.
+---
 
-## Motivation
-Why is this feature needed? Provide context or examples if necessary.
+**Is your feature request related to a problem? Please describe.**
+A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
 
-## Proposed Solution
-Outline your idea for implementing the feature, if you have one.
+**Describe the solution you'd like**
+A clear and concise description of what you want to happen.
 
-## Alternatives Considered
-List other options you considered and why they were rejected.
+**Describe alternatives you've considered**
+A clear and concise description of any alternative solutions or features you've considered.
 
-## Additional Context
-Any extra information, screenshots, or references that help explain the request.
+**Additional context**
+Add any other context or screenshots about the feature request here.
