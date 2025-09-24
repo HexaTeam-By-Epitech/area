@@ -4,8 +4,7 @@
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+
   height: 100%;
   width: 100%;
 
@@ -13,6 +12,17 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  --color-palette-1: #0F1224; /* Deep indigo/black backdrop */
+  --color-palette-2: #111827; /* Charcoal base */
+  --color-palette-3: #1E223A; /* Slate overlay */
+  --color-palette-4: #6B4EFF; /* Electric purple accent */
+  --color-palette-5: #FF4D8D; /* Vibrant pink accent */
+  --color-palette-6: #FF6D5A; /* Coral brand tone */
+  --color-palette-7: #FFA43B; /* Warm orange highlight */
+  --color-palette-8: #22D3EE; /* Cyan glow */
+  --color-palette-9: #10B981; /* Mint/Emerald accent */
+  --color-palette-10: #F3F4F6; /* Light gray for surfaces */
 
   --button-color: #166534;
   --button-color-disabled: #9ca3af;
@@ -79,7 +89,7 @@ button:focus-visible {
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
-    background-color: #ffffff;
+    /* Do not override the dark gradient background in light mode */
   }
   a:hover {
     color: #747bff;

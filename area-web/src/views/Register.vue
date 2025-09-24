@@ -34,22 +34,26 @@
           {{ isLoading ? 'Creating account...' : 'Register' }}
         </button>
         </form>
-      <div v-if="isLoading">
-        <form action="/auth/verify-email">
-        <label for="emailcode">Code reçu par mail</label>
-        <input
-            id="emailcode"
-            type="number"
-            placeholder="000000"
-            class="form-group"
-        />
-          <input type="submit" value="Verify">
-        </form>
-    </div>
-
 
       <div v-if="apiError" class="api-error">{{ apiError }}</div>
       <div v-if="successMessage" class="success-message">{{ successMessage }}</div>
+
+
+      <div v-if="successMessage">
+        <form @submit.prevent="handleVerificationCode">
+          <label for="emailcode">Code reçu par mail</label>
+          <input
+              id="emailcode"
+              type="number"
+              placeholder="000000"
+              class="form-group"
+              v-model="emailCode"
+          />
+          <button type="submit">Submit</button>
+        </form>
+      </div>
+
+
 
       <div id="google-signin-button"></div>
 
@@ -90,6 +94,8 @@ const passwordError = ref('')
 const isLoading = ref(false)
 const apiError = ref('')
 const successMessage = ref('')
+
+const emailCode = ref('')
 
 const validateEmail = () => {
   if (!email.value) { emailError.value = 'Email is required'; return false }
@@ -141,6 +147,24 @@ const handleSubmit = async () => {
 const goToLogin = () => {
   window.dispatchEvent(new CustomEvent('switchToLogin'))
 }
+
+const handleVerificationCode = async () => {
+  try {
+    const res = await fetch('/auth/verify-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({email: email.value, verificationCode: `${emailCode.value}`})
+    })
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.message || 'Verification failed')
+    }
+  } catch (e) {
+    console.log(`Error while verifying email: ${e}`)
+  }
+}
+
 </script>
 
 <style scoped>
