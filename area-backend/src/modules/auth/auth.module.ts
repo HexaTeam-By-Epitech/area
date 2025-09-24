@@ -1,6 +1,10 @@
 import {Module} from '@nestjs/common';
 import {AuthService} from './auth.service';
-import {AuthController} from './auth.controller';
+import {AuthEmailController} from './auth.email.controller';
+import {AuthGoogleIdentityController} from './auth.google.identity.controller';
+import {AuthGoogleLinkingController} from './auth.google.linking.controller';
+import {AuthSpotifyLinkingController} from './auth.spotify.linking.controller';
+import {AuthTokenController} from './auth.token.controller';
 import {UsersModule} from '../users/users.module';
 import {RedisModule} from '../redis/redis.module';
 import {EmailModule} from '../email/email.module';
@@ -22,7 +26,13 @@ import {ConfigModule, ConfigService} from '@nestjs/config';
             }),
         }),
     ],
-    controllers: [AuthController],
+    controllers: [
+        AuthEmailController,
+        AuthGoogleIdentityController,
+        AuthGoogleLinkingController,
+        AuthSpotifyLinkingController,
+        AuthTokenController,
+    ],
     providers: [AuthService],
     exports: [AuthService]
 })
