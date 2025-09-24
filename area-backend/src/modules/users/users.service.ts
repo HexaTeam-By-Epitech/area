@@ -2,6 +2,12 @@ import {Injectable, NotFoundException} from '@nestjs/common';
 import {PrismaService} from '../../prisma/prisma.service';
 import {CreateUserDto} from './dto/create-user.dto';
 import {UpdateUserDto} from './dto/update-user.dto';
+import * as crypto from 'crypto';
+
+export enum ProviderKey {
+    Google = 'google',
+    Spotify = 'spotify',
+}
 
 @Injectable()
 export class UsersService {
@@ -76,75 +82,124 @@ export class UsersService {
         return this.prisma.users.findUnique({where: {id}});
     }
 
-    async findUserOAuthAccount(userId: string, provider: 'google' | 'spotify') {
-        const providerId = provider === 'google' ? 1 : 2;
-        return this.prisma.user_oauth_accounts.findUnique({
-            where: {user_id_provider_id: {user_id: userId, provider_id: providerId}},
+    async findLinkedAccount(userId: string, provider: ProviderKey) {
+        const providerId = await this.getOrCreateProviderIdByName(provider);
+        return this.prisma.linked_accounts.findUnique({
+            where: { user_id_provider_id: { user_id: userId, provider_id: providerId } },
         });
     }
 
-    async updateOAuthTokens(
+    /**
+     * Ensure the oauth provider row exists (by fixed numeric id) to satisfy FK constraints.
+     */
+    private async ensureProviderByName(name: ProviderKey): Promise<{ id: number }> {
+        // Avoid raw SQL: try find by name, else create. Also set active if found.
+        const existing = await this.prisma.oauth_providers.findFirst({ where: { name } });
+        if (existing) {
+            if (!existing.is_active) {
+                await this.prisma.oauth_providers.update({ where: { id: existing.id }, data: { is_active: true } });
+            }
+            return { id: existing.id };
+        }
+        const created = await this.prisma.oauth_providers.create({ data: { name, is_active: true } });
+        return { id: created.id };
+    }
+
+    private async getOrCreateProviderIdByName(name: ProviderKey): Promise<number> {
+        const { id } = await this.ensureProviderByName(name);
+        return id;
+    }
+
+    async updateLinkedTokens(
         userId: string,
-        provider: 'google' | 'spotify',
+        provider: ProviderKey,
         input: { accessToken?: string; accessTokenExpiresAt?: Date; refreshToken?: string },
     ) {
-        const providerId = provider === 'google' ? 1 : 2;
-        return this.prisma.user_oauth_accounts.update({
-            where: {user_id_provider_id: {user_id: userId, provider_id: providerId}},
+        const providerId = await this.getOrCreateProviderIdByName(provider);
+        return this.prisma.linked_accounts.update({
+            where: { user_id_provider_id: { user_id: userId, provider_id: providerId } },
             data: {
                 access_token: input.accessToken ?? undefined,
                 refresh_token: input.refreshToken ?? undefined,
+                access_token_expires_at: input.accessTokenExpiresAt ?? undefined,
                 updated_at: new Date(),
             },
         });
     }
 
-    async upsertOAuthUser(input: {
-        provider: 'google' | 'spotify';
-        providerId: number;
+    // Upsert a login identity (e.g., Google) and return the associated user
+    async upsertIdentityForLogin(input: {
+        provider: ProviderKey;
         providerUserId: string;
         email: string;
         name?: string;
         avatarUrl?: string;
+    }) {
+        const { provider, providerUserId, email, name, avatarUrl } = input;
+
+        // Resolve provider id by name and ensure it exists
+        const providerId = await this.getOrCreateProviderIdByName(provider);
+
+        // find or create user by email
+        let user = await this.prisma.users.findUnique({ where: { email } });
+        if (!user) {
+            user = await this.prisma.users.create({
+                data: {
+                    email,
+                    is_verified: true,
+                    is_active: true,
+                },
+            });
+        }
+
+        // upsert identity
+        await this.prisma.auth_identities.upsert({
+            where: {
+                provider_id_provider_user_id: {
+                    provider_id: providerId,
+                    provider_user_id: providerUserId,
+                },
+            },
+            update: {
+                user_id: user.id,
+                email: email ?? undefined,
+                name: name ?? undefined,
+                avatar_url: avatarUrl ?? undefined,
+                updated_at: new Date(),
+            },
+            create: {
+                id: crypto.randomUUID(),
+                user_id: user.id,
+                provider_id: providerId,
+                provider_user_id: providerUserId,
+                email,
+                name,
+                avatar_url: avatarUrl,
+            },
+        });
+
+        return user;
+    }
+
+    // Link an external account (e.g., Spotify) to an existing user using tokens
+    async linkExternalAccount(input: {
+        userId: string;
+        provider: ProviderKey;
+        providerUserId: string;
         accessToken?: string | null;
         refreshToken?: string | null;
         accessTokenExpiresAt?: Date | null;
-        targetUserId?: string; // if provided, link OAuth account to this existing user
+        scopes?: string | null;
     }) {
-        const {
-            providerId,
-            providerUserId,
-            email,
-            name,
-            avatarUrl,
-            accessToken = null,
-            refreshToken = null,
-            accessTokenExpiresAt = null,
-            targetUserId,
-        } = input;
+        const { userId, provider, providerUserId, accessToken = null, refreshToken = null, accessTokenExpiresAt = null, scopes = null } = input;
 
-        // 1) Determine target user: prefer explicit targetUserId if provided
-        let user;
-        if (targetUserId) {
-            user = await this.prisma.users.findUnique({ where: { id: targetUserId } });
-            if (!user) {
-                throw new NotFoundException('Target user not found');
-            }
-        } else {
-            user = await this.prisma.users.findUnique({ where: { email } });
-            if (!user) {
-                user = await this.prisma.users.create({
-                    data: {
-                        email,
-                        is_verified: true,
-                        is_active: true,
-                    },
-                });
-            }
-        }
+        const user = await this.prisma.users.findUnique({ where: { id: userId } });
+        if (!user) throw new NotFoundException('User not found');
 
-        // 2) Upsert OAuth account for provider
-        await this.prisma.user_oauth_accounts.upsert({
+        // Resolve provider id by name and ensure it exists
+        const providerId = await this.getOrCreateProviderIdByName(provider);
+
+        await this.prisma.linked_accounts.upsert({
             where: {
                 provider_id_provider_user_id: {
                     provider_id: providerId,
@@ -155,6 +210,8 @@ export class UsersService {
                 user_id: user.id,
                 access_token: accessToken ?? undefined,
                 refresh_token: refreshToken ?? undefined,
+                access_token_expires_at: accessTokenExpiresAt ?? undefined,
+                scopes: scopes ?? undefined,
                 is_active: true,
                 updated_at: new Date(),
             },
@@ -165,25 +222,13 @@ export class UsersService {
                 provider_user_id: providerUserId,
                 access_token: accessToken,
                 refresh_token: refreshToken,
+                access_token_expires_at: accessTokenExpiresAt,
+                scopes,
                 is_active: true,
             },
         });
 
-        // Optionally update user profile basics if provided
-        if ((name && name.length) || (avatarUrl && avatarUrl.length)) {
-            try {
-                await this.prisma.users.update({
-                    where: { id: user.id },
-                    data: {
-                        // Only set if your schema has these fields; if not, ignore silently
-                        // name, avatar_url
-                    } as any,
-                });
-            } catch {
-                // ignore optional profile updates if fields not present in schema
-            }
-        }
-
         return user;
     }
 }
+

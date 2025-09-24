@@ -17,14 +17,31 @@ CREATE TABLE IF NOT EXISTS oauth_providers (
     is_active BOOLEAN NOT NULL DEFAULT FALSE
     );
 
--- User OAuth accounts
-CREATE TABLE IF NOT EXISTS user_oauth_accounts (
-                                                   id UUID PRIMARY KEY,
-                                                   user_id UUID NOT NULL REFERENCES users(id),
+-- Login identities (used to sign into the app; no API tokens stored here)
+CREATE TABLE IF NOT EXISTS auth_identities (
+                                               id UUID PRIMARY KEY,
+                                               user_id UUID NOT NULL REFERENCES users(id),
+    provider_id INT NOT NULL REFERENCES oauth_providers(id),
+    provider_user_id VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
+    name VARCHAR(255),
+    avatar_url VARCHAR(1024),
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now(),
+    UNIQUE(provider_id, provider_user_id),
+    UNIQUE(user_id, provider_id)
+    );
+
+-- Linked external accounts (store API tokens/scopes; requires existing user)
+CREATE TABLE IF NOT EXISTS linked_accounts (
+                                              id UUID PRIMARY KEY,
+                                              user_id UUID NOT NULL REFERENCES users(id),
     provider_id INT NOT NULL REFERENCES oauth_providers(id),
     provider_user_id VARCHAR(255) NOT NULL,
     access_token TEXT,
     refresh_token TEXT,
+    access_token_expires_at TIMESTAMP,
+    scopes TEXT,
     is_active BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP DEFAULT now(),
@@ -96,3 +113,4 @@ CREATE INDEX IF NOT EXISTS idx_event_logs_user_id ON event_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_event_logs_area_id ON event_logs(area_id);
 CREATE INDEX IF NOT EXISTS idx_event_logs_event_type ON event_logs(event_type);
 CREATE INDEX IF NOT EXISTS idx_event_logs_created_at ON event_logs(created_at);
+

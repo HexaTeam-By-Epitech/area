@@ -9,12 +9,17 @@ VALUES
 INSERT INTO oauth_providers (id, name, is_active)
 VALUES
     (1, 'google', true),
-    (2, 'github', true);
+    (2, 'spotify', true);
 
-INSERT INTO user_oauth_accounts (id, user_id, provider_id, provider_user_id, access_token, refresh_token, is_active)
+-- Login identity for Alice via Google
+INSERT INTO auth_identities (id, user_id, provider_id, provider_user_id, email, name, avatar_url)
 VALUES
-    ('aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 1, 'google-alice', 'token1', 'refresh1', true),
-    ('aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '22222222-2222-2222-2222-222222222222', 2, 'github-bob', 'token2', 'refresh2', false);
+    ('aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 1, 'google-alice', 'alice@example.com', 'Alice', NULL);
+
+-- Linked Spotify account for Alice (example tokens are placeholders)
+INSERT INTO linked_accounts (id, user_id, provider_id, provider_user_id, access_token, refresh_token, is_active)
+VALUES
+    ('bbbbbbb1-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '11111111-1111-1111-1111-111111111111', 2, 'spotify-alice', 'token1', 'refresh1', true);
 
 INSERT INTO services (id, name, description, is_active)
 VALUES
@@ -36,3 +41,4 @@ VALUES
 INSERT INTO event_logs (id, user_id, area_id, event_type, description, metadata)
 VALUES
     ('88888888-8888-8888-8888-888888888888', '11111111-1111-1111-1111-111111111111', '77777777-7777-7777-7777-777777777777', 'action_triggered', 'New email detected', '{}');
+

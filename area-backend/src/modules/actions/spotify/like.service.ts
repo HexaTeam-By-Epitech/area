@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { UsersService } from 'src/modules/users/users.service';
+import { ProviderKey, UsersService } from 'src/modules/users/users.service';
 import { AuthService } from 'src/modules/auth/auth.service';
 import { RedisService } from 'src/modules/redis/redis.service';
 
@@ -22,14 +22,10 @@ export class SpotifyLikeService {
   async hasNewSpotifyLike(userId: string): Promise<number> {
   const cacheKey = `spotify:last_like:${userId}`;
 
-    // Get user's Spotify OAuth tokens
-    const oauth = await this.usersService.findUserOAuthAccount(userId, 'spotify');
-    if (!oauth) {
+    // Ensure user has a linked Spotify account
+    const linked = await this.usersService.findLinkedAccount(userId, ProviderKey.Spotify);
+    if (!linked) {
       return -1; // No Spotify account linked
-    }
-    const token = this.authService.decrypt(oauth.access_token || '');
-    if (!token) {
-      return -1; // No Spotify token
     }
 
     // Poll Spotify API for the most recent liked track using auto-refresh helper
@@ -63,3 +59,4 @@ export class SpotifyLikeService {
     return 1;
   }
 }
+

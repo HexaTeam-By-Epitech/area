@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import {UsersService} from '../users/users.service';
+import { ProviderKey } from '../users/users.service';
 import {RedisService} from '../redis/redis.service';
 import {EmailService} from '../email/email.service';
 import {JwtService} from '@nestjs/jwt';
@@ -15,6 +16,7 @@ import {ConfigService} from '@nestjs/config';
 import {google} from 'googleapis';
 import * as crypto from 'crypto';
 import axios, { AxiosRequestConfig } from 'axios';
+import { ProviderRegistry } from './providers/ProviderRegistry';
 
 
 @Injectable()
@@ -28,6 +30,14 @@ export class AuthService {
         private readonly config: ConfigService,
         private readonly jwtService: JwtService
     ) {
+    }
+
+    // Provider registry to delegate provider-specific logic (identity and OAuth2 linking)
+    private get providers(): ProviderRegistry {
+        if (!(this as any)._providers) {
+            (this as any)._providers = new ProviderRegistry(this.usersService, this.config, this.jwtService);
+        }
+        return (this as any)._providers as ProviderRegistry;
     }
 
     /**
@@ -231,9 +241,8 @@ export class AuthService {
 
         this.logger.debug(`Upserting OAuth user. provider=google sub=${sub} email=${email}`);
 
-        const user = await this.usersService.upsertOAuthUser({
-            provider: 'google',
-            providerId: 1,
+        const user = await this.usersService.upsertIdentityForLogin({
+            provider: ProviderKey.Google,
             providerUserId: sub,
             email,
             name,
@@ -245,7 +254,7 @@ export class AuthService {
         const accessToken = await this.jwtService.signAsync({
             sub: user.id,
             email: user.email,
-            provider: 'google',
+            provider: ProviderKey.Google,
         });
 
         this.logger.log(`Google sign-in successful for ${email} (userId=${user.id})`);
@@ -292,17 +301,34 @@ export class AuthService {
     }
 
     buildGoogleAuthUrl(): string {
+        return this.providers.googleIdentity.buildAuthUrl();
+    }
+
+    /**
+     * Build a Google OAuth URL for linking an external Google account with specific scopes to an existing user.
+     * Requires userId which is embedded into state JWT.
+     */
+    buildGoogleLinkAuthUrl(userId: string, scopesCsv?: string): string {
+        if (!userId) throw new BadRequestException('userId is required for linking');
         const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
         const redirectUri = this.config.get<string>('GOOGLE_REDIRECT_URI');
         if (!clientId || !redirectUri) {
             this.logger.error('Missing GOOGLE_CLIENT_ID or GOOGLE_REDIRECT_URI');
             throw new InternalServerErrorException('Google OAuth not configured');
         }
-        const scopes = [
-            'openid',
-            'email',
-            'profile',
-        ].join(' ');
+        // Default linking scopes: basic Gmail read and Calendar read-only; can be overridden via query param
+        const scopes = (scopesCsv && scopesCsv.length
+            ? scopesCsv.split(',')
+            : [
+                'openid',
+                'email',
+                'profile',
+                'https://www.googleapis.com/auth/gmail.readonly',
+                'https://www.googleapis.com/auth/calendar.readonly',
+            ]).join(' ');
+
+        const state = this.jwtService.sign({ provider: ProviderKey.Google, mode: 'link', userId }, { expiresIn: '10m' });
+
         const params = new URLSearchParams({
             client_id: clientId,
             redirect_uri: redirectUri,
@@ -311,94 +337,22 @@ export class AuthService {
             access_type: 'offline',
             include_granted_scopes: 'true',
             prompt: 'consent',
+            state,
         });
         const url = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-        this.logger.debug(`Google OAuth URL generated: ${url}`);
+        this.logger.debug(`Google Link OAuth URL generated: ${url}`);
         return url;
     }
 
     async handleGoogleOAuthCallback(code: string): Promise<{ accessToken: string; userId: string; email: string }> {
-        if (!code) {
-            throw new BadRequestException('Missing code');
-        }
+        return this.providers.googleIdentity.handleLoginCallback(code);
+    }
 
-        const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
-        const clientSecret = this.config.get<string>('GOOGLE_CLIENT_SECRET');
-        const redirectUri = this.config.get<string>('GOOGLE_REDIRECT_URI');
-        if (!clientId || !clientSecret || !redirectUri) {
-            this.logger.error('Google OAuth not configured (clientId/secret/redirectUri)');
-            throw new InternalServerErrorException('Google OAuth not configured');
-        }
-
-        const oauth2 = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
-
-        let tokens;
-        try {
-            const result = await oauth2.getToken({code, redirect_uri: redirectUri});
-            tokens = result.tokens;
-        } catch (e: any) {
-            this.logger.error(`Google token exchange failed: ${e?.message ?? e}`, e?.stack);
-            throw new UnauthorizedException('Token exchange failed');
-        }
-
-        const idToken = tokens.id_token;
-        if (!idToken) {
-            this.logger.error('No id_token returned by Google');
-            throw new UnauthorizedException('No id_token returned by Google');
-        }
-
-        let payload: any;
-        try {
-            const ticket = await oauth2.verifyIdToken({
-                idToken,
-                audience: clientId,
-            });
-            payload = ticket.getPayload();
-        } catch (e: any) {
-            this.logger.error(`Invalid id_token from Google: ${e?.message ?? e}`);
-            throw new UnauthorizedException('Invalid id_token from Google');
-        }
-
-        const sub = payload?.sub as string | undefined;
-        const email = payload?.email as string | undefined;
-        const emailVerified = payload?.email_verified === true;
-        const name = (payload?.name as string) ?? '';
-        const picture = (payload?.picture as string) ?? '';
-        if (!sub || !email || !emailVerified) {
-            this.logger.warn(`Invalid Google payload. sub=${sub} email=${email} verified=${emailVerified}`);
-            throw new UnauthorizedException('Google account not verified or payload invalid');
-        }
-
-        const accessTokenGoogle = tokens.access_token ?? null;
-        const refreshTokenGoogle = tokens.refresh_token ?? null;
-
-        let expiresIn: number | undefined;
-        if (typeof tokens.expiry_date === 'number') {
-            expiresIn = Math.max(0, Math.floor((tokens.expiry_date - Date.now()) / 1000));
-        } else if (typeof (tokens as any).expires_in === 'number') {
-            expiresIn = (tokens as any).expires_in as number;
-        }
-
-        const user = await this.usersService.upsertOAuthUser({
-            provider: 'google',
-            providerId: 1,
-            providerUserId: sub,
-            email,
-            name,
-            avatarUrl: picture,
-            accessToken: accessTokenGoogle ? this.encrypt(accessTokenGoogle) : null,
-            refreshToken: refreshTokenGoogle ? this.encrypt(refreshTokenGoogle) : null,
-            accessTokenExpiresAt: expiresIn ? new Date(Date.now() + expiresIn * 1000) : null,
-        });
-
-        const appJwt = await this.jwtService.signAsync({
-            sub: user.id,
-            email: user.email,
-            provider: 'google',
-        });
-
-        this.logger.log(`Google OAuth code flow successful for ${email} (userId=${user.id})`);
-        return {accessToken: appJwt, userId: user.id, email: user.email};
+    /**
+     * Handle Google linking callback: exchanges code, retrieves tokens, and stores them in linked_accounts for the given userId from state.
+     */
+    async handleGoogleLinkCallback(code: string, state?: string): Promise<{ userId: string; provider: string }> {
+        return this.providers.googleLink.handleLinkCallback(code, state);
     }
 
     async refreshGoogleAccessToken(userId: string): Promise<{ googleAccessToken: string; expiresIn: number }> {
@@ -407,7 +361,7 @@ export class AuthService {
         const user = await this.usersService.findById(userId);
         if (!user) throw new NotFoundException('User not found');
 
-        const account = await this.usersService.findUserOAuthAccount(userId, 'google');
+        const account = await this.usersService.findLinkedAccount(userId, ProviderKey.Google);
         if (!account || !account.refresh_token) {
             throw new BadRequestException('No Google refresh token stored');
         }
@@ -430,7 +384,7 @@ export class AuthService {
                 expiresIn = (credentials as any).expires_in as number;
             }
 
-            await this.usersService.updateOAuthTokens(userId, 'google', {
+            await this.usersService.updateLinkedTokens(userId, ProviderKey.Google, {
                 accessToken: this.encrypt(newAccess),
                 accessTokenExpiresAt: new Date(Date.now() + (expiresIn ?? 0) * 1000),
             });
@@ -443,149 +397,15 @@ export class AuthService {
     }
 
     buildSpotifyAuthUrl(userId?: string): string {
-        const clientId = this.config.get<string>('SPOTIFY_CLIENT_ID');
-        const redirectUri = this.config.get<string>('SPOTIFY_REDIRECT_URI');
-        if (!clientId || !redirectUri) {
-            this.logger.error('Missing SPOTIFY_CLIENT_ID or SPOTIFY_REDIRECT_URI');
-            throw new InternalServerErrorException('Spotify OAuth not configured');
-        }
-        const scopes = [
-            'user-read-private',
-            'user-read-email',
-            'playlist-read-private',
-            'playlist-read-collaborative',
-            'playlist-modify-public',
-            'playlist-modify-private',
-            'user-library-read',
-            'user-library-modify',
-            'user-read-playback-state',
-            'user-modify-playback-state',
-            'user-read-currently-playing',
-            'user-read-recently-played',
-            'user-top-read'
-        ].join(' ');
-        // Encode optional state with a short-lived JWT to carry userId safely
-        let state: string | undefined;
-        try {
-            if (userId) {
-                state = this.jwtService.sign({ provider: 'spotify', userId }, { expiresIn: '10m' });
-            }
-        } catch (e: any) {
-            this.logger.warn(`Failed to sign Spotify state: ${e?.message ?? e}`);
-        }
-
-        const params = new URLSearchParams({
-            client_id: clientId,
-            response_type: 'code',
-            redirect_uri: redirectUri,
-            scope: scopes,
-            show_dialog: 'true'
-        });
-        if (state) params.set('state', state);
-        const url = `https://accounts.spotify.com/authorize?${params.toString()}`;
-        this.logger.debug(`Spotify OAuth URL generated: ${url}`);
-        return url;
+        return this.providers.spotifyLink.buildAuthUrl(userId || '');
     }
 
     async handleSpotifyOAuthCallback(code: string, state?: string): Promise<{ accessToken: string; userId: string; email: string }> {
-        if (!code) {
-            throw new BadRequestException('Missing code');
-        }
-
-        const clientId = this.config.get<string>('SPOTIFY_CLIENT_ID');
-        const clientSecret = this.config.get<string>('SPOTIFY_CLIENT_SECRET');
-        const redirectUri = this.config.get<string>('SPOTIFY_REDIRECT_URI');
-        if (!clientId || !clientSecret || !redirectUri) {
-            this.logger.error('Spotify OAuth not configured (clientId/secret/redirectUri)');
-            throw new InternalServerErrorException('Spotify OAuth not configured');
-        }
-
-        // Try to extract desired user from state
-        let desiredUserId: string | undefined;
-        if (state) {
-            try {
-                const payload: any = await this.jwtService.verifyAsync(state);
-                if (payload?.provider === 'spotify' && typeof payload?.userId === 'string') {
-                    desiredUserId = payload.userId;
-                }
-            } catch (e: any) {
-                this.logger.warn(`Invalid Spotify state JWT: ${e?.message ?? e}`);
-            }
-        }
-
-        // Exchange code for tokens
-        const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`
-            },
-            body: new URLSearchParams({
-                grant_type: 'authorization_code',
-                code,
-                redirect_uri: redirectUri
-            })
-        });
-
-        if (!tokenResponse.ok) {
-            this.logger.error(`Spotify token exchange failed: ${tokenResponse.status} ${tokenResponse.statusText}`);
-            throw new UnauthorizedException('Token exchange failed');
-        }
-
-        const tokens = await tokenResponse.json();
-        const accessToken = tokens.access_token;
-        const refreshToken = tokens.refresh_token;
-        const expiresIn = tokens.expires_in;
-
-        if (!accessToken) {
-            this.logger.error('No access_token returned by Spotify');
-            throw new UnauthorizedException('No access_token returned by Spotify');
-        }
-
-        // Get user profile from Spotify
-        const profileResponse = await fetch('https://api.spotify.com/v1/me', {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`
-            }
-        });
-
-        if (!profileResponse.ok) {
-            this.logger.error(`Failed to fetch Spotify profile: ${profileResponse.status} ${profileResponse.statusText}`);
-            throw new UnauthorizedException('Failed to fetch Spotify profile');
-        }
-
-        const profile = await profileResponse.json();
-        const spotifyId = profile.id;
-        const email = profile.email;
-        const name = profile.display_name || '';
-        const avatarUrl = profile.images?.[0]?.url || '';
-
-        if (!spotifyId || !email) {
-            this.logger.warn(`Invalid Spotify profile. id=${spotifyId} email=${email}`);
-            throw new UnauthorizedException('Spotify profile invalid or email not available');
-        }
-
-        const user = await this.usersService.upsertOAuthUser({
-            provider: 'spotify',
-            providerId: 2, // Assuming 2 is the ID for Spotify in your providers table
-            providerUserId: spotifyId,
-            email,
-            name,
-            avatarUrl,
-            accessToken: this.encrypt(accessToken),
-            refreshToken: refreshToken ? this.encrypt(refreshToken) : null,
-            accessTokenExpiresAt: new Date(Date.now() + expiresIn * 1000),
-            targetUserId: desiredUserId,
-        });
-
-        const appJwt = await this.jwtService.signAsync({
-            sub: user.id,
-            email: user.email,
-            provider: 'spotify',
-        });
-
-        this.logger.log(`Spotify OAuth code flow successful for ${email} (userId=${user.id})`);
-        return {accessToken: appJwt, userId: user.id, email: user.email};
+        // Delegate linking to provider, then issue app JWT here for consistency
+        const result = await this.providers.spotifyLink.handleLinkCallback(code, state);
+        const user = await this.usersService.findById(result.userId);
+        const appJwt = await this.jwtService.signAsync({ sub: user!.id, email: user!.email, provider: ProviderKey.Spotify });
+        return { accessToken: appJwt, userId: user!.id, email: user!.email };
     }
 
     async refreshSpotifyAccessToken(userId: string): Promise<{ spotifyAccessToken: string; expiresIn: number }> {
@@ -594,7 +414,7 @@ export class AuthService {
         const user = await this.usersService.findById(userId);
         if (!user) throw new NotFoundException('User not found');
 
-        const account = await this.usersService.findUserOAuthAccount(userId, 'spotify');
+        const account = await this.usersService.findLinkedAccount(userId, ProviderKey.Spotify);
         if (!account || !account.refresh_token) {
             throw new BadRequestException('No Spotify refresh token stored');
         }
@@ -625,7 +445,7 @@ export class AuthService {
             const newAccessToken = tokens.access_token;
             const expiresIn = tokens.expires_in || 3600;
 
-            await this.usersService.updateOAuthTokens(userId, 'spotify', {
+            await this.usersService.updateLinkedTokens(userId, ProviderKey.Spotify, {
                 accessToken: this.encrypt(newAccessToken),
                 accessTokenExpiresAt: new Date(Date.now() + expiresIn * 1000),
             });
@@ -643,7 +463,7 @@ export class AuthService {
      * Returns the current decrypted Spotify access token for a user or throws if missing.
      */
     async getCurrentSpotifyAccessToken(userId: string): Promise<string> {
-        const account = await this.usersService.findUserOAuthAccount(userId, 'spotify');
+        const account = await this.usersService.findLinkedAccount(userId, ProviderKey.Spotify);
         if (!account || !account.access_token) {
             throw new BadRequestException('No Spotify access token stored');
         }
