@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <div class="register-card">
-      <h1 class="register-title">Login to your account</h1>
+      <h1 class="register-title">Create your account</h1>
 
       <form @submit.prevent="handleSubmit" class="register-form">
         <div class="form-group">
@@ -30,18 +30,35 @@
           <span v-if="passwordError" class="error-message">{{ passwordError }}</span>
         </div>
 
-        <button type="submit" :disabled="isLoading || !isFormValid">
-          {{ isLoading ? 'Logging in...' : 'Login' }}
+        <button type="submit" style="width: 100%;" :disabled="isLoading || !isFormValid">
+          {{ isLoading ? 'Creating account...' : 'Register' }}
         </button>
-      </form>
+        </form>
 
       <div v-if="apiError" class="api-error">{{ apiError }}</div>
       <div v-if="successMessage" class="success-message">{{ successMessage }}</div>
 
+
+      <div v-if="successMessage">
+        <form @submit.prevent="handleVerificationCode">
+          <label for="emailcode">Code reçu par mail</label>
+          <input
+              id="emailcode"
+              type="number"
+              placeholder="000000"
+              class="form-group"
+              v-model="emailCode"
+          />
+          <button type="submit">Submit</button>
+        </form>
+      </div>
+
+
+
       <div id="google-signin-button"></div>
 
       <p class="login-link">
-        Don't have an account? <a href="#" @click.prevent="goToRegister">Register</a>
+        Already have an account? <a href="#" @click.prevent="goToLogin">Login</a>
       </p>
     </div>
   </div>
@@ -50,8 +67,24 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { handleGoogleResponse } from '../utils/googleAuth'
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
-onMounted(() => document.title = 'Login - Area')
+onMounted(() => {
+  document.title = 'Register - Area'
+
+  if (window.google && window.google.accounts) {
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleResponse
+    })
+
+    window.google.accounts.id.renderButton(
+        document.getElementById('google-signin-button'),
+        { theme: 'outline', size: 'large', width: '100%' }
+    )
+  }
+})
+
 onUnmounted(() => document.title = 'Area')
 
 const email = ref('')
@@ -61,6 +94,8 @@ const passwordError = ref('')
 const isLoading = ref(false)
 const apiError = ref('')
 const successMessage = ref('')
+
+const emailCode = ref('')
 
 const validateEmail = () => {
   if (!email.value) { emailError.value = 'Email is required'; return false }
@@ -85,14 +120,14 @@ const handleSubmit = async () => {
   if (!validateEmail() || !validatePassword()) return
   isLoading.value = true
   try {
-    const response = await fetch('/auth/login', {
+    const response = await fetch('/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.value, password: password.value })
     })
     if (!response.ok) {
       const data = await response.json().catch(() => ({}))
-      throw new Error(data.message || 'Login failed')
+      throw new Error(data.message || 'Registration failed')
     }
     const data = await response.json();
     if (data.userId) {
@@ -100,35 +135,35 @@ const handleSubmit = async () => {
       localStorage.setItem('userEmail', email.value)
       window.dispatchEvent(new CustomEvent('loginSuccess'))
     }
-    successMessage.value = 'Login successful!'
+    successMessage.value = 'Account created successfully!'
     email.value = ''
     password.value = ''
   } catch (err) {
     apiError.value = err instanceof Error ? err.message : 'Error'
   } finally { isLoading.value = false }
+  //} finally {}
 }
 
-const goToRegister = () => {
-  window.dispatchEvent(new CustomEvent('switchToRegister'))
+const goToLogin = () => {
+  window.dispatchEvent(new CustomEvent('switchToLogin'))
 }
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
-
-onMounted(() => {
-  document.title = 'Login - Area'
-
-  if (window.google && window.google.accounts) {
-    window.google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleGoogleResponse
+const handleVerificationCode = async () => {
+  try {
+    const res = await fetch('/auth/verify-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({email: email.value, verificationCode: `${emailCode.value}`})
     })
 
-    window.google.accounts.id.renderButton(
-        document.getElementById('google-signin-button'),
-        { theme: 'outline', size: 'large', width: '100%' }
-    )
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.message || 'Verification failed')
+    }
+  } catch (e) {
+    console.log(`Error while verifying email: ${e}`)
   }
-})
+}
 
 </script>
 
@@ -186,22 +221,6 @@ onMounted(() => {
   border-color: #ef4444
 }
 
-.register-form button {
-  width: 100%;
-  padding: clamp(10px, 2vw, 14px);
-  background-color: #3b82f6;
-  border: none;
-  border-radius: 0.5em;
-  color: white;
-  font-size: clamp(0.95rem, 1.8vw, 1.1rem);
-  cursor: pointer;
-}
-
-.register-form button:disabled {
-  background-color: #9ca3af;
-  cursor: not-allowed
-}
-
 .api-error, .success-message {
   padding: clamp(8px, 1.5vw, 12px);
   border-radius: 0.5em;
@@ -241,4 +260,5 @@ onMounted(() => {
 .login-link a:hover {
   text-decoration: underline
 }
+
 </style>

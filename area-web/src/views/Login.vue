@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <div class="register-card">
-      <h1 class="register-title">Create your account</h1>
+      <h1 class="register-title">Login to your account</h1>
 
       <form @submit.prevent="handleSubmit" class="register-form">
         <div class="form-group">
@@ -30,8 +30,8 @@
           <span v-if="passwordError" class="error-message">{{ passwordError }}</span>
         </div>
 
-        <button type="submit" :disabled="isLoading || !isFormValid">
-          {{ isLoading ? 'Creating account...' : 'Register' }}
+        <button type="submit" style="width: 100%;" :disabled="isLoading || !isFormValid">
+          {{ isLoading ? 'Logging in...' : 'Login' }}
         </button>
       </form>
 
@@ -41,7 +41,7 @@
       <div id="google-signin-button"></div>
 
       <p class="login-link">
-        Already have an account? <a href="#" @click.prevent="goToLogin">Login</a>
+        Don't have an account? <a href="#" @click.prevent="goToRegister">Register</a>
       </p>
     </div>
   </div>
@@ -50,24 +50,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { handleGoogleResponse } from '../utils/googleAuth'
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
-onMounted(() => {
-  document.title = 'Register - Area'
-
-  if (window.google && window.google.accounts) {
-    window.google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleGoogleResponse
-    })
-
-    window.google.accounts.id.renderButton(
-        document.getElementById('google-signin-button'),
-        { theme: 'outline', size: 'large', width: '100%' }
-    )
-  }
-})
-
+onMounted(() => document.title = 'Login - Area')
 onUnmounted(() => document.title = 'Area')
 
 const email = ref('')
@@ -101,14 +85,14 @@ const handleSubmit = async () => {
   if (!validateEmail() || !validatePassword()) return
   isLoading.value = true
   try {
-    const response = await fetch('/auth/register', {
+    const response = await fetch('/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.value, password: password.value })
     })
     if (!response.ok) {
       const data = await response.json().catch(() => ({}))
-      throw new Error(data.message || 'Registration failed')
+      throw new Error(data.message || 'Login failed')
     }
     const data = await response.json();
     if (data.userId) {
@@ -116,7 +100,7 @@ const handleSubmit = async () => {
       localStorage.setItem('userEmail', email.value)
       window.dispatchEvent(new CustomEvent('loginSuccess'))
     }
-    successMessage.value = 'Account created successfully!'
+    successMessage.value = 'Login successful!'
     email.value = ''
     password.value = ''
   } catch (err) {
@@ -124,9 +108,28 @@ const handleSubmit = async () => {
   } finally { isLoading.value = false }
 }
 
-const goToLogin = () => {
-  window.dispatchEvent(new CustomEvent('switchToLogin'))
+const goToRegister = () => {
+  window.dispatchEvent(new CustomEvent('switchToRegister'))
 }
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
+
+onMounted(() => {
+  document.title = 'Login - Area'
+
+  if (window.google && window.google.accounts) {
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleResponse
+    })
+
+    window.google.accounts.id.renderButton(
+        document.getElementById('google-signin-button'),
+        { theme: 'outline', size: 'large', width: '100%' }
+    )
+  }
+})
+
 </script>
 
 <style scoped>
@@ -183,22 +186,6 @@ const goToLogin = () => {
   border-color: #ef4444
 }
 
-.register-form button {
-  width: 100%;
-  padding: clamp(10px, 2vw, 14px);
-  background-color: #3b82f6;
-  border: none;
-  border-radius: 0.5em;
-  color: white;
-  font-size: clamp(0.95rem, 1.8vw, 1.1rem);
-  cursor: pointer;
-}
-
-.register-form button:disabled {
-  background-color: #9ca3af;
-  cursor: not-allowed
-}
-
 .api-error, .success-message {
   padding: clamp(8px, 1.5vw, 12px);
   border-radius: 0.5em;
@@ -238,5 +225,4 @@ const goToLogin = () => {
 .login-link a:hover {
   text-decoration: underline
 }
-
 </style>
