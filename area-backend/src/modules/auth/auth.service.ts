@@ -18,7 +18,6 @@ import * as crypto from 'crypto';
 import axios, { AxiosRequestConfig } from 'axios';
 import { ProviderRegistry } from './providers/ProviderRegistry';
 
-
 @Injectable()
 export class AuthService {
     private readonly logger = new Logger(AuthService.name);
@@ -463,7 +462,6 @@ export class AuthService {
      * Returns the current decrypted Spotify access token for a user or throws if missing.
      */
     async getCurrentSpotifyAccessToken(userId: string): Promise<string> {
-        const account = await this.usersService.findLinkedAccount(userId, ProviderKey.Spotify);
         if (!account || !account.access_token) {
             throw new BadRequestException('No Spotify access token stored');
         }
