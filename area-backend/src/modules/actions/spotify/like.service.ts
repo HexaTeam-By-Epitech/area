@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { UsersService } from 'src/modules/users/users.service';
 import { AuthService } from 'src/modules/auth/auth.service';
 import { RedisService } from 'src/modules/redis/redis.service';
-import axios from 'axios';
 
 @Injectable()
 export class SpotifyLikeService {
@@ -33,14 +32,14 @@ export class SpotifyLikeService {
       return -1; // No Spotify token
     }
 
-    // Poll Spotify API for the most recent liked track
-    const response = await axios.get('https://api.spotify.com/v1/me/tracks?limit=1', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    // Poll Spotify API for the most recent liked track using auto-refresh helper
+    const { data } = await this.authService.spotifyApiRequest<any>(userId, {
+      url: 'https://api.spotify.com/v1/me/tracks',
+      method: 'GET',
+      params: { limit: 1 },
     });
 
-    const items = response.data.items;
+    const items = data.items;
     if (!items || items.length === 0) {
       // No likes at all
     await this.redisService.setValue(cacheKey, '');
