@@ -175,11 +175,10 @@ const handleVerificationCode = async () => {
   justify-content: center;
   align-items: center;
   padding: 10px;
-  background-color: #f8f9fa;
 }
 
 .register-card {
-  background: white;
+  background: var(--card-bg-primary);
   padding: clamp(20px, 4vw, 40px);
   border-radius: 1em;
   box-shadow: 0 8px 24px rgba(0,0,0,0.1);
@@ -191,7 +190,6 @@ const handleVerificationCode = async () => {
 .register-title {
   font-size: clamp(1.5rem, 2.5vw, 2rem);
   margin-bottom: 1.5em;
-  color: #1a1a1a;
 }
 
 .register-form .form-group {

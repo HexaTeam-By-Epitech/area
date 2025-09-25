@@ -33,11 +33,11 @@ const logout = () => {
 .home-container {
   width: 100vw;
   min-height: 100vh;
-  background: #f8f9fa;
+  background: inherit;
 }
 
 .home-card {
-  background: white;
+  background: var(--card-bg-primary);
   border-radius: 1em;
   box-shadow: 0 8px 24px rgba(0,0,0,0.08);
   text-align: center;
@@ -46,13 +46,11 @@ const logout = () => {
 
 .home-title {
   font-size: clamp(2rem, 3vw, 2.5rem);
-  color: #1a1a1a;
 }
 
 .home-message {
   font-size: clamp(1.1rem, 2vw, 1.3rem);
   margin-bottom: 2em;
-  color: #374151;
 }
 
 .logout-btn {
