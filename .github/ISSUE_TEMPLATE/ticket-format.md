@@ -1,7 +1,7 @@
 ---
 name: Ticket Format
 about: Make a ticket for the project
-title: Ticket
+title: ''
 labels: ''
 assignees: ''
 
@@ -13,8 +13,8 @@ assignees: ''
 Clear and precise explanation of the isssue.
 
 ## Acceptance criterias
-- [ ] Critère 1
-- [ ] Critère 2
+- [ ] Criteria 1
+- [ ] Criteria 2
 
 ## Type
 - [ ] Bug
