@@ -1,65 +1,35 @@
 <template>
   <div id="app">
-    <Home v-if="currentPage === 'home'" />
-    <Register v-else-if="currentPage === 'register'" />
-    <Login v-else />
+    <NavBar />
+    <RouterView />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import Register from './components/Register.vue'
-import Login from './components/Login.vue'
-import Home from './components/Home.vue'
+import NavBar from "./components/NavBar.vue";
 
 const isAuthenticated = () => !!localStorage.getItem('userToken')
-const currentPage = ref(isAuthenticated() ? 'home' : 'register')
 
-const switchToLogin = () => currentPage.value = 'login'
-const switchToRegister = () => currentPage.value = 'register'
-const switchToHome = () => currentPage.value = 'home'
-const handleLogout = () => {
-  currentPage.value = 'login'
-}
-
-onMounted(() => {
-  window.addEventListener('switchToLogin', switchToLogin)
-  window.addEventListener('switchToRegister', switchToRegister)
-  window.addEventListener('loginSuccess', switchToHome)
-  window.addEventListener('logout', handleLogout)
-})
-onUnmounted(() => {
-  window.removeEventListener('switchToLogin', switchToLogin)
-  window.removeEventListener('switchToRegister', switchToRegister)
-  window.removeEventListener('loginSuccess', switchToHome)
-  window.removeEventListener('logout', handleLogout)
-})
 </script>
 
 <style>
-/* Reset global */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
 
-html, body, #app {
-  height: 100%;
-  width: 100%;
-}
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background-color: #f8f9fa;
+  color: rgba(255, 255, 255, 0.87);
+  background:
+      radial-gradient(60rem 40rem at 10% 10%, color-mix(in oklab, var(--color-palette-4) 70%, transparent) 0%, transparent 60%),
+      radial-gradient(50rem 30rem at 85% 15%, color-mix(in oklab, var(--color-palette-5) 65%, transparent) 0%, transparent 55%),
+      radial-gradient(40rem 30rem at 20% 85%, color-mix(in oklab, var(--color-palette-8) 55%, transparent) 0%, transparent 60%),
+      linear-gradient(120deg, var(--color-palette-2), var(--color-palette-1)) fixed;
 }
 
 #app {
-  display: flex;
-  justify-content: center;
-  align-items: center;
   width: 100%;
   height: 100%;
+  top: 0;
+  left: 0;
 }
 
 </style>

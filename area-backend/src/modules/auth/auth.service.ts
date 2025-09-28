@@ -18,7 +18,6 @@ import * as crypto from 'crypto';
 import axios, { AxiosRequestConfig } from 'axios';
 import { ProviderRegistry } from './providers/ProviderRegistry';
 
-
 @Injectable()
 export class AuthService {
     private readonly logger = new Logger(AuthService.name);
@@ -456,55 +455,6 @@ export class AuthService {
         } catch (e: any) {
             this.logger.error(`Failed to refresh Spotify access token: ${e?.message ?? e}`, e?.stack);
             throw new UnauthorizedException('Failed to refresh Spotify token');
-        }
-    }
-
-    /**
-     * Returns the current decrypted Spotify access token for a user or throws if missing.
-     */
-    async getCurrentSpotifyAccessToken(userId: string): Promise<string> {
-        const account = await this.usersService.findLinkedAccount(userId, ProviderKey.Spotify);
-        if (!account || !account.access_token) {
-            throw new BadRequestException('No Spotify access token stored');
-        }
-        const token = this.decrypt(account.access_token);
-        if (!token) {
-            throw new BadRequestException('Invalid Spotify access token');
-        }
-        return token;
-    }
-
-    /**
-     * Perform a Spotify API request with automatic token refresh and single retry on 401.
-     * - Uses user's current access token
-     * - On 401, refreshes using stored refresh_token, updates DB, and retries once
-     */
-    async spotifyApiRequest<T = any>(userId: string, config: AxiosRequestConfig): Promise<{ data: T; status: number }> {
-        if (!userId) throw new BadRequestException('Missing userId');
-
-        const doRequest = async (bearer: string) => {
-            const headers = {
-                ...(config.headers || {}),
-                Authorization: `Bearer ${bearer}`,
-            } as Record<string, string>;
-            return axios.request<T>({ ...config, headers });
-        };
-
-        let accessToken = await this.getCurrentSpotifyAccessToken(userId);
-        try {
-            const res = await doRequest(accessToken);
-            return { data: res.data, status: res.status };
-        } catch (err: any) {
-            const status = err?.response?.status;
-            // Only attempt refresh on 401 Unauthorized
-            if (status !== 401) {
-                throw err;
-            }
-            // Refresh token, update DB, and retry once
-            const refreshed = await this.refreshSpotifyAccessToken(userId);
-            accessToken = refreshed.spotifyAccessToken;
-            const res2 = await doRequest(accessToken);
-            return { data: res2.data, status: res2.status };
         }
     }
 }
