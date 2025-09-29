@@ -64,17 +64,6 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
             description: 'Check if user has liked songs on Spotify'
         });
 
-        // Example: Time-based action
-        this.actionCallbacks.set('time_schedule', {
-            name: 'time_schedule',
-            callback: async (userId: string, config: { time: string }) => {
-                const now = new Date();
-                const currentTime = now.getHours() + ':' + now.getMinutes().toString().padStart(2, '0');
-                return currentTime === config.time ? 0 : 1;
-            },
-            description: 'Trigger at specific time'
-        });
-
         this.logger.log(`Registered ${this.actionCallbacks.size} action callbacks`);
     }
 
@@ -331,12 +320,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
      * Start the area execution loop
      */
     private async startAreaExecution() {
-        // Execute every 30 seconds
-        this.intervalId = setInterval(async () => {
-            await this.executeAllActiveAreas();
-        }, 10000);
-
-        this.logger.log('Started area execution loop (10-second intervals)');
+        await this.executeAllActiveAreas();
     }
 
     /**
