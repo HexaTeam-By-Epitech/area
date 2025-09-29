@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ProviderKey, UsersService } from 'src/modules/users/users.service';
-import { AuthService } from 'src/modules/auth/auth.service';
-import { RedisService } from 'src/modules/redis/redis.service';
+import { ProviderKey, UsersService } from '../../users/users.service';
+import { AuthService } from '../../auth/auth.service';
+import { RedisService } from '../../redis/redis.service';
 import type { PollingAction } from '../polling/ActionPollingService';
 
 /**

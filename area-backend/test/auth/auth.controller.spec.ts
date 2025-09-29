@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuthController } from '../../src/modules/auth/auth.controller';
+import { AuthEmailController } from '../../src/modules/auth/auth.email.controller';
 import { AuthService } from '../../src/modules/auth/auth.service';
 
 const mockAuthService = {
@@ -7,19 +7,19 @@ const mockAuthService = {
     validateUser: jest.fn(),
 };
 
-describe('AuthController', () => {
-    let controller: AuthController;
+describe('AuthEmailController', () => {
+    let controller: AuthEmailController;
     let authService: typeof mockAuthService;
 
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
-            controllers: [AuthController],
+            controllers: [AuthEmailController],
             providers: [
                 { provide: AuthService, useValue: mockAuthService },
             ],
         }).compile();
 
-        controller = module.get<AuthController>(AuthController);
+        controller = module.get<AuthEmailController>(AuthEmailController);
         authService = module.get(AuthService);
         jest.clearAllMocks();
     });
