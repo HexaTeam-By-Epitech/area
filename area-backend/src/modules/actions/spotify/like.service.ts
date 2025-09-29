@@ -5,30 +5,19 @@ import { RedisService } from 'src/modules/redis/redis.service';
 
 @Injectable()
 export class SpotifyLikeService {
+  private pollIntervals: Map<string, NodeJS.Timeout> = new Map();
+
   constructor(
     private readonly usersService: UsersService,
     private readonly authService: AuthService,
     private readonly redisService: RedisService,
   ) {}
 
-  /**
-   * Checks if the user has a new liked track on Spotify since last poll.
-   * Stores the last liked track ID in Redis and compares on each poll.
-   * Returns:
-   *   0 if a new like is detected
-   *   1 if no new like
-   *  -1 if no Spotify account or token
-   */
   async hasNewSpotifyLike(userId: string): Promise<number> {
-  const cacheKey = `spotify:last_like:${userId}`;
-
-    // Ensure user has a linked Spotify account
+    const cacheKey = `spotify:last_like:${userId}`;
     const linked = await this.usersService.findLinkedAccount(userId, ProviderKey.Spotify);
-    if (!linked) {
-      return -1; // No Spotify account linked
-    }
+    if (!linked) return -1;
 
-    // Poll Spotify API for the most recent liked track using auto-refresh helper
     const { data } = await this.authService.spotifyApiRequest<any>(userId, {
       url: 'https://api.spotify.com/v1/me/tracks',
       method: 'GET',
@@ -37,26 +26,38 @@ export class SpotifyLikeService {
 
     const items = data.items;
     if (!items || items.length === 0) {
-      // No likes at all
-    await this.redisService.setValue(cacheKey, '');
+      await this.redisService.setValue(cacheKey, '');
       return 1;
     }
 
     const latestTrackId = items[0].track?.id || items[0].id;
-    if (!latestTrackId) {
-      return 1;
-    }
+    if (!latestTrackId) return 1;
 
-    // Get last stored liked track ID
     const lastStoredId = await this.redisService.getValue(cacheKey);
 
     if (lastStoredId !== latestTrackId) {
-      // New like detected
-    await this.redisService.setValue(cacheKey, latestTrackId);
+      await this.redisService.setValue(cacheKey, latestTrackId);
       return 0;
     }
-    // No new like
     return 1;
   }
-}
 
+  startPolling(userId: string, callback: (result: number) => void): void {
+    if (this.pollIntervals.has(userId)) return; // Already polling
+
+    const interval = setInterval(async () => {
+      const result = await this.hasNewSpotifyLike(userId);
+      callback(result);
+    }, 10000);
+
+    this.pollIntervals.set(userId, interval);
+  }
+
+  stopPolling(userId: string): void {
+    const interval = this.pollIntervals.get(userId);
+    if (interval) {
+      clearInterval(interval);
+      this.pollIntervals.delete(userId);
+    }
+  }
+}
