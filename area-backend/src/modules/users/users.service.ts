@@ -9,6 +9,12 @@ export enum ProviderKey {
     Spotify = 'spotify',
 }
 
+/**
+ * Domain service for user management and identity/linking operations.
+ *
+ * Wraps Prisma queries and encapsulates logic for OAuth provider linking,
+ * identity upserts, and token updates.
+ */
 @Injectable()
 export class UsersService {
     constructor(private prisma: PrismaService) {
@@ -115,6 +121,12 @@ export class UsersService {
         return this.prisma.users.findUnique({where: {id}});
     }
 
+    /**
+     * Find a linked external account for a given user and provider.
+     * @param userId - The user ID.
+     * @param provider - Provider enum key.
+     * @returns The linked account row or null if not found.
+     */
     async findLinkedAccount(userId: string, provider: ProviderKey) {
         const providerId = await this.getOrCreateProviderIdByName(provider);
         return this.prisma.linked_accounts.findUnique({
@@ -138,11 +150,22 @@ export class UsersService {
         return { id: created.id };
     }
 
+    /**
+     * Resolve provider id by name, creating the provider row if needed.
+     * @param name - Provider enum key.
+     * @returns Numeric provider id.
+     */
     private async getOrCreateProviderIdByName(name: ProviderKey): Promise<number> {
         const { id } = await this.ensureProviderByName(name);
         return id;
     }
 
+    /**
+     * Update stored OAuth tokens for a user's linked account.
+     * @param userId - The user ID.
+     * @param provider - Provider enum key.
+     * @param input - Partial token fields to update.
+     */
     async updateLinkedTokens(
         userId: string,
         provider: ProviderKey,
@@ -160,7 +183,10 @@ export class UsersService {
         });
     }
 
-    // Upsert a login identity (e.g., Google) and return the associated user
+    /**
+     * Upsert a login identity (e.g., Google) and return the associated user.
+     * Creates the user if they do not yet exist (by email).
+     */
     async upsertIdentityForLogin(input: {
         provider: ProviderKey;
         providerUserId: string;
@@ -185,7 +211,7 @@ export class UsersService {
             });
         }
 
-        // upsert identity
+        // Upsert identity
         await this.prisma.auth_identities.upsert({
             where: {
                 provider_id_provider_user_id: {
@@ -214,7 +240,10 @@ export class UsersService {
         return user;
     }
 
-    // Link an external account (e.g., Spotify) to an existing user using tokens
+    /**
+     * Link an external account (e.g., Spotify) to an existing user using tokens.
+     * Creates or updates the `linked_accounts` row.
+     */
     async linkExternalAccount(input: {
         userId: string;
         provider: ProviderKey;

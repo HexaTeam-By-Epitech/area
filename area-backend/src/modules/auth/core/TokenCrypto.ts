@@ -7,6 +7,12 @@ export interface TokenCrypto {
   decrypt(b64: string): string;
 }
 
+/**
+ * AES-GCM based token encrypter/decrypter used to protect provider tokens at rest.
+ *
+ * Uses a key derived from `TOKENS_ENC_KEY`. Includes a small legacy fallback for
+ * older XOR-based format to maintain backward compatibility during migrations.
+ */
 @Injectable()
 export class AesGcmTokenCrypto implements TokenCrypto {
   constructor(private readonly config: ConfigService) {}
@@ -18,6 +24,9 @@ export class AesGcmTokenCrypto implements TokenCrypto {
   }
 
   // AES-256-GCM encryption. Output format (base64): [1-byte version=1][12-byte IV][16-byte TAG][ciphertext]
+  /**
+   * Encrypt a UTF-8 string and return a base64-encoded payload with version header.
+   */
   encrypt(plain: string): string {
     const iv = crypto.randomBytes(12);
     const cipher = crypto.createCipheriv('aes-256-gcm', this.encKey, iv);
@@ -27,6 +36,10 @@ export class AesGcmTokenCrypto implements TokenCrypto {
     return Buffer.concat([version, iv, tag, ciphertext]).toString('base64');
   }
 
+  /**
+   * Decrypt a base64-encoded payload produced by `encrypt`. Falls back to legacy
+   * XOR format if version header is not present.
+   */
   decrypt(b64: string): string {
     const data = Buffer.from(b64, 'base64');
     if (data.length >= 1 + 12 + 16 && data[0] === 1) {

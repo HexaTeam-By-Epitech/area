@@ -9,6 +9,11 @@ import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
 import { ActionPollingService } from '../actions/polling/ActionPollingService';
 
+/**
+ * Manager module orchestrating AREA logic (Actions <-> Reactions).
+ * Wires persistence (Prisma), caching (Redis), auth, and action pollers.
+ * Exposes `ManagerController` and exports `ManagerService`.
+ */
 @Module({
   imports: [
     ConfigModule.forRoot({

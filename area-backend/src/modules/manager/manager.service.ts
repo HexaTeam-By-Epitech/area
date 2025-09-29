@@ -25,6 +25,10 @@ interface AreaExecution {
   config?: any;
 }
 
+/**
+ * Orchestrates the AREA engine: registers actions/reactions, binds them for users,
+ * starts/stops polling, and executes reactions when actions trigger.
+ */
 @Injectable()
 export class ManagerService implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(ManagerService.name);
@@ -39,6 +43,9 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         private readonly polling: ActionPollingService,
     ) {}
 
+    /**
+     * Lifecycle hook: initialize callbacks, polling registry, and start execution loop.
+     */
     async onModuleInit() {
         await this.registerActionCallbacks();
         await this.registerReactionCallbacks();
@@ -49,6 +56,9 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         this.logger.log('Manager Service initialized with action-reaction system');
     }
 
+    /**
+     * Lifecycle hook: clean up any intervals and log shutdown.
+     */
     async onModuleDestroy() {
         if (this.intervalId) {
             clearInterval(this.intervalId);
@@ -109,7 +119,14 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
     }
 
     /**
-     * Bind an action and reaction together for a user
+     * Bind an action and reaction together for a user.
+     * Validates inputs, ensures persistence rows exist, caches active area, and
+     * starts polling if the action supports it.
+     *
+     * @param userId - Target user ID
+     * @param actionName - Name of the action to bind
+     * @param reactionName - Name of the reaction to bind
+     * @returns The created area id
      */
     async bindAction(userId: string, actionName: string, reactionName: string): Promise<string> {
         // Validate that action and reaction exist
@@ -247,7 +264,8 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
     }
 
     /**
-     * Get all active areas for a user
+     * Get all active areas for a user.
+     * @param userId - Target user ID
      */
     async getUserAreas(userId: string) {
         return await this.prisma.areas.findMany({
@@ -264,7 +282,8 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
     }
 
     /**
-     * Deactivate an area
+     * Deactivate an area by id, remove it from cache, and stop polling if needed.
+     * @param areaId - Identifier of the area to deactivate
      */
     async deactivateArea(areaId: string): Promise<void> {
         const area = await this.prisma.areas.findFirst({
@@ -461,7 +480,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
     }
 
     /**
-     * Manual trigger for testing
+     * Manually trigger the execution loop for all active areas.
      */
     async triggerAreaExecution(): Promise<void> {
         await this.executeAllActiveAreas();

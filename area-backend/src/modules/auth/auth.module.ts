@@ -13,12 +13,21 @@ import { AesGcmTokenCrypto } from './core/TokenCrypto';
 import { PrismaTokenStore } from './core/TokenStore';
 import { OAuth2Client } from './core/OAuth2Client';
 
+/**
+ * Authentication module aggregating email/password and generic OAuth/OIDC flows.
+ *
+ * Exposes controllers for email auth as well as generic identity, linking,
+ * and token refresh endpoints. Provides core services for token encryption,
+ * persistent token storage, and an OAuth2 client wrapper.
+ */
 @Module({
     imports: [
+        // Domain modules used by authentication flows
         UsersModule,
         RedisModule,
         EmailModule,
         ConfigModule,
+        // JWT used for issuing short-lived session tokens
         JwtModule.registerAsync({
             imports: [ConfigModule],
             inject: [ConfigService],
@@ -34,7 +43,9 @@ import { OAuth2Client } from './core/OAuth2Client';
         GenericAuthLinkingController,
         GenericAuthTokenController,
     ],
+    // Providers available within the module
     providers: [AuthService, AesGcmTokenCrypto, PrismaTokenStore, OAuth2Client],
+    // Export AuthService so other modules can trigger auth flows
     exports: [AuthService]
 })
 export class AuthModule {

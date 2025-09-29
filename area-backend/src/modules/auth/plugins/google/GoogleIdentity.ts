@@ -5,6 +5,9 @@ import { JwtService } from '@nestjs/jwt';
 import { IdentityProvider } from '../../core/OAuth2Types';
 import type { TokenStore } from '../../core/TokenStore';
 
+/**
+ * Google identity plugin implementing ID token sign-in (One Tap or similar).
+ */
 @Injectable()
 export class GoogleIdentity implements IdentityProvider {
   readonly key = 'google' as const;
@@ -16,6 +19,10 @@ export class GoogleIdentity implements IdentityProvider {
     private readonly store: TokenStore,
   ) {}
 
+  /**
+   * Verify a Google ID token and upsert the corresponding identity into the store.
+   * Returns the application user id and email.
+   */
   async signInWithIdToken(idToken: string): Promise<{ userId: string; email: string }> {
     if (!idToken) throw new UnauthorizedException('Missing idToken');
 

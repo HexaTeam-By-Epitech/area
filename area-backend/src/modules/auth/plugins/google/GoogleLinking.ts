@@ -6,6 +6,11 @@ import type { TokenStore } from '../../core/TokenStore';
 import type { TokenCrypto } from '../../core/TokenCrypto';
 import { OAuth2Client } from '../../core/OAuth2Client';
 
+/**
+ * Google linking plugin for connecting a Google account to an existing user.
+ * Builds consent URL, handles callback to persist encrypted tokens, and
+ * supports token refresh and access token retrieval.
+ */
 @Injectable()
 export class GoogleLinking implements LinkingProvider {
   readonly key = 'google' as const;
@@ -18,6 +23,11 @@ export class GoogleLinking implements LinkingProvider {
     private readonly http: OAuth2Client,
   ) {}
 
+  /**
+   * Build the Google consent URL for linking a provider account to a user.
+   * @param params.userId - Target application user id (signed into state)
+   * @param params.scopes - Optional list of scopes, defaults to basic + Gmail/Calendar read.
+   */
   buildLinkUrl(params: { userId: string; scopes?: string[] }): string {
     const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
     const redirectUri = this.config.get<string>('GOOGLE_REDIRECT_URI');
@@ -51,6 +61,12 @@ export class GoogleLinking implements LinkingProvider {
     return `https://accounts.google.com/o/oauth2/v2/auth?${q.toString()}`;
   }
 
+  /**
+   * Handle the OAuth linking callback and store encrypted access/refresh tokens.
+   * @param code - Authorization code returned by Google
+   * @param state - Signed state containing user id
+   * @returns The linked user id
+   */
   async handleLinkCallback(code: string, state?: string): Promise<{ userId: string }> {
     if (!code) throw new BadRequestException('Missing code');
 
@@ -101,6 +117,11 @@ export class GoogleLinking implements LinkingProvider {
     return { userId };
   }
 
+  /**
+   * Refresh the Google access token using the stored refresh token.
+   * @param userId - Application user id
+   * @returns New access token and expiry in seconds
+   */
   async refreshAccessToken(userId: string): Promise<{ accessToken: string; expiresIn: number }> {
     const account = await this.store.getLinkedAccount(userId, 'google');
     if (!account || !account.refresh_token) throw new BadRequestException('No Google refresh token stored');
@@ -128,6 +149,9 @@ export class GoogleLinking implements LinkingProvider {
     return { accessToken: newAccessToken, expiresIn };
   }
 
+  /**
+   * Retrieve and decrypt the current Google access token for the user.
+   */
   async getCurrentAccessToken(userId: string): Promise<string> {
     const account = await this.store.getLinkedAccount(userId, 'google');
     if (!account || !account.access_token) throw new BadRequestException('No Google access token stored');

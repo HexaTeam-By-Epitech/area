@@ -6,6 +6,11 @@ import type { TokenStore } from '../../core/TokenStore';
 import type { TokenCrypto } from '../../core/TokenCrypto';
 import { OAuth2Client } from '../../core/OAuth2Client';
 
+/**
+ * Spotify linking plugin for connecting a Spotify account to an existing user.
+ * Builds consent URL, handles callback to persist encrypted tokens, and
+ * supports token refresh and access token retrieval.
+ */
 @Injectable()
 export class SpotifyLinking implements LinkingProvider {
   readonly key = 'spotify' as const;
@@ -18,6 +23,11 @@ export class SpotifyLinking implements LinkingProvider {
     private readonly http: OAuth2Client,
   ) {}
 
+  /**
+   * Build the Spotify consent URL for linking a provider account to a user.
+   * @param params.userId - Target application user id (signed into state)
+   * @param params.scopes - Optional list of scopes; defaults cover common Spotify permissions.
+   */
   buildLinkUrl(params: { userId: string; scopes?: string[] }): string {
     const clientId = this.config.get<string>('SPOTIFY_CLIENT_ID');
     const redirectUri = this.config.get<string>('SPOTIFY_REDIRECT_URI');
@@ -45,6 +55,12 @@ export class SpotifyLinking implements LinkingProvider {
     return `https://accounts.spotify.com/authorize?${q.toString()}`;
   }
 
+  /**
+   * Handle the OAuth linking callback and store encrypted access/refresh tokens.
+   * @param code - Authorization code returned by Spotify
+   * @param state - Signed state containing user id
+   * @returns The linked user id
+   */
   async handleLinkCallback(code: string, state?: string): Promise<{ userId: string }> {
     if (!code) throw new BadRequestException('Missing code');
     const clientId = this.config.get<string>('SPOTIFY_CLIENT_ID');
@@ -87,6 +103,11 @@ export class SpotifyLinking implements LinkingProvider {
     return { userId };
   }
 
+  /**
+   * Refresh the Spotify access token using the stored refresh token.
+   * @param userId - Application user id
+   * @returns New access token and expiry in seconds
+   */
   async refreshAccessToken(userId: string): Promise<{ accessToken: string; expiresIn: number }> {
     const account = await this.store.getLinkedAccount(userId, 'spotify');
     if (!account || !account.refresh_token) throw new BadRequestException('No Spotify refresh token stored');
@@ -112,6 +133,9 @@ export class SpotifyLinking implements LinkingProvider {
     return { accessToken: newAccessToken, expiresIn };
   }
 
+  /**
+   * Retrieve and decrypt the current Spotify access token for the user.
+   */
   async getCurrentAccessToken(userId: string): Promise<string> {
     const account = await this.store.getLinkedAccount(userId, 'spotify');
     if (!account || !account.access_token) throw new BadRequestException('No Spotify access token stored');

@@ -10,12 +10,16 @@ class BindActionDto {
   reactionName: string;
 }
 
+/**
+ * Controller exposing endpoints to discover actions/reactions and manage AREAs.
+ */
 @Controller('manager')
 export class ManagerController {
   constructor(private readonly managerService: ManagerService) { }
 
   /**
    * Get available actions
+   * @returns List of registered action callbacks
    */
   @Get('actions')
   getAvailableActions(): ActionCallback[] {
@@ -24,6 +28,7 @@ export class ManagerController {
 
   /**
    * Get available reactions
+   * @returns List of registered reaction callbacks
    */
   @Get('reactions')
   getAvailableReactions(): ReactionCallback[] {
@@ -32,6 +37,9 @@ export class ManagerController {
 
   /**
    * Bind an action to a reaction for a user
+   * @param userId - Target user ID
+   * @param bindActionDto - Pair of action/reaction names
+   * @returns Creation message and identifiers
    */
   @Post('areas/:userId')
   @ApiBody({ type: BindActionDto })
@@ -53,6 +61,7 @@ export class ManagerController {
 
   /**
    * Get all areas for a user
+   * @param userId - Target user ID
    */
   @Get('areas/:userId')
   async getUserAreas(@Param('userId') userId: string) {
@@ -61,6 +70,7 @@ export class ManagerController {
 
   /**
    * Deactivate an area
+   * @param areaId - Identifier of the area to deactivate
    */
   @Delete('areas/:areaId')
   @HttpCode(HttpStatus.NO_CONTENT)

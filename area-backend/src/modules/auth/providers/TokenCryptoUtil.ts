@@ -1,5 +1,9 @@
 import * as crypto from 'crypto';
 
+/**
+ * Lightweight AES-GCM token crypto utility used by provider implementations.
+ * Key is derived from a caller-supplied secret (e.g., TOKENS_ENC_KEY).
+ */
 export class TokenCryptoUtil {
   private readonly encKey: Buffer;
 
@@ -8,7 +12,9 @@ export class TokenCryptoUtil {
     this.encKey = crypto.createHash('sha256').update(secret, 'utf8').digest();
   }
 
-  // AES-256-GCM encryption. Output (base64): [1-byte version=1][12-byte IV][16-byte TAG][ciphertext]
+  /**
+   * Encrypt a UTF-8 string and return base64 payload with version header.
+   */
   encrypt(plain: string): string {
     const iv = crypto.randomBytes(12);
     const cipher = crypto.createCipheriv('aes-256-gcm', this.encKey, iv);
@@ -18,6 +24,9 @@ export class TokenCryptoUtil {
     return Buffer.concat([version, iv, tag, ciphertext]).toString('base64');
   }
 
+  /**
+   * Decrypt a base64 payload produced by `encrypt`. Throws for unsupported format.
+   */
   decrypt(b64: string): string {
     const data = Buffer.from(b64, 'base64');
     if (data.length >= 1 + 12 + 16 && data[0] === 1) {

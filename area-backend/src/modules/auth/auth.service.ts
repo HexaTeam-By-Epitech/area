@@ -23,6 +23,13 @@ import { GoogleIdentity } from './plugins/google/GoogleIdentity';
 import { GoogleLinking } from './plugins/google/GoogleLinking';
 import { SpotifyLinking } from './plugins/spotify/SpotifyLinking';
 
+/**
+ * Authentication service handling email/password flows, verification,
+ * and pluggable OAuth/OIDC identity + linking workflows (Google, Spotify, ...).
+ *
+ * Exposes helpers to build/login/link URLs, handle callbacks, refresh tokens,
+ * and perform provider API requests with automatic refresh.
+ */
 @Injectable()
 export class AuthService {
     private readonly logger = new Logger(AuthService.name);
@@ -38,7 +45,10 @@ export class AuthService {
         private readonly http: OAuth2Client,
     ) {}
 
-    // Provider registry composed at runtime
+    /**
+     * Provider registry composed at runtime (lazy). Registers built-in plugins
+     * for Google and Spotify using the configured TokenStore/Crypto/HTTP.
+     */
     private get providers() {
         if (!(this as any)._providers) {
             const reg = new ProviderRegistryImpl();
@@ -198,7 +208,12 @@ export class AuthService {
         this.logger.log(`Verification email resent for: ${email}`);
     }
 
-    // Generic identity login via ID token (e.g., Google One Tap)
+    /**
+     * Generic identity login via ID token (e.g., Google One Tap).
+     * @param provider - Provider key (e.g., 'google')
+     * @param idToken - Provider-issued ID token
+     * @returns Application JWT and user info
+     */
     async signInWithIdToken(provider: ProviderKey, idToken: string): Promise<{ accessToken: string; userId: string; email: string }> {
         const p = this.providers.getIdentity(provider);
         if (!p || !p.signInWithIdToken) throw new BadRequestException(`Provider ${provider} does not support id-token sign-in`);
@@ -207,8 +222,6 @@ export class AuthService {
         return { accessToken: appJwt, userId, email };
     }
 
-    // Crypto moved to AesGcmTokenCrypto service, used within plugins.
-
     // Generic URL builders
     buildAuthUrl(provider: ProviderKey, opts: { userId: string; scopes?: string[] }): string {
         const p = this.providers.getLinking(provider);
@@ -216,12 +229,14 @@ export class AuthService {
         return p.buildLinkUrl({ userId: opts.userId, scopes: opts.scopes });
     }
 
+    /** Build an OAuth login URL for the provider (code flow). */
     buildLoginUrl(provider: ProviderKey): string {
         const p = this.providers.getIdentity(provider);
         if (!p || !p.buildLoginUrl) throw new BadRequestException(`Login URL not supported for provider ${provider}`);
         return p.buildLoginUrl();
     }
 
+    /** Handle provider login callback (code flow) and issue an application JWT. */
     async handleLoginCallback(provider: ProviderKey, code: string, state?: string): Promise<{ accessToken: string; userId: string; email: string }> {
         const p = this.providers.getIdentity(provider);
         if (!p || !p.handleLoginCallback) throw new BadRequestException(`Login callback not supported for provider ${provider}`);
@@ -230,6 +245,7 @@ export class AuthService {
         return { accessToken: appJwt, userId, email };
     }
 
+    /** Handle OAuth linking callback and issue an application JWT for the linked user. */
     async handleOAuthCallback(provider: ProviderKey, code: string, state?: string): Promise<{ accessToken: string; userId: string; email: string }> {
         const link = this.providers.getLinking(provider);
         if (!link) throw new BadRequestException(`Linking not supported for provider ${provider}`);
@@ -239,6 +255,7 @@ export class AuthService {
         return { accessToken: appJwt, userId: user!.id, email: user!.email };
     }
 
+    /** Refresh a provider access token for a given user via the provider plugin. */
     async refreshAccessToken(provider: ProviderKey, userId: string): Promise<{ accessToken: string; expiresIn: number }> {
         if (!userId) throw new BadRequestException('Missing userId');
         const user = await this.usersService.findById(userId);
@@ -248,7 +265,7 @@ export class AuthService {
         return link.refreshAccessToken(userId);
     }
 
-    // Convenience wrappers for token access
+    /** Get the current access token (decrypt if stored) via the provider plugin. */
     async getCurrentAccessToken(provider: ProviderKey, userId: string): Promise<string> {
         const link = this.providers.getLinking(provider);
         if (!link) throw new BadRequestException(`Provider ${provider} not supported`);
