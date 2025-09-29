@@ -12,7 +12,7 @@ export default function LoginScreen({ navigation }) {
         try {
             const response = await axios.post(`http://localhost:3000/auth/${type}`, { email, password });
             const token = response.data.token;
-            navigation.navigate('Home', { token, email });
+            navigation.navigate('Protected', { token, email });
         } catch (err) {
             Alert.alert('Error', err.response?.data?.message || 'Auth failed');
         }

@@ -1,19 +1,13 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import colors from './colors';
 
-export default function HomeScreen({ route, navigation }) {
-    const { token, email } = route.params;
-
+export default function HomeScreen({ route }) {
+    const { email } = route.params || {};
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Welcome, {email}!</Text>
-            <TouchableOpacity
-                style={styles.button}
-                onPress={() => navigation.navigate('MyAccount', { token, email })}
-            >
-                <Text style={styles.buttonText}>My Account</Text>
-            </TouchableOpacity>
+            <Text style={styles.title}>Welcome{email ? `, ${email}` : ''}!</Text>
+            <Text style={styles.subtitle}>Use the menu to access your workflows, services, or account.</Text>
         </View>
     );
 }
@@ -30,18 +24,12 @@ const styles = StyleSheet.create({
         fontSize: 26,
         fontWeight: '700',
         color: colors.textPrimary,
-        marginBottom: 40,
+        marginBottom: 20,
+        textAlign: 'center',
     },
-    button: {
-        backgroundColor: colors.buttonColor,
-        paddingVertical: 15,
-        paddingHorizontal: 40,
-        borderRadius: 8,
-        alignItems: 'center',
-    },
-    buttonText: {
-        color: colors.textPrimary,
-        fontWeight: '600',
-        fontSize: 18,
+    subtitle: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        textAlign: 'center',
     },
 });
