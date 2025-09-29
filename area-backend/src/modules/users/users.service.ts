@@ -19,7 +19,23 @@ export class UsersService {
      * @returns Array of user objects
      */
     async findAll() {
-        return this.prisma.users.findMany();
+        return this.prisma.users.findMany({
+            include: {
+                auth_identities: true,
+                linked_accounts: {
+                    select: {
+                        id: true,
+                        provider_user_id: true,
+                        scopes: true,
+                        access_token_expires_at: true,
+                        is_active: true,
+                        created_at: true,
+                        updated_at: true,
+                        oauth_providers: { select: { id: true, name: true, is_active: true } },
+                    },
+                },
+            },
+        });
     }
 
     /**
@@ -29,7 +45,24 @@ export class UsersService {
      * @returns The user object if found
      */
     async findOne(id: string) {
-        const user = await this.prisma.users.findUnique({where: {id}});
+        const user = await this.prisma.users.findUnique({
+            where: { id },
+            include: {
+                auth_identities: true,
+                linked_accounts: {
+                    select: {
+                        id: true,
+                        provider_user_id: true,
+                        scopes: true,
+                        access_token_expires_at: true,
+                        is_active: true,
+                        created_at: true,
+                        updated_at: true,
+                        oauth_providers: { select: { id: true, name: true, is_active: true } },
+                    },
+                },
+            },
+        });
         if (!user) throw new NotFoundException('User not found');
         return user;
     }

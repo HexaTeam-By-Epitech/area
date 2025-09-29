@@ -1,15 +1,17 @@
 import {Module} from '@nestjs/common';
 import {AuthService} from './auth.service';
 import {AuthEmailController} from './auth.email.controller';
-import {AuthGoogleIdentityController} from './auth.google.identity.controller';
-import {AuthGoogleLinkingController} from './auth.google.linking.controller';
-import {AuthSpotifyLinkingController} from './auth.spotify.linking.controller';
-import {AuthTokenController} from './auth.token.controller';
+import { GenericAuthLinkingController } from './controllers/auth.linking.controller';
+import { GenericAuthIdentityController } from './controllers/auth.identity.controller';
+import { GenericAuthTokenController } from './controllers/auth.token.controller';
 import {UsersModule} from '../users/users.module';
 import {RedisModule} from '../redis/redis.module';
 import {EmailModule} from '../email/email.module';
 import {JwtModule} from '@nestjs/jwt';
 import {ConfigModule, ConfigService} from '@nestjs/config';
+import { AesGcmTokenCrypto } from './core/TokenCrypto';
+import { PrismaTokenStore } from './core/TokenStore';
+import { OAuth2Client } from './core/OAuth2Client';
 
 @Module({
     imports: [
@@ -28,12 +30,11 @@ import {ConfigModule, ConfigService} from '@nestjs/config';
     ],
     controllers: [
         AuthEmailController,
-        AuthGoogleIdentityController,
-        AuthGoogleLinkingController,
-        AuthSpotifyLinkingController,
-        AuthTokenController,
+        GenericAuthIdentityController,
+        GenericAuthLinkingController,
+        GenericAuthTokenController,
     ],
-    providers: [AuthService],
+    providers: [AuthService, AesGcmTokenCrypto, PrismaTokenStore, OAuth2Client],
     exports: [AuthService]
 })
 export class AuthModule {

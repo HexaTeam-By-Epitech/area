@@ -4,19 +4,24 @@ import {
     ConflictException,
     BadRequestException,
     NotFoundException,
-    Logger, InternalServerErrorException
+    Logger,
+    InternalServerErrorException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import {UsersService} from '../users/users.service';
-import { ProviderKey } from '../users/users.service';
 import {RedisService} from '../redis/redis.service';
 import {EmailService} from '../email/email.service';
 import {JwtService} from '@nestjs/jwt';
 import {ConfigService} from '@nestjs/config';
-import {google} from 'googleapis';
-import * as crypto from 'crypto';
 import axios, { AxiosRequestConfig } from 'axios';
-import { ProviderRegistry } from './providers/ProviderRegistry';
+import { ProviderRegistryImpl } from './core/ProviderRegistryImpl';
+import type { ProviderKey } from './core/OAuth2Types';
+import { PrismaTokenStore } from './core/TokenStore';
+import { AesGcmTokenCrypto } from './core/TokenCrypto';
+import { OAuth2Client } from './core/OAuth2Client';
+import { GoogleIdentity } from './plugins/google/GoogleIdentity';
+import { GoogleLinking } from './plugins/google/GoogleLinking';
+import { SpotifyLinking } from './plugins/spotify/SpotifyLinking';
 
 @Injectable()
 export class AuthService {
@@ -27,16 +32,23 @@ export class AuthService {
         private redisService: RedisService,
         private emailService: EmailService,
         private readonly config: ConfigService,
-        private readonly jwtService: JwtService
-    ) {
-    }
+        private readonly jwtService: JwtService,
+        private readonly cryptoSvc: AesGcmTokenCrypto,
+        private readonly tokenStore: PrismaTokenStore,
+        private readonly http: OAuth2Client,
+    ) {}
 
-    // Provider registry to delegate provider-specific logic (identity and OAuth2 linking)
-    private get providers(): ProviderRegistry {
+    // Provider registry composed at runtime
+    private get providers() {
         if (!(this as any)._providers) {
-            (this as any)._providers = new ProviderRegistry(this.usersService, this.config, this.jwtService);
+            const reg = new ProviderRegistryImpl();
+            // Register built-in plugins
+            reg.addIdentity(new GoogleIdentity(this.config, this.jwtService, this.tokenStore));
+            reg.addLinking(new GoogleLinking(this.config, this.jwtService, this.tokenStore, this.cryptoSvc, this.http));
+            reg.addLinking(new SpotifyLinking(this.config, this.jwtService, this.tokenStore, this.cryptoSvc, this.http));
+            (this as any)._providers = reg;
         }
-        return (this as any)._providers as ProviderRegistry;
+        return (this as any)._providers as ProviderRegistryImpl;
     }
 
     /**
@@ -186,275 +198,91 @@ export class AuthService {
         this.logger.log(`Verification email resent for: ${email}`);
     }
 
-    /**
-     * Verify a Google ID token coming from the frontend and sign-in/up the user.
-     * Returns an application access token and basic profile info.
-     */
-    async signInWithGoogleIdToken(idToken: string): Promise<{ accessToken: string; userId: string; email: string }> {
-        if (!idToken) {
-            this.logger.warn('Google sign-in failed: missing idToken');
-            throw new UnauthorizedException('Missing idToken');
-        }
-
-        const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
-        if (!clientId) {
-            this.logger.error('Google sign-in failed: GOOGLE_CLIENT_ID not configured');
-            throw new UnauthorizedException('Google client not configured');
-        }
-
-        this.logger.debug(`Google sign-in attempt. GOOGLE_CLIENT_ID=${clientId.substring(0, 6)}... len=${clientId.length}`);
-
-        const oauth2 = new google.auth.OAuth2();
-        let payload: any;
-        try {
-            const ticket = await oauth2.verifyIdToken({
-                idToken,
-                audience: clientId,
-            });
-            payload = ticket.getPayload();
-            this.logger.debug(`Google token verified. aud=${payload?.aud}, sub=${payload?.sub}, email=${payload?.email}, email_verified=${payload?.email_verified}`);
-        } catch (e: any) {
-            this.logger.error(`Google token verification error: ${e?.message ?? e}`, e?.stack);
-            throw new UnauthorizedException('Invalid Google token');
-        }
-
-        if (!payload) {
-            this.logger.error('Google token payload is empty after verification');
-            throw new UnauthorizedException('Invalid Google token payload');
-        }
-
-        const sub = payload.sub as string;
-        const email = payload.email as string | undefined;
-        const emailVerified = payload.email_verified === true;
-        const name = (payload.name as string) ?? '';
-        const picture = (payload.picture as string) ?? '';
-
-        if (!sub) {
-            this.logger.warn('Google token missing subject (sub)');
-            throw new UnauthorizedException('Google subject missing');
-        }
-        if (!email || !emailVerified) {
-            this.logger.warn(`Google email not verified or missing. email=${email} verified=${emailVerified}`);
-            throw new UnauthorizedException('Email not verified by Google');
-        }
-
-        this.logger.debug(`Upserting OAuth user. provider=google sub=${sub} email=${email}`);
-
-        const user = await this.usersService.upsertIdentityForLogin({
-            provider: ProviderKey.Google,
-            providerUserId: sub,
-            email,
-            name,
-            avatarUrl: picture,
-        });
-
-        this.logger.debug(`OAuth user upserted. userId=${user.id}`);
-
-        const accessToken = await this.jwtService.signAsync({
-            sub: user.id,
-            email: user.email,
-            provider: ProviderKey.Google,
-        });
-
-        this.logger.log(`Google sign-in successful for ${email} (userId=${user.id})`);
-
-        return {accessToken, userId: user.id, email: user.email};
+    // Generic identity login via ID token (e.g., Google One Tap)
+    async signInWithIdToken(provider: ProviderKey, idToken: string): Promise<{ accessToken: string; userId: string; email: string }> {
+        const p = this.providers.getIdentity(provider);
+        if (!p || !p.signInWithIdToken) throw new BadRequestException(`Provider ${provider} does not support id-token sign-in`);
+        const { userId, email } = await p.signInWithIdToken(idToken);
+        const appJwt = await this.jwtService.signAsync({ sub: userId, email, provider });
+        return { accessToken: appJwt, userId, email };
     }
 
-    private get encKey(): Buffer {
-        const secret = this.config.get<string>('TOKENS_ENC_KEY');
-        if (!secret) throw new InternalServerErrorException('TOKENS_ENC_KEY missing');
-        // Derive a fixed 32-byte key using SHA-256 over the provided secret
-        return crypto.createHash('sha256').update(secret, 'utf8').digest();
+    // Crypto moved to AesGcmTokenCrypto service, used within plugins.
+
+    // Generic URL builders
+    buildAuthUrl(provider: ProviderKey, opts: { userId: string; scopes?: string[] }): string {
+        const p = this.providers.getLinking(provider);
+        if (!p) throw new BadRequestException(`Linking not supported for provider ${provider}`);
+        return p.buildLinkUrl({ userId: opts.userId, scopes: opts.scopes });
     }
 
-    // AES-256-GCM encryption. Output format (base64): [1-byte version=1][12-byte IV][16-byte TAG][ciphertext]
-    private encrypt(plain: string): string {
-        const iv = crypto.randomBytes(12);
-        const cipher = crypto.createCipheriv('aes-256-gcm', this.encKey, iv);
-        const ciphertext = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
-        const tag = cipher.getAuthTag();
-        const version = Buffer.from([1]);
-        return Buffer.concat([version, iv, tag, ciphertext]).toString('base64');
+    buildLoginUrl(provider: ProviderKey): string {
+        const p = this.providers.getIdentity(provider);
+        if (!p || !p.buildLoginUrl) throw new BadRequestException(`Login URL not supported for provider ${provider}`);
+        return p.buildLoginUrl();
     }
 
-    // Decrypts data produced by encrypt() above. If payload is not versioned as 1, falls back to legacy XOR scheme.
-    decrypt(b64: string): string {
-        const data = Buffer.from(b64, 'base64');
-        if (data.length >= 1 + 12 + 16 && data[0] === 1) {
-            const iv = data.subarray(1, 1 + 12);
-            const tag = data.subarray(1 + 12, 1 + 12 + 16);
-            const ciphertext = data.subarray(1 + 12 + 16);
-            const decipher = crypto.createDecipheriv('aes-256-gcm', this.encKey, iv);
-            decipher.setAuthTag(tag);
-            return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
-        }
-        // Legacy fallback: XOR with raw TOKENS_ENC_KEY, base64-encoded
-        const legacySecret = this.config.get<string>('TOKENS_ENC_KEY');
-        if (!legacySecret) throw new InternalServerErrorException('TOKENS_ENC_KEY missing');
-        const key = Buffer.from(legacySecret);
-        const buf = data;
-        const out = Buffer.alloc(buf.length);
-        for (let i = 0; i < buf.length; i++) out[i] = buf[i] ^ key[i % key.length];
-        return out.toString('utf8');
+    async handleLoginCallback(provider: ProviderKey, code: string, state?: string): Promise<{ accessToken: string; userId: string; email: string }> {
+        const p = this.providers.getIdentity(provider);
+        if (!p || !p.handleLoginCallback) throw new BadRequestException(`Login callback not supported for provider ${provider}`);
+        const { userId, email } = await p.handleLoginCallback(code, state);
+        const appJwt = await this.jwtService.signAsync({ sub: userId, email, provider });
+        return { accessToken: appJwt, userId, email };
     }
 
-    buildGoogleAuthUrl(): string {
-        return this.providers.googleIdentity.buildAuthUrl();
-    }
-
-    /**
-     * Build a Google OAuth URL for linking an external Google account with specific scopes to an existing user.
-     * Requires userId which is embedded into state JWT.
-     */
-    buildGoogleLinkAuthUrl(userId: string, scopesCsv?: string): string {
-        if (!userId) throw new BadRequestException('userId is required for linking');
-        const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
-        const redirectUri = this.config.get<string>('GOOGLE_REDIRECT_URI');
-        if (!clientId || !redirectUri) {
-            this.logger.error('Missing GOOGLE_CLIENT_ID or GOOGLE_REDIRECT_URI');
-            throw new InternalServerErrorException('Google OAuth not configured');
-        }
-        // Default linking scopes: basic Gmail read and Calendar read-only; can be overridden via query param
-        const scopes = (scopesCsv && scopesCsv.length
-            ? scopesCsv.split(',')
-            : [
-                'openid',
-                'email',
-                'profile',
-                'https://www.googleapis.com/auth/gmail.readonly',
-                'https://www.googleapis.com/auth/calendar.readonly',
-            ]).join(' ');
-
-        const state = this.jwtService.sign({ provider: ProviderKey.Google, mode: 'link', userId }, { expiresIn: '10m' });
-
-        const params = new URLSearchParams({
-            client_id: clientId,
-            redirect_uri: redirectUri,
-            response_type: 'code',
-            scope: scopes,
-            access_type: 'offline',
-            include_granted_scopes: 'true',
-            prompt: 'consent',
-            state,
-        });
-        const url = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-        this.logger.debug(`Google Link OAuth URL generated: ${url}`);
-        return url;
-    }
-
-    async handleGoogleOAuthCallback(code: string): Promise<{ accessToken: string; userId: string; email: string }> {
-        return this.providers.googleIdentity.handleLoginCallback(code);
-    }
-
-    /**
-     * Handle Google linking callback: exchanges code, retrieves tokens, and stores them in linked_accounts for the given userId from state.
-     */
-    async handleGoogleLinkCallback(code: string, state?: string): Promise<{ userId: string; provider: string }> {
-        return this.providers.googleLink.handleLinkCallback(code, state);
-    }
-
-    async refreshGoogleAccessToken(userId: string): Promise<{ googleAccessToken: string; expiresIn: number }> {
-        if (!userId) throw new BadRequestException('Missing userId');
-
+    async handleOAuthCallback(provider: ProviderKey, code: string, state?: string): Promise<{ accessToken: string; userId: string; email: string }> {
+        const link = this.providers.getLinking(provider);
+        if (!link) throw new BadRequestException(`Linking not supported for provider ${provider}`);
+        const { userId } = await link.handleLinkCallback(code, state);
         const user = await this.usersService.findById(userId);
-        if (!user) throw new NotFoundException('User not found');
-
-        const account = await this.usersService.findLinkedAccount(userId, ProviderKey.Google);
-        if (!account || !account.refresh_token) {
-            throw new BadRequestException('No Google refresh token stored');
-        }
-
-        const refreshToken = this.decrypt(account.refresh_token);
-
-        const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
-        const clientSecret = this.config.get<string>('GOOGLE_CLIENT_SECRET');
-        const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
-
-        oauth2.setCredentials({refresh_token: refreshToken});
-
-        try {
-            const {credentials} = await oauth2.refreshAccessToken();
-            const newAccess = credentials.access_token!;
-            let expiresIn = 0;
-            if (typeof credentials.expiry_date === 'number') {
-                expiresIn = Math.max(0, Math.floor((credentials.expiry_date - Date.now()) / 1000));
-            } else if (typeof (credentials as any).expires_in === 'number') {
-                expiresIn = (credentials as any).expires_in as number;
-            }
-
-            await this.usersService.updateLinkedTokens(userId, ProviderKey.Google, {
-                accessToken: this.encrypt(newAccess),
-                accessTokenExpiresAt: new Date(Date.now() + (expiresIn ?? 0) * 1000),
-            });
-
-            return {googleAccessToken: newAccess, expiresIn};
-        } catch (e: any) {
-            this.logger.error(`Failed to refresh Google access token: ${e?.message ?? e}`, e?.stack);
-            throw new UnauthorizedException('Failed to refresh Google token');
-        }
-    }
-
-    buildSpotifyAuthUrl(userId?: string): string {
-        return this.providers.spotifyLink.buildAuthUrl(userId || '');
-    }
-
-    async handleSpotifyOAuthCallback(code: string, state?: string): Promise<{ accessToken: string; userId: string; email: string }> {
-        // Delegate linking to provider, then issue app JWT here for consistency
-        const result = await this.providers.spotifyLink.handleLinkCallback(code, state);
-        const user = await this.usersService.findById(result.userId);
-        const appJwt = await this.jwtService.signAsync({ sub: user!.id, email: user!.email, provider: ProviderKey.Spotify });
+        const appJwt = await this.jwtService.signAsync({ sub: user!.id, email: user!.email, provider });
         return { accessToken: appJwt, userId: user!.id, email: user!.email };
     }
 
-    async refreshSpotifyAccessToken(userId: string): Promise<{ spotifyAccessToken: string; expiresIn: number }> {
+    async refreshAccessToken(provider: ProviderKey, userId: string): Promise<{ accessToken: string; expiresIn: number }> {
         if (!userId) throw new BadRequestException('Missing userId');
-
         const user = await this.usersService.findById(userId);
         if (!user) throw new NotFoundException('User not found');
+        const link = this.providers.getLinking(provider);
+        if (!link) throw new BadRequestException(`Refresh not supported for provider ${provider}`);
+        return link.refreshAccessToken(userId);
+    }
 
-        const account = await this.usersService.findLinkedAccount(userId, ProviderKey.Spotify);
-        if (!account || !account.refresh_token) {
-            throw new BadRequestException('No Spotify refresh token stored');
-        }
+    // Convenience wrappers for token access
+    async getCurrentAccessToken(provider: ProviderKey, userId: string): Promise<string> {
+        const link = this.providers.getLinking(provider);
+        if (!link) throw new BadRequestException(`Provider ${provider} not supported`);
+        return link.getCurrentAccessToken(userId);
+    }
 
-        const refreshToken = this.decrypt(account.refresh_token);
+    /**
+     * Perform an API request with automatic token refresh and single retry on 401.
+     * - Uses user's current access token
+     * - On 401, refreshes using stored refresh_token, updates DB, and retries once
+     */
+    async oAuth2ApiRequest<T = any>(provider: ProviderKey, userId: string, config: AxiosRequestConfig): Promise<{ data: T; status: number }> {
+        if (!userId) throw new BadRequestException('Missing userId');
 
-        const clientId = this.config.get<string>('SPOTIFY_CLIENT_ID');
-        const clientSecret = this.config.get<string>('SPOTIFY_CLIENT_SECRET');
+        const doRequest = async (bearer: string) => {
+            const headers = {
+                ...(config.headers || {}),
+                Authorization: `Bearer ${bearer}`,
+            } as Record<string, string>;
+            return axios.request<T>({ ...config, headers });
+        };
 
+        let accessToken = await this.getCurrentAccessToken(provider, userId);
         try {
-            const response = await fetch('https://accounts.spotify.com/api/token', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`
-                },
-                body: new URLSearchParams({
-                    grant_type: 'refresh_token',
-                    refresh_token: refreshToken
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const tokens = await response.json();
-            const newAccessToken = tokens.access_token;
-            const expiresIn = tokens.expires_in || 3600;
-
-            await this.usersService.updateLinkedTokens(userId, ProviderKey.Spotify, {
-                accessToken: this.encrypt(newAccessToken),
-                accessTokenExpiresAt: new Date(Date.now() + expiresIn * 1000),
-            });
-
-            this.logger.log(`Refreshed Spotify access token for user ${userId}`);
-
-            return {spotifyAccessToken: newAccessToken, expiresIn};
-        } catch (e: any) {
-            this.logger.error(`Failed to refresh Spotify access token: ${e?.message ?? e}`, e?.stack);
-            throw new UnauthorizedException('Failed to refresh Spotify token');
+            const res = await doRequest(accessToken);
+            return { data: res.data, status: res.status };
+        } catch (err: any) {
+            const status = err?.response?.status;
+            if (status !== 401) throw err;
+            const refreshed = await this.refreshAccessToken(provider, userId);
+            accessToken = refreshed.accessToken;
+            const res2 = await doRequest(accessToken);
+            return { data: res2.data, status: res2.status };
         }
     }
+
 }

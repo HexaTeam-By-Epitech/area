@@ -18,7 +18,7 @@ export class SpotifyLikeService {
     const linked = await this.usersService.findLinkedAccount(userId, ProviderKey.Spotify);
     if (!linked) return -1;
 
-    const { data } = await this.authService.spotifyApiRequest<any>(userId, {
+    const { data } = await this.authService.oAuth2ApiRequest<any>(ProviderKey.Spotify, userId, {
       url: 'https://api.spotify.com/v1/me/tracks',
       method: 'GET',
       params: { limit: 1 },
