@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Res, Param, Query, Body, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Res, Param, Query, Body, HttpCode, Delete } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags, ApiBody } from '@nestjs/swagger';
 import express from 'express';
 import { AuthService } from '../auth.service';
@@ -14,9 +14,8 @@ export class GenericAuthLinkingController {
   getAuthUrl(
     @Param('provider') provider: string,
     @Query('userId') userId: string,
-    @Query('scopes') scopes?: string,
   ) {
-    const url = this.auth.buildAuthUrl(provider, { userId, scopes: scopes ? scopes.split(',') : undefined });
+    const url = this.auth.buildAuthUrl(provider, { userId });
     return { url };
   }
 
@@ -27,9 +26,8 @@ export class GenericAuthLinkingController {
     @Res() res: express.Response,
     @Param('provider') provider: string,
     @Query('userId') userId: string,
-    @Query('scopes') scopes?: string,
   ) {
-    const url = this.auth.buildAuthUrl(provider, { userId, scopes: scopes ? scopes.split(',') : undefined });
+    const url = this.auth.buildAuthUrl(provider, { userId });
     return res.redirect(url);
   }
 
@@ -42,5 +40,17 @@ export class GenericAuthLinkingController {
     @Query('state') state?: string,
   ) {
     return this.auth.handleOAuthCallback(provider, code, state);
+  }
+
+  @Delete(':provider/link')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Unlink a provider from a user account' })
+  @ApiBody({ schema: { properties: { userId: { type: 'string' } }, required: ['userId'] } })
+  @ApiResponse({ status: 200, description: 'Provider unlinked' })
+  async unlink(
+    @Param('provider') provider: string,
+    @Body('userId') userId: string,
+  ) {
+    return this.auth.unlinkProvider(provider as any, userId);
   }
 }

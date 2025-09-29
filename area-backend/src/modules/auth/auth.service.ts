@@ -285,4 +285,13 @@ export class AuthService {
         }
     }
 
+    // Unlink a provider from a user (remove linked account)
+    async unlinkProvider(provider: ProviderKey, userId: string): Promise<{ provider: string; userId: string }> {
+        if (!userId) throw new BadRequestException('Missing userId');
+        const user = await this.usersService.findById(userId);
+        if (!user) throw new NotFoundException('User not found');
+        await this.usersService.unlinkLinkedAccount(userId, provider as any);
+        this.logger.log(`Unlinked provider ${String(provider)} for user ${userId}`);
+        return { provider: String(provider), userId };
+    }
 }

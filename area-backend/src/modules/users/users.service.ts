@@ -263,5 +263,15 @@ export class UsersService {
 
         return user;
     }
+
+    /**
+     * Unlink an external account (remove linked_accounts row) for a user and provider
+     */
+    async unlinkLinkedAccount(userId: string, provider: ProviderKey): Promise<void> {
+        const providerId = await this.getOrCreateProviderIdByName(provider);
+        await this.prisma.linked_accounts.deleteMany({
+            where: { user_id: userId, provider_id: providerId },
+        });
+    }
 }
 

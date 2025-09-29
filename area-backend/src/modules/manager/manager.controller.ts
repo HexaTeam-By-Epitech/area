@@ -12,7 +12,7 @@ class BindActionDto {
 
 @Controller('manager')
 export class ManagerController {
-  constructor(private readonly managerService: ManagerService) {}
+  constructor(private readonly managerService: ManagerService) { }
 
   /**
    * Get available actions
@@ -62,17 +62,15 @@ export class ManagerController {
   /**
    * Deactivate an area
    */
-  @Delete('areas/:areaId/users/:userId')
+  @Delete('areas/:areaId')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deactivateArea(
-    @Param('areaId') areaId: string,
-    @Param('userId') userId: string,
+    @Param('areaId') areaId: string
   ) {
-    await this.managerService.deactivateArea(areaId, userId);
+    await this.managerService.deactivateArea(areaId);
     return {
       message: 'Area deactivated successfully',
       areaId,
-      userId,
     };
   }
 }
