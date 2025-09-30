@@ -1,9 +1,8 @@
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { GoogleLinking } from '../../src/modules/auth/plugins/google/GoogleLinking';
-import type { TokenStore } from '../../src/modules/auth/core/TokenStore';
-import type { TokenCrypto } from '../../src/modules/auth/core/TokenCrypto';
-import { OAuth2Client } from '../../src/modules/auth/core/OAuth2Client';
+import { GoogleLinking } from '../../src/modules/auth/plugins/google/google-linking';
+import type { TokenStore, TokenCrypto } from 'src/common/interfaces/crypto.type';
+import { OAuth2Client } from '../../src/modules/auth/core/oauth2-client';
 
 // Mock global fetch
 const mockFetch = jest.fn();

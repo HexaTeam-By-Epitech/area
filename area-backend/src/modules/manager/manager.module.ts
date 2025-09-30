@@ -7,7 +7,8 @@ import { RedisModule } from '../redis/redis.module';
 import { SpotifyLikeService } from '../actions/spotify/like.service';
 import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
-import { ActionPollingService } from './polling/ActionPollingService';
+import { ActionPollingService } from './polling/action-polling.service';
+import { GmailSendService } from '../reactions/gmail/send.service';
 
 /**
  * Manager module orchestrating AREA logic (Actions <-> Reactions).
@@ -22,10 +23,10 @@ import { ActionPollingService } from './polling/ActionPollingService';
     PrismaModule,
     RedisModule,
     UsersModule,
-    AuthModule
+    AuthModule,
   ],
   controllers: [ManagerController],
-  providers: [ManagerService, SpotifyLikeService, ActionPollingService],
+  providers: [ManagerService, SpotifyLikeService, ActionPollingService, GmailSendService],
   exports: [ManagerService],
 })
 export class ManagerModule {}

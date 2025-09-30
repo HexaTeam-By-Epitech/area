@@ -1,11 +1,7 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { TokenCrypto } from 'src/common/interfaces/crypto.type';
 import * as crypto from 'crypto';
-
-export interface TokenCrypto {
-  encrypt(plain: string): string;
-  decrypt(b64: string): string;
-}
 
 /**
  * AES-GCM based token encrypter/decrypter used to protect provider tokens at rest.

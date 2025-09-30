@@ -14,14 +14,14 @@ import {EmailService} from '../email/email.service';
 import {JwtService} from '@nestjs/jwt';
 import {ConfigService} from '@nestjs/config';
 import axios, { AxiosRequestConfig } from 'axios';
-import { ProviderRegistryImpl } from './core/ProviderRegistryImpl';
-import type { ProviderKey } from './core/OAuth2Types';
-import { PrismaTokenStore } from './core/TokenStore';
-import { AesGcmTokenCrypto } from './core/TokenCrypto';
-import { OAuth2Client } from './core/OAuth2Client';
-import { GoogleIdentity } from './plugins/google/GoogleIdentity';
-import { GoogleLinking } from './plugins/google/GoogleLinking';
-import { SpotifyLinking } from './plugins/spotify/SpotifyLinking';
+import { ProviderRegistryImpl } from './core/provider-registry-impl';
+import type { ProviderKey } from '../../common/interfaces/oauth2.type';
+import { PrismaTokenStore } from './core/token-store';
+import { AesGcmTokenCrypto } from './core/token-crypto';
+import { OAuth2Client } from './core/oauth2-client';
+import { GoogleIdentity } from './plugins/google/google-identity';
+import { GoogleLinking } from './plugins/google/google-linking';
+import { SpotifyLinking } from './plugins/spotify/spotify-linking';
 
 /**
  * Authentication service handling email/password flows, verification,

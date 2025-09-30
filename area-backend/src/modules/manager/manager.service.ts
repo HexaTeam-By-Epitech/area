@@ -1,30 +1,10 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy, BadRequestException, NotFoundException } from '@nestjs/common';
 import { SpotifyLikeService } from '../actions/spotify/like.service';
-import { ActionPollingService } from './polling/ActionPollingService';
+import { ActionPollingService } from './polling/action-polling.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { GmailSendService } from '../reactions/gmail/send.service';
-
-export interface ActionCallback {
-  name: string;
-  callback: (userId: string, config?: any) => Promise<any>;
-  description?: string;
-}
-
-export interface ReactionCallback {
-  name: string;
-  callback: (userId: string, actionResult: any, config?: any) => Promise<any>;
-  description?: string;
-}
-
-interface AreaExecution {
-  areaId: string;
-  userId: string;
-  actionName: string;
-  reactionName: string;
-  lastExecuted?: Date;
-  config?: any;
-}
+import type { ActionCallback, ReactionCallback, AreaExecution } from '../../common/interfaces/area.type';
 
 /**
  * Orchestrates the AREA engine: registers actions/reactions, binds them for users,
@@ -91,8 +71,8 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         // Email notification reaction
         this.reactionCallbacks.set('send_email', {
             name: 'send_email',
-            callback: async (userId: string, actionResult: any, config: { subject: string; message: string, to: string }) => {
-                return await this.gmailSendService.sendEmail(userId, config.to, config.subject, config.message);
+            callback: async (userId: string, actionResult: any, config: { subject: string; body: string; to: string }) => {
+                return await this.gmailSendService.run(userId, config);
             },
             description: 'Send email notification'
         });

@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ProviderKey, UsersService } from '../../users/users.service';
+import { UsersService } from '../../users/users.service';
+import { ProviderKeyEnum } from '../../../common/interfaces/oauth2.type';
 import { AuthService } from '../../auth/auth.service';
 import { RedisService } from '../../redis/redis.service';
-import type { PollingAction } from '../../actions/types/ActionPollingType';
+import type { PollingAction } from '../../../common/interfaces/area.type';
 
 /**
  * Spotify polling action that detects if the user has liked a new track.
@@ -77,12 +78,12 @@ export class SpotifyLikeService implements PollingAction {
   async hasNewSpotifyLike(userId: string): Promise<number> {
     const cacheKey = `spotify:last_like_at:${userId}`;
     // Ensure the user has a linked Spotify account
-    const linked = await this.usersService.findLinkedAccount(userId, ProviderKey.Spotify);
+    const linked = await this.usersService.findLinkedAccount(userId, ProviderKeyEnum.Spotify);
     if (!linked) return -1;
   
     // Call Spotify API to fetch the most recently liked track (limit 1)
     this.logger.debug(`[Spotify] Fetch last liked track for user=${userId}`);
-    const { data } = await this.authService.oAuth2ApiRequest<any>(ProviderKey.Spotify, userId, {
+    const { data } = await this.authService.oAuth2ApiRequest<any>(ProviderKeyEnum.Spotify, userId, {
       url: 'https://api.spotify.com/v1/me/tracks',
       method: 'GET',
       params: { limit: 1 },

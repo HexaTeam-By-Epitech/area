@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ProviderKey, UsersService } from '../../users/users.service';
+import { UsersService } from '../../users/users.service';
+import { ProviderKeyEnum } from '../../../common/interfaces/oauth2.type';
 import { AuthService } from '../../auth/auth.service';
+import type { Reactions, Field } from '../../../common/interfaces/area.type';
 
 /**
  * Gmail reaction that sends an email.
@@ -8,7 +10,7 @@ import { AuthService } from '../../auth/auth.service';
  * This service uses the Gmail API to send an email on behalf of the user.
  */
 @Injectable()
-export class GmailSendService {
+export class GmailSendService implements Reactions {
     /** Logger instance scoped to this service. */
     private readonly logger = new Logger(GmailSendService.name);
 
@@ -28,16 +30,16 @@ export class GmailSendService {
      * @param body - Body content of the email.
      * @returns A promise that resolves when the email is sent.
      */
-    async sendEmail(userId: string, to: string, subject: string, body: string): Promise<void> {
+    async run(userId: string, params: { to: string; subject: string; body: string }): Promise<void> {
         // Retrieve the user's linked Gmail account
-        const gmailAccount = this.usersService.findLinkedAccount(userId, ProviderKey.Google);
+        const gmailAccount = this.usersService.findLinkedAccount(userId, ProviderKeyEnum.Google);
         if (!gmailAccount) {
             this.logger.warn(`User ${userId} does not have a linked Gmail account.`);
             throw new Error('Gmail account not linked');
         }
 
         // Get access token using AuthService's current method
-        const accessToken = await this.authService.getCurrentAccessToken(ProviderKey.Google, userId);
+        const accessToken = await this.authService.getCurrentAccessToken(ProviderKeyEnum.Google, userId);
         if (!accessToken) {
             this.logger.warn(`Failed to obtain access token for user ${userId}.`);
             throw new Error('Failed to obtain access token');
@@ -45,12 +47,12 @@ export class GmailSendService {
 
         // Construct the email in RFC 2822 format
         const emailLines = [
-            `To: ${to}`,
-            `Subject: ${subject}`,
+            `To: ${params.to}`,
+            `Subject: ${params.subject}`,
             'Content-Type: text/plain; charset="UTF-8"',
             'MIME-Version: 1.0',
             '',
-            body,
+            params.body,
         ];
         const email = emailLines.join('\r\n');
         const encodedEmail = Buffer.from(email)
@@ -61,7 +63,7 @@ export class GmailSendService {
 
         // Send email using Gmail API
         const url = 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send';
-        await this.authService.oAuth2ApiRequest(ProviderKey.Google, userId, {
+        await this.authService.oAuth2ApiRequest(ProviderKeyEnum.Google, userId, {
             method: 'POST',
             url,
             headers: {
@@ -72,10 +74,15 @@ export class GmailSendService {
                 raw: encodedEmail,
             },
         });
-        this.logger.log(`Email sent to ${to} for user ${userId}.`);
+        this.logger.log(`Email sent to ${params.to} for user ${userId}.`);
     }
 
-    getFieldsTemplate(): [string, string, string] {
-        return ['to', 'subject', 'body'];
+    getFields(): Field[] {
+        let fields: Field[] = [
+            { name: 'to', type: 'string', required: true },
+            { name: 'subject', type: 'string', required: true },
+            { name: 'body', type: 'string', required: true },
+        ];
+        return fields;
     }
 }

@@ -1,10 +1,9 @@
 import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { LinkingProvider } from '../../core/OAuth2Types';
-import type { TokenStore } from '../../core/TokenStore';
-import type { TokenCrypto } from '../../core/TokenCrypto';
-import { OAuth2Client } from '../../core/OAuth2Client';
+import { LinkingProvider } from '../../../../common/interfaces/oauth2.type';
+import type { TokenStore, TokenCrypto } from 'src/common/interfaces/crypto.type';
+import { OAuth2Client } from '../../core/oauth2-client';
 
 /**
  * Spotify linking plugin for connecting a Spotify account to an existing user.

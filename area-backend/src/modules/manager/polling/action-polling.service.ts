@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { PollingAction } from '../../actions/types/ActionPollingType';
-
+import type { PollingAction } from 'src/common/interfaces/area.type';
 /**
  * Registry and coordinator for `PollingAction` implementations.
  *

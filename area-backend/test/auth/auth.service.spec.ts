@@ -6,9 +6,9 @@ import { EmailService } from '../../src/modules/email/email.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import { AesGcmTokenCrypto } from '../../src/modules/auth/core/TokenCrypto';
-import { PrismaTokenStore } from '../../src/modules/auth/core/TokenStore';
-import { OAuth2Client } from '../../src/modules/auth/core/OAuth2Client';
+import { AesGcmTokenCrypto } from '../../src/modules/auth/core/token-crypto';
+import { PrismaTokenStore } from '../../src/modules/auth/core/token-store';
+import { OAuth2Client } from '../../src/modules/auth/core/oauth2-client';
 import axios from 'axios';
 
 // Mock axios to avoid real HTTP calls
