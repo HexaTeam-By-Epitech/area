@@ -1,3 +1,72 @@
+<<<<<<<< HEAD:area-web/src/views/auth/Register.vue
+========
+<template>
+  <div class="page-container">
+    <div class="register-card">
+      <h1 class="register-title">Create your account</h1>
+
+      <form @submit.prevent="handleSubmit" class="register-form">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input
+              id="email"
+              type="email"
+              v-model="email"
+              placeholder="Enter your email"
+              :class="{ error: emailError }"
+              @blur="validateEmail"
+          />
+          <span v-if="emailError" class="error-message">{{ emailError }}</span>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input
+              id="password"
+              type="password"
+              v-model="password"
+              placeholder="Enter your password"
+              :class="{ error: passwordError }"
+              @blur="validatePassword"
+          />
+          <span v-if="passwordError" class="error-message">{{ passwordError }}</span>
+        </div>
+
+        <button type="submit" style="width: 100%;" :disabled="isLoading || !isFormValid">
+          {{ isLoading ? 'Creating account...' : 'Register' }}
+        </button>
+        </form>
+
+      <div v-if="apiError" class="api-error">{{ apiError }}</div>
+      <div v-if="successMessage" class="success-message">{{ successMessage }}</div>
+
+
+      <div v-if="successMessage">
+        <form @submit.prevent="handleVerificationCode">
+          <label for="emailcode">Code reçu par mail</label>
+          <input
+              id="emailcode"
+              type="number"
+              placeholder="000000"
+              class="form-group"
+              v-model="emailCode"
+          />
+          <button type="submit">Submit</button>
+        </form>
+      </div>
+
+
+
+      <div id="google-signin-button"></div>
+
+      <p class="login-link">
+        Already have an account? <a href="#" @click.prevent="goToLogin">Login</a>
+      </p>
+    </div>
+  </div>
+</template>
+
+>>>>>>>> dev:area-web/src/views/Register.vue
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { handleGoogleResponse } from '@/utils/googleAuth'
@@ -95,6 +164,26 @@ const handleVerificationCode = async () => {
   }
 }
 
+<<<<<<<< HEAD:area-web/src/views/auth/Register.vue
+========
+const handleVerificationCode = async () => {
+  try {
+    const res = await fetch('/auth/verify-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({email: email.value, verificationCode: `${emailCode.value}`})
+    })
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.message || 'Verification failed')
+    }
+  } catch (e) {
+    console.log(`Error while verifying email: ${e}`)
+  }
+}
+
+>>>>>>>> dev:area-web/src/views/Register.vue
 </script>
 
 <template>
@@ -163,5 +252,101 @@ const handleVerificationCode = async () => {
 </template>
 
 <style scoped>
+<<<<<<<< HEAD:area-web/src/views/auth/Register.vue
 @import "authCommon.css";
+========
+.page-container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+  background-color: #f8f9fa;
+}
+
+.register-card {
+  background: white;
+  padding: clamp(20px, 4vw, 40px);
+  border-radius: 1em;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  width: clamp(280px, 90%, 500px);
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.register-title {
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  margin-bottom: 1.5em;
+  color: #1a1a1a;
+}
+
+.register-form .form-group {
+  margin-bottom: 1em;
+  text-align: left;
+}
+
+.register-form label {
+  display: block;
+  margin-bottom: 0.3em;
+  font-weight: 500;
+  font-size: clamp(0.9rem, 1.5vw, 1rem);
+}
+
+.register-form input {
+  width: 100%;
+  padding: clamp(10px, 2vw, 14px);
+  border: 2px solid #e5e7eb;
+  border-radius: 0.5em;
+  font-size: clamp(0.95rem, 1.8vw, 1.1rem);
+  box-sizing: border-box;
+  color: #1a1a1a;
+  background-color: #ffffff;
+}
+
+.register-form input.error {
+  border-color: #ef4444
+}
+
+.api-error, .success-message {
+  padding: clamp(8px, 1.5vw, 12px);
+  border-radius: 0.5em;
+  margin-bottom: 1em;
+  font-size: clamp(0.9rem, 1.5vw, 1rem);
+}
+
+.api-error {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca
+}
+
+.error-message {
+  color: #ef4444;
+  margin-top: 4px;
+}
+
+.success-message {
+  background-color: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0
+}
+
+.login-link {
+  font-size: clamp(0.9rem, 1.5vw, 1rem);
+  margin-top: 0.75em;
+  color: #6b7280;
+}
+
+.login-link a {
+  color: #3b82f6;
+  font-weight: 500;
+  text-decoration: none
+}
+
+.login-link a:hover {
+  text-decoration: underline
+}
+
+>>>>>>>> dev:area-web/src/views/Register.vue
 </style>
