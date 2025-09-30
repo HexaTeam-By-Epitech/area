@@ -47,9 +47,7 @@ const handleSubmit = async () => {
     }
     const data = await response.json();
     if (data.userId) {
-      localStorage.setItem('userToken', data.userId)
-      localStorage.setItem('userEmail', email.value)
-      window.dispatchEvent(new CustomEvent('loginSuccess'))
+      authStore.login(email.value, data.userId);
     }
     successMessage.value = 'Login successful!'
     email.value = ''
@@ -61,18 +59,34 @@ const handleSubmit = async () => {
 
 const GOOGLE_CLIENT_ID: string = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-onMounted(() => {
-  if (window.google && window.google.accounts) {
-    window.google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleGoogleResponse
-    })
+let googleRendered = false;
 
-    window.google.accounts.id.renderButton(
-        document.getElementById('google-signin-button'),
-        { theme: 'outline', size: 'large', width: '100%' }
-    )
+function tryInitGoogle() {
+  const g: any = (window as any).google;
+  if (!g || !g.accounts || googleRendered) return false;
+
+  g.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleGoogleResponse,
+  });
+
+  const el = document.getElementById('google-signin-button');
+  if (el) {
+    g.accounts.id.renderButton(el, { theme: 'outline', size: 'large', width: '100%' });
+    googleRendered = true;
+    return true;
   }
+  return false;
+}
+
+onMounted(() => {
+  if (tryInitGoogle()) return;
+  const interval = setInterval(() => {
+    if (tryInitGoogle()) {
+      clearInterval(interval);
+    }
+  }, 100);
+  setTimeout(() => clearInterval(interval), 5000);
 })
 
 </script>

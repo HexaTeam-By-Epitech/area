@@ -10,11 +10,13 @@
   },
   "dependencies": {
     "axios": "^1.12.2",
+    "interactjs": "^1.10.27",
     "pinia": "^3.0.3",
     "vue": "^3.5.21",
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
+    "@interactjs/types": "^1.10.27",
     "@vitejs/plugin-vue": "^6.0.1",
     "vite": "^7.1.6",
     "vite-plugin-vue-devtools": "^8.0.2"

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 
-const validStatuses: Array<string> = "nologged login register".split(' ');
+const validStatuses: Array<string> = "nologged login register waitingcode logged".split(' ');
 
 const useAuthStore = defineStore("auth", {
     state: (): {token: string, email: string, page: string} => {
@@ -15,10 +15,12 @@ const useAuthStore = defineStore("auth", {
         login(email: string, token: string): void {
             this.email = email;
             this.token = token;
+            this.setPage("logged");
         },
         logout(): void {
             this.email = '';
             this.token = '';
+            this.setPage("nologged");
         },
         isAuth(): boolean {
             return !!this.token;

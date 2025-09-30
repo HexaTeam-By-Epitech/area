@@ -9,8 +9,8 @@ const authStore = useAuthStore();
 
 <template>
   <div class="center-container">
-    <LoggedIn v-if="authStore.isAuth()" />
-    <Register v-else-if="authStore.page === 'register'" />
+    <LoggedIn v-if="authStore.page === 'logged'" />
+    <Register v-else-if="(authStore.page === 'register') || (authStore.page === 'waitingcode')" />
     <Login v-else />
   </div>
   <label for="mock-auth-token">Mock auth: </label>
