@@ -4,6 +4,10 @@ import { ConfigService } from '@nestjs/config';
 import { UsersService, ProviderKey } from '../../../users/users.service';
 import { UnauthorizedException, InternalServerErrorException, BadRequestException, Logger } from '@nestjs/common';
 
+/**
+ * Legacy Google Identity provider supporting both ID token sign-in and
+ * Authorization Code login flow. Persists/links users via `UsersService`.
+ */
 export class GoogleIdentityProvider {
   private readonly logger = new Logger(GoogleIdentityProvider.name);
 
@@ -13,6 +17,10 @@ export class GoogleIdentityProvider {
     private readonly jwtService: JwtService,
   ) {}
 
+  /**
+   * Build the Google Authorization URL to initiate the login (code) flow.
+   * @returns Redirect URL to Google consent screen.
+   */
   buildAuthUrl(): string {
     const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
     const redirectUri = this.config.get<string>('GOOGLE_REDIRECT_URI');
@@ -35,6 +43,11 @@ export class GoogleIdentityProvider {
     return url;
   }
 
+  /**
+   * Verify a Google ID token and upsert identity for login.
+   * @param idToken - ID token obtained from Google
+   * @returns App access token, user id, and email
+   */
   async signInWithIdToken(idToken: string): Promise<{ accessToken: string; userId: string; email: string }> {
     if (!idToken) {
       this.logger.warn('Google sign-in failed: missing idToken');
@@ -78,6 +91,11 @@ export class GoogleIdentityProvider {
     return { accessToken, userId: user.id, email: user.email };
   }
 
+  /**
+   * Handle the Authorization Code login callback: exchanges code, verifies id_token,
+   * upserts identity, and returns app JWT and user info.
+   * @param code - Authorization code from Google
+   */
   async handleLoginCallback(code: string): Promise<{ accessToken: string; userId: string; email: string }> {
     if (!code) throw new BadRequestException('Missing code');
 

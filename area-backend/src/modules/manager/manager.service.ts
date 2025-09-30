@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy, BadRequestException, NotFoundException } from '@nestjs/common';
 import { SpotifyLikeService } from '../actions/spotify/like.service';
+import { ActionPollingService } from '../actions/polling/ActionPollingService';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 
@@ -24,6 +25,10 @@ interface AreaExecution {
   config?: any;
 }
 
+/**
+ * Orchestrates the AREA engine: registers actions/reactions, binds them for users,
+ * starts/stops polling, and executes reactions when actions trigger.
+ */
 @Injectable()
 export class ManagerService implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(ManagerService.name);
@@ -34,16 +39,26 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
     constructor(
         private readonly spotifyLikeService: SpotifyLikeService,
         private readonly prisma: PrismaService,
-        private readonly redisService: RedisService
+        private readonly redisService: RedisService,
+        private readonly polling: ActionPollingService,
     ) {}
 
+    /**
+     * Lifecycle hook: initialize callbacks, polling registry, and start execution loop.
+     */
     async onModuleInit() {
         await this.registerActionCallbacks();
         await this.registerReactionCallbacks();
         await this.startAreaExecution();
+        // Register available pollers (extensible)
+        this.polling.register(this.spotifyLikeService);
+        await this.initPollingForActiveAreas();
         this.logger.log('Manager Service initialized with action-reaction system');
     }
 
+    /**
+     * Lifecycle hook: clean up any intervals and log shutdown.
+     */
     async onModuleDestroy() {
         if (this.intervalId) {
             clearInterval(this.intervalId);
@@ -62,17 +77,6 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                 return await this.spotifyLikeService.hasNewSpotifyLike(userId);
             },
             description: 'Check if user has liked songs on Spotify'
-        });
-
-        // Example: Time-based action
-        this.actionCallbacks.set('time_schedule', {
-            name: 'time_schedule',
-            callback: async (userId: string, config: { time: string }) => {
-                const now = new Date();
-                const currentTime = now.getHours() + ':' + now.getMinutes().toString().padStart(2, '0');
-                return currentTime === config.time ? 0 : 1;
-            },
-            description: 'Trigger at specific time'
         });
 
         this.logger.log(`Registered ${this.actionCallbacks.size} action callbacks`);
@@ -115,7 +119,14 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
     }
 
     /**
-     * Bind an action and reaction together for a user
+     * Bind an action and reaction together for a user.
+     * Validates inputs, ensures persistence rows exist, caches active area, and
+     * starts polling if the action supports it.
+     *
+     * @param userId - Target user ID
+     * @param actionName - Name of the action to bind
+     * @param reactionName - Name of the reaction to bind
+     * @returns The created area id
      */
     async bindAction(userId: string, actionName: string, reactionName: string): Promise<string> {
         // Validate that action and reaction exist
@@ -213,18 +224,48 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
             reactionName,
         };
         
-        await this.redisService.setVerificationCode(
+        await this.redisService.setValue(
             cacheKey,
             JSON.stringify(areaExecution), 
             86400 // 24 hours
         );
 
         this.logger.log(`Created area binding: ${actionName} -> ${reactionName} for user ${userId}`);
+
+        // Start polling generically for actions that support it
+        if (this.polling.supports(actionName)) {
+            this.polling.start(actionName, userId, async (result) => {
+                try {
+                    if (result === 0) {
+                        this.logger.log(`Polling detected event for user ${userId}, triggering reaction '${reactionName}'`);
+                        const reactionCallback = this.reactionCallbacks.get(reactionName);
+                        if (!reactionCallback) {
+                            this.logger.error(`Reaction callback '${reactionName}' not found`);
+                            return;
+                        }
+                        const reactionResult = await reactionCallback.callback(userId, result);
+                        await this.prisma.event_logs.create({
+                            data: {
+                                id: crypto.randomUUID(),
+                                user_id: userId,
+                                area_id: area.id,
+                                event_type: 'AREA_EXECUTED',
+                                description: `${actionName} triggered ${reactionName} (polling)`,
+                                metadata: { actionResult: result, reactionResult }
+                            }
+                        });
+                    }
+                } catch (err: any) {
+                    this.logger.error(`Error triggering reaction from polling for user ${userId}: ${err?.message ?? err}`);
+                }
+            });
+        }
         return area.id;
     }
 
     /**
-     * Get all active areas for a user
+     * Get all active areas for a user.
+     * @param userId - Target user ID
      */
     async getUserAreas(userId: string) {
         return await this.prisma.areas.findMany({
@@ -241,11 +282,13 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
     }
 
     /**
-     * Deactivate an area
+     * Deactivate an area by id, remove it from cache, and stop polling if needed.
+     * @param areaId - Identifier of the area to deactivate
      */
-    async deactivateArea(areaId: string, userId: string): Promise<void> {
+    async deactivateArea(areaId: string): Promise<void> {
         const area = await this.prisma.areas.findFirst({
-            where: { id: areaId, user_id: userId }
+            where: { id: areaId },
+            include: { actions: true }
         });
 
         if (!area) {
@@ -259,8 +302,12 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
 
         // Remove from Redis cache
         await this.redisService.deleteVerificationCode(`area:active:${areaId}`);
+        // Stop polling generically if supported for this action
+        if (area.actions?.name && this.polling.supports(area.actions.name)) {
+            this.polling.stop(area.actions.name, area.user_id);
+        }
         
-        this.logger.log(`Deactivated area ${areaId} for user ${userId}`);
+        this.logger.log(`Deactivated area ${areaId} for user ${area.user_id}`);
     }
 
     /**
@@ -331,12 +378,53 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
      * Start the area execution loop
      */
     private async startAreaExecution() {
-        // Execute every 30 seconds
-        this.intervalId = setInterval(async () => {
-            await this.executeAllActiveAreas();
-        }, 10000);
+        await this.executeAllActiveAreas();
+    }
 
-        this.logger.log('Started area execution loop (10-second intervals)');
+    /**
+     * Initialize polling for existing active areas (e.g., after restart)
+     */
+    private async initPollingForActiveAreas() {
+        try {
+            const activeAreas = await this.prisma.areas.findMany({
+                where: { is_active: true, deleted_at: null },
+                include: { actions: true, reactions: true }
+            });
+            for (const area of activeAreas) {
+                const actionName = area.actions.name;
+                if (this.polling.supports(actionName)) {
+                    const userId = area.user_id;
+                    const reactionName = area.reactions.name;
+                    this.polling.start(actionName, userId, async (result) => {
+                        try {
+                            if (result === 0) {
+                                this.logger.log(`Polling detected event for user ${userId}, triggering reaction '${reactionName}'`);
+                                const reactionCallback = this.reactionCallbacks.get(reactionName);
+                                if (!reactionCallback) {
+                                    this.logger.error(`Reaction callback '${reactionName}' not found`);
+                                    return;
+                                }
+                                const reactionResult = await reactionCallback.callback(userId, result);
+                                await this.prisma.event_logs.create({
+                                    data: {
+                                        id: crypto.randomUUID(),
+                                        user_id: userId,
+                                        area_id: area.id,
+                                        event_type: 'AREA_EXECUTED',
+                                        description: `${actionName} triggered ${reactionName} (polling)`,
+                                        metadata: { actionResult: result, reactionResult }
+                                    }
+                                });
+                            }
+                        } catch (err: any) {
+                            this.logger.error(`Error triggering reaction from polling for user ${userId}: ${err?.message ?? err}`);
+                        }
+                    });
+                }
+            }
+        } catch (e: any) {
+            this.logger.error(`Failed to init polling for active areas: ${e?.message ?? e}`);
+        }
     }
 
     /**
@@ -392,7 +480,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
     }
 
     /**
-     * Manual trigger for testing
+     * Manually trigger the execution loop for all active areas.
      */
     async triggerAreaExecution(): Promise<void> {
         await this.executeAllActiveAreas();
