@@ -22,7 +22,6 @@ This README explains the technology choices, project structure, environment setu
 - Web
   - Vue 3 (`vue`) with Vite (`vite`, `@vitejs/plugin-vue`)
   - HTTP via `axios`
-- Mobile
   - React Native (Expo) app using React 19, Expo 54
   - Navigation via `@react-navigation/*`
   - UI components via `react-native-paper`

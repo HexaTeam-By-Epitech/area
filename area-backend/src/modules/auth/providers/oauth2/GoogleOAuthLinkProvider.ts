@@ -6,6 +6,12 @@ import { UnauthorizedException, InternalServerErrorException, BadRequestExceptio
 import { google } from 'googleapis';
 import { TokenCryptoUtil } from '../TokenCryptoUtil';
 
+/**
+ * Google OAuth linker that connects a Google account to an existing user.
+ *
+ * Handles building the consent URL, exchanging the authorization code for
+ * tokens, persisting encrypted tokens, and refreshing/retrieving access tokens.
+ */
 export class GoogleOAuthLinkProvider implements OAuth2LinkProvider {
   private readonly logger = new Logger(GoogleOAuthLinkProvider.name);
 
@@ -16,6 +22,11 @@ export class GoogleOAuthLinkProvider implements OAuth2LinkProvider {
     private readonly crypto: TokenCryptoUtil,
   ) {}
 
+  /**
+   * Build the Google consent URL for linking to an existing user.
+   * @param userId - Target application user ID (embedded in signed state)
+   * @param scopesCsv - Optional comma-separated scopes. Defaults to basic + Gmail/Calendar read.
+   */
   buildAuthUrl(userId: string, scopesCsv?: string): string {
     if (!userId) throw new BadRequestException('userId is required for linking');
     const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
@@ -47,6 +58,13 @@ export class GoogleOAuthLinkProvider implements OAuth2LinkProvider {
     return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
   }
 
+  /**
+   * Handle the linking callback: exchange code, verify id_token to get the
+   * Google subject, and upsert encrypted tokens into `linked_accounts`.
+   * @param code - Authorization code returned by Google
+   * @param state - Signed state containing userId
+   * @returns The linked user id and provider key
+   */
   async handleLinkCallback(code: string, state?: string): Promise<{ userId: string; provider: string }> {
     if (!code) throw new BadRequestException('Missing code');
     if (!state) throw new BadRequestException('Missing state');

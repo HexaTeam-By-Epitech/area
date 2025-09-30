@@ -7,7 +7,13 @@ import { RedisModule } from '../redis/redis.module';
 import { SpotifyLikeService } from '../actions/spotify/like.service';
 import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
+import { ActionPollingService } from '../actions/polling/ActionPollingService';
 
+/**
+ * Manager module orchestrating AREA logic (Actions <-> Reactions).
+ * Wires persistence (Prisma), caching (Redis), auth, and action pollers.
+ * Exposes `ManagerController` and exports `ManagerService`.
+ */
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -19,7 +25,7 @@ import { AuthModule } from '../auth/auth.module';
     AuthModule
   ],
   controllers: [ManagerController],
-  providers: [ManagerService, SpotifyLikeService],
+  providers: [ManagerService, SpotifyLikeService, ActionPollingService],
   exports: [ManagerService],
 })
 export class ManagerModule {}

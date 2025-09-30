@@ -5,6 +5,11 @@ import { UsersService, ProviderKey } from '../../../users/users.service';
 import { UnauthorizedException, InternalServerErrorException, BadRequestException, Logger } from '@nestjs/common';
 import { TokenCryptoUtil } from '../TokenCryptoUtil';
 
+/**
+ * Spotify OAuth linker that connects a Spotify account to an existing user.
+ * Builds the consent URL, exchanges authorization code, persists encrypted
+ * tokens, and links the account to the provided user.
+ */
 export class SpotifyOAuthLinkProvider implements OAuth2LinkProvider {
   private readonly logger = new Logger(SpotifyOAuthLinkProvider.name);
 
@@ -15,6 +20,11 @@ export class SpotifyOAuthLinkProvider implements OAuth2LinkProvider {
     private readonly crypto: TokenCryptoUtil,
   ) {}
 
+  /**
+   * Build the Spotify consent URL for linking to an existing user.
+   * @param userId - Target application user id (embedded in signed state)
+   * @param _scopesCsv - Optional scopes (unused; defaults are applied)
+   */
   buildAuthUrl(userId: string, _scopesCsv?: string): string {
     const clientId = this.config.get<string>('SPOTIFY_CLIENT_ID');
     const redirectUri = this.config.get<string>('SPOTIFY_REDIRECT_URI');
@@ -61,6 +71,12 @@ export class SpotifyOAuthLinkProvider implements OAuth2LinkProvider {
     return url;
   }
 
+  /**
+   * Handle the linking callback: exchange the code for tokens, fetch Spotify
+   * profile to obtain provider user id, and upsert encrypted tokens.
+   * @param code - Authorization code returned by Spotify
+   * @param state - Signed state containing userId
+   */
   async handleLinkCallback(code: string, state?: string): Promise<{ userId: string; provider: string }> {
     if (!code) throw new BadRequestException('Missing code');
 
