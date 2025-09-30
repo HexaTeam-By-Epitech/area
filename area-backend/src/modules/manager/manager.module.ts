@@ -7,7 +7,7 @@ import { RedisModule } from '../redis/redis.module';
 import { SpotifyLikeService } from '../actions/spotify/like.service';
 import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
-import { ActionPollingService } from '../actions/polling/ActionPollingService';
+import { ActionPollingService } from './polling/ActionPollingService';
 
 /**
  * Manager module orchestrating AREA logic (Actions <-> Reactions).
