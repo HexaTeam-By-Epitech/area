@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy, BadRequestException, NotFoundException } from '@nestjs/common';
 import { SpotifyLikeService } from '../actions/spotify/like.service';
-import { ActionPollingService } from '../actions/polling/ActionPollingService';
+import { ActionPollingService } from './polling/ActionPollingService';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 
