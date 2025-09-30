@@ -25,7 +25,6 @@ export interface AreaExecution {
   actionName: string;
   reactionName: string;
   lastExecuted?: Date;
-  config?: any;
 }
 
 /**

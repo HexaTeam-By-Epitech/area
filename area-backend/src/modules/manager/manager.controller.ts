@@ -2,13 +2,15 @@ import { Controller, Get, Param, Post, Body, Delete, HttpCode, HttpStatus } from
 import { ManagerService } from './manager.service';
 import { ActionCallback, ReactionCallback } from '../../common/interfaces/area.type';
 import { ApiBody } from '@nestjs/swagger/dist/decorators/api-body.decorator';
-import { ApiOperation, ApiParam, ApiProperty } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiProperty, ApiResponse } from '@nestjs/swagger';
 
 class BindActionDto {
   @ApiProperty({ description: 'Name of the action to bind', example: 'new_email' })
   actionName: string;
   @ApiProperty({ description: 'Name of the reaction to bind', example: 'send_email' })
   reactionName: string;
+  @ApiProperty({ description: 'Configuration for the reaction', example: { to: 'user@example.com', subject: 'New Email', body: 'You have a new email!' } })
+  config: {};
 }
 
 /**
@@ -41,7 +43,7 @@ export class ManagerController {
   /**
    * Bind an action to a reaction for a user
    * @param userId - Target user ID
-   * @param bindActionDto - Pair of action/reaction names
+   * @param bindActionDto - Pair of action/reaction names with potential configuration
    * @returns Creation message and identifiers
    */
   @Post('areas/:userId')
@@ -53,6 +55,7 @@ export class ManagerController {
       userId,
       bindActionDto.actionName,
       bindActionDto.reactionName,
+      bindActionDto.config
     );
     return {
       message: 'Area created successfully',
@@ -60,6 +63,7 @@ export class ManagerController {
       userId,
       action: bindActionDto.actionName,
       reaction: bindActionDto.reactionName,
+      config: bindActionDto.config
     };
   }
 
@@ -82,6 +86,7 @@ export class ManagerController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiParam({ name: 'areaId', description: 'ID of the area to deactivate' })
   @ApiOperation({ summary: 'Deactivate an area' })
+  @ApiResponse({ status: 204, description: 'Area deactivated successfully' })
   async deactivateArea(
     @Param('areaId') areaId: string
   ) {

@@ -31,7 +31,6 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
     async onModuleInit() {
         await this.registerActionCallbacks();
         await this.registerReactionCallbacks();
-        await this.startAreaExecution();
         // Register available pollers (extensible)
         this.polling.register(this.spotifyLikeService);
         await this.initPollingForActiveAreas();
@@ -87,7 +86,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                         user_id: userId,
                         event_type: 'AREA_TRIGGERED',
                         description: `Action triggered reaction`,
-                        metadata: { actionResult, config }
+                        metadata: { actionResult, config },
                     }
                 });
                 return { logged: true };
@@ -108,7 +107,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
      * @param reactionName - Name of the reaction to bind
      * @returns The created area id
      */
-    async bindAction(userId: string, actionName: string, reactionName: string): Promise<string> {
+    async bindAction(userId: string, actionName: string, reactionName: string, config?: any): Promise<string> {
         // Validate that action and reaction exist
         if (!this.actionCallbacks.has(actionName)) {
             throw new BadRequestException(`Action '${actionName}' not found`);
@@ -160,7 +159,6 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         let reaction = await this.prisma.reactions.findFirst({
             where: { name: reactionName, is_active: true }
         });
-
         if (!reaction) {
             // Use the same default service
             const service = await this.prisma.services.findFirst({
@@ -170,15 +168,25 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
             if (!service) {
                 throw new BadRequestException('Default service not found for reaction');
             }
+
             reaction = await this.prisma.reactions.create({
                 data: {
                     id: crypto.randomUUID(),
                     service_id: service.id,
                     name: reactionName,
                     description: this.reactionCallbacks.get(reactionName)?.description,
-                    is_active: true
+                    is_active: true,
+                    config: config || null
                 }
             });
+        } else {
+            // Update reaction config if provided
+            if (config) {
+                await this.prisma.reactions.update({
+                    where: { id: reaction.id },
+                    data: { config }
+                });
+            }
         }
 
         // Create area (binding)
@@ -223,7 +231,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                             this.logger.error(`Reaction callback '${reactionName}' not found`);
                             return;
                         }
-                        const reactionResult = await reactionCallback.callback(userId, result);
+                        const reactionResult = await reactionCallback.callback(userId, result, config);
                         await this.prisma.event_logs.create({
                             data: {
                                 id: crypto.randomUUID(),
@@ -291,77 +299,6 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
     }
 
     /**
-     * Execute a single area (action + reaction)
-     */
-    private async executeArea(areaExecution: AreaExecution): Promise<void> {
-        const { areaId, userId, actionName, reactionName, config } = areaExecution;
-
-        try {
-            // Execute action
-            const actionCallback = this.actionCallbacks.get(actionName);
-            if (!actionCallback) {
-                this.logger.error(`Action callback '${actionName}' not found`);
-                return;
-            }
-
-            const actionResult = await actionCallback.callback(userId, config?.action);
-            
-            // If action returns 0, it means the condition is met (trigger reaction)
-            if (actionResult === 0) {
-                this.logger.log(`Action '${actionName}' triggered for user ${userId}`);
-                
-                // Execute reaction
-                const reactionCallback = this.reactionCallbacks.get(reactionName);
-                if (!reactionCallback) {
-                    this.logger.error(`Reaction callback '${reactionName}' not found`);
-                    return;
-                }
-
-                const reactionResult = await reactionCallback.callback(userId, actionResult, config?.reaction);
-                
-                // Log the successful execution
-                await this.prisma.event_logs.create({
-                    data: {
-                        id: crypto.randomUUID(),
-                        user_id: userId,
-                        area_id: areaId,
-                        event_type: 'AREA_EXECUTED',
-                        description: `${actionName} triggered ${reactionName}`,
-                        metadata: {
-                            actionResult,
-                            reactionResult,
-                            config
-                        }
-                    }
-                });
-
-                this.logger.log(`Successfully executed area ${areaId}: ${actionName} -> ${reactionName}`);
-            }
-        } catch (error) {
-            this.logger.error(`Error executing area ${areaId}:`, error);
-            
-            // Log the error
-            await this.prisma.event_logs.create({
-                data: {
-                    id: crypto.randomUUID(),
-                    user_id: userId,
-                    area_id: areaId,
-                    event_type: 'AREA_ERROR',
-                    description: `Error executing ${actionName} -> ${reactionName}`,
-                    metadata: { error: error.message }
-                }
-            });
-        }
-    }
-
-    /**
-     * Start the area execution loop
-     */
-    private async startAreaExecution() {
-        await this.executeAllActiveAreas();
-    }
-
-    /**
      * Initialize polling for existing active areas (e.g., after restart)
      */
     private async initPollingForActiveAreas() {
@@ -384,7 +321,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                                     this.logger.error(`Reaction callback '${reactionName}' not found`);
                                     return;
                                 }
-                                const reactionResult = await reactionCallback.callback(userId, result);
+                                const reactionResult = await reactionCallback.callback(userId, result, area.reactions.config);
                                 await this.prisma.event_logs.create({
                                     data: {
                                         id: crypto.randomUUID(),
@@ -395,6 +332,8 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                                         metadata: { actionResult: result, reactionResult }
                                     }
                                 });
+                            } else if (result === -1) {
+                                this.logger.warn(`Polling action '${actionName}' reported provider not linked for user ${userId}`);
                             }
                         } catch (err: any) {
                             this.logger.error(`Error triggering reaction from polling for user ${userId}: ${err?.message ?? err}`);
@@ -404,44 +343,6 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
             }
         } catch (e: any) {
             this.logger.error(`Failed to init polling for active areas: ${e?.message ?? e}`);
-        }
-    }
-
-    /**
-     * Execute all active areas
-     */
-    private async executeAllActiveAreas(): Promise<void> {
-        try {
-            // Get all active areas from database
-            const activeAreas = await this.prisma.areas.findMany({
-                where: {
-                    is_active: true,
-                    deleted_at: null
-                },
-                include: {
-                    actions: true,
-                    reactions: true
-                }
-            });
-
-            this.logger.debug(`Executing ${activeAreas.length} active areas`);
-
-            // Execute each area
-            const executions = activeAreas.map(async (area) => {
-                const areaExecution: AreaExecution = {
-                    areaId: area.id,
-                    userId: area.user_id,
-                    actionName: area.actions.name,
-                    reactionName: area.reactions.name,
-                    config: area.config as any
-                };
-
-                await this.executeArea(areaExecution);
-            });
-
-            await Promise.allSettled(executions);
-        } catch (error) {
-            this.logger.error('Error in executeAllActiveAreas:', error);
         }
     }
 
@@ -457,12 +358,5 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
      */
     getAvailableReactions(): ReactionCallback[] {
         return Array.from(this.reactionCallbacks.values());
-    }
-
-    /**
-     * Manually trigger the execution loop for all active areas.
-     */
-    async triggerAreaExecution(): Promise<void> {
-        await this.executeAllActiveAreas();
     }
 }
