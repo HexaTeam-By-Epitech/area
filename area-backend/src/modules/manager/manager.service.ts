@@ -3,6 +3,7 @@ import { SpotifyLikeService } from '../actions/spotify/like.service';
 import { ActionPollingService } from '../actions/polling/ActionPollingService';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { GmailSendService } from '../reactions/gmail/send.service';
 
 export interface ActionCallback {
   name: string;
@@ -41,6 +42,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         private readonly prisma: PrismaService,
         private readonly redisService: RedisService,
         private readonly polling: ActionPollingService,
+        private readonly gmailSendService: GmailSendService,
     ) {}
 
     /**
@@ -89,10 +91,8 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         // Email notification reaction
         this.reactionCallbacks.set('send_email', {
             name: 'send_email',
-            callback: async (userId: string, actionResult: any, config: { subject: string; message: string }) => {
-                // Placeholder for email service integration
-                this.logger.log(`Sending email to user ${userId}: ${config.subject}`);
-                return { sent: true, subject: config.subject };
+            callback: async (userId: string, actionResult: any, config: { subject: string; message: string, to: string }) => {
+                return await this.gmailSendService.sendEmail(userId, config.to, config.subject, config.message);
             },
             description: 'Send email notification'
         });
