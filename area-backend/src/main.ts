@@ -1,4 +1,5 @@
 import {NestFactory} from '@nestjs/core';
+import { Logger } from '@nestjs/common';
 import {AppModule} from './app.module';
 import {SwaggerModule, DocumentBuilder} from '@nestjs/swagger';
 import {CreateUserDto} from './modules/users/dto/create-user.dto';
@@ -25,11 +26,17 @@ async function bootstrap() {
     });
 
     // Setup Swagger UI at /api endpoint
-    SwaggerModule.setup('api', app, document);
+    SwaggerModule.setup('docs', app, document);
 
-    // Start the server on the specified port or default to 3000
-    const port = process.env.PORT ?? 3000;
-    await app.listen(port, '0.0.0.0');
+    // Start the server on the specified host/port
+    const host = process.env.HOST ?? '0.0.0.0';
+    const port = Number(process.env.PORT ?? 3000);
+    await app.listen(port, host);
+
+    // Print startup information using NestJS logger
+    const url = await app.getUrl();
+    const logger = new Logger('Bootstrap');
+    logger.log(`AREA backend started in ${process.env.NODE_ENV ?? 'development'} on ${host}:${port} (${url})`);
 }
 
 // Start the application
