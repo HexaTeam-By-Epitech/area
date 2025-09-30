@@ -1,17 +1,20 @@
+import useAuthStore from "@/stores/webauth";
+
 export async function handleGoogleResponse(response: any) {
   if (!response.credential) return;
 
   try {
-    const res = await fetch('/auth/google', {
-      method: 'POST',
+    const res = await fetch('/auth/Google/login', {
+      method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: response.credential }),
+      // body: JSON.stringify({ token: response.credential }),
     });
+
     const data = await res.json();
+    console.log(data);
     if (data.userId) {
-      localStorage.setItem('userToken', data.userId)
-      if (data.email) localStorage.setItem('userEmail', data.email)
-      window.dispatchEvent(new CustomEvent('loginSuccess'))
+      const authStore = useAuthStore();
+      authStore.login(data.email, data.userId);
     }
     console.log('Google login success:', data);
   } catch (err) {

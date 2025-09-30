@@ -7,18 +7,34 @@ const authStore = useAuthStore();
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
-onMounted(() => {
-  if (window.google && window.google.accounts) {
-    window.google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleGoogleResponse
-    })
+let googleRendered = false
 
-    window.google.accounts.id.renderButton(
-        document.getElementById('google-signin-button'),
-        { theme: 'outline', size: 'large', width: '100%' }
-    )
+function tryInitGoogle() {
+  const g: any = (window as any).google
+  if (!g || !g.accounts || googleRendered) return false
+
+  g.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleGoogleResponse
+  })
+
+  const el = document.getElementById('google-signin-button')
+  if (el) {
+    g.accounts.id.renderButton(el, { theme: 'outline', size: 'large', width: '100%' })
+    googleRendered = true
+    return true
   }
+  return false
+}
+
+onMounted(() => {
+  if (tryInitGoogle()) return
+  const interval = setInterval(() => {
+    if (tryInitGoogle()) {
+      clearInterval(interval)
+    }
+  }, 100)
+  setTimeout(() => clearInterval(interval), 5000)
 })
 
 const email = ref('')
@@ -65,9 +81,8 @@ const handleSubmit = async () => {
     }
     const data = await response.json();
     if (data.userId) {
-      localStorage.setItem('userToken', data.userId)
-      localStorage.setItem('userEmail', email.value)
-      window.dispatchEvent(new CustomEvent('loginSuccess'))
+      authStore.login(email.value, data.userId);
+      authStore.setPage("waitingcode");
     }
     successMessage.value = 'Account created successfully!'
     email.value = ''
@@ -83,12 +98,14 @@ const handleVerificationCode = async () => {
     const res = await fetch('/auth/verify-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({email: email.value, verificationCode: `${emailCode.value}`})
+      body: JSON.stringify({email: authStore.email, verificationCode: `${emailCode.value}`})
     })
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       throw new Error(data.message || 'Verification failed')
+    } else {
+      authStore.setPage("logged");
     }
   } catch (e) {
     console.log(`Error while verifying email: ${e}`)

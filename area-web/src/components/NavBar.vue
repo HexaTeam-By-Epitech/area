@@ -27,6 +27,11 @@ const authStore = useAuthStore();
   display: flex;
   align-items: center;
   height: var(--header-height);
+  border-bottom: solid 1px;
+  border-bottom-color: var(--text-secondary);
+  box-sizing: border-box;
+  /* -moz-box-sizing: border-box;
+  -webkit-box-sizing: border-box; */
 }
 
 #navbar nav {

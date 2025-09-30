@@ -9,7 +9,7 @@ const authStore = useAuthStore();
     <div class="home-card">
       <h1 class="home-title">Welcome to Area!</h1>
       <p class="home-message">
-        You are logged in as {{ authStore.email }}.
+        You are logged in as {{ authStore.email }}
       </p>
       <button class="logout-btn" @click="authStore.logout()">Logout</button>
     </div>
