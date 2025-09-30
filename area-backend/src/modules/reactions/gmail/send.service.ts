@@ -32,7 +32,7 @@ export class GmailSendService implements Reactions {
      */
     async run(userId: string, params: { to: string; subject: string; body: string }): Promise<void> {
         // Retrieve the user's linked Gmail account
-        const gmailAccount = this.usersService.findLinkedAccount(userId, ProviderKeyEnum.Google);
+        const gmailAccount = await this.usersService.findLinkedAccount(userId, ProviderKeyEnum.Google);
         if (!gmailAccount) {
             this.logger.warn(`User ${userId} does not have a linked Gmail account.`);
             throw new Error('Gmail account not linked');
