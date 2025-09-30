@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ProviderKey, UsersService } from '../../users/users.service';
 import { AuthService } from '../../auth/auth.service';
 import { RedisService } from '../../redis/redis.service';
-import type { PollingAction } from '../polling/ActionPollingService';
+import type { PollingAction } from '../../actions/types/ActionPollingType';
 
 /**
  * Spotify polling action that detects if the user has liked a new track.
