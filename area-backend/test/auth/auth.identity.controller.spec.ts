@@ -43,4 +43,11 @@ describe('GenericAuthIdentityController', () => {
     expect(mockAuthService.handleLoginCallback).toHaveBeenCalledWith('google', 'code123', 'state');
     expect(res).toEqual({ accessToken: 'app.jwt', userId: 'u1', email: 'a@a.com' });
   });
+
+  it('getLoginUrl: should return provider oauth login url', () => {
+    mockAuthService.buildLoginUrl.mockReturnValue('https://provider/login');
+    const res = controller.getLoginUrl('google');
+    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google');
+    expect(res).toEqual({ url: 'https://provider/login' });
+  });
 });
