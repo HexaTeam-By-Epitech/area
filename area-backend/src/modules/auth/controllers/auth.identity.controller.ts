@@ -59,4 +59,18 @@ export class GenericAuthIdentityController {
   async loginCallback(@Param('provider') provider: string, @Query('code') code: string, @Query('state') state?: string) {
     return this.auth.handleLoginCallback(provider, code, state);
   }
+
+  /**
+   * Returns the OAuth login URL for the provider, useful for Swagger UI or testing.
+   *
+   * @param provider - The provider key.
+   * @returns Object containing the OAuth login URL.
+   */
+  @Get(':provider/login/url')
+  @ApiOperation({ summary: 'Get provider OAuth login URL (Swagger friendly)' })
+  @ApiResponse({ status: 200, description: 'Returns the OAuth login URL', schema: { properties: { url: { type: 'string' } } } })
+  getLoginUrl(@Param('provider') provider: string) {
+    const url = this.auth.buildLoginUrl(provider as any);
+    return { url };
+  }
 }
