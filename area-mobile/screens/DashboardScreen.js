@@ -1,19 +1,43 @@
-import React from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import colors from './colors';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const mockWorkflows = [
-    { id: '1', name: 'Workflow 1', description: 'Description 1' },
-    { id: '2', name: 'Workflow 2', description: 'Description 2' },
-    { id: '3', name: 'Workflow 3', description: 'Description 3' },
-];
+const WORKFLOW_IDS = ['1', '2', '3'];
 
 export default function DashboardScreen({ navigation }) {
+    const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
+    useEffect(() => {
+        const onChange = ({ window }) => {
+            setScreenWidth(window.width);
+        };
+        const subscription = Dimensions.addEventListener('change', onChange);
+        return () => {
+            if (subscription?.remove) subscription.remove();
+            else Dimensions.removeEventListener('change', onChange);
+        };
+    }, []);
+    const isTablet = screenWidth >= 768;
+    const styles = createStyles(isTablet);
+
+    const [workflows, setWorkflows] = useState([]);
+
+    useEffect(() => {
+        // Récupère les infos de chaque workflow depuis AsyncStorage
+        Promise.all(
+            WORKFLOW_IDS.map(async id => {
+                const name = await AsyncStorage.getItem(`workflow-name-${id}`) || `Workflow ${id}`;
+                const description = await AsyncStorage.getItem(`workflow-desc-${id}`) || `Description ${id}`;
+                return { id, name, description };
+            })
+        ).then(setWorkflows);
+    }, []);
+
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Your Workflows</Text>
             <FlatList
-                data={mockWorkflows}
+                data={workflows}
                 keyExtractor={item => item.id}
                 renderItem={({ item }) => (
                     <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('Project', { id: item.id })}>
@@ -26,33 +50,31 @@ export default function DashboardScreen({ navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isTablet) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.bgPrimary,
-        padding: 20,
+        padding: isTablet ? 60 : 20,
     },
     title: {
-        fontSize: 24,
+        fontSize: isTablet ? 32 : 24,
         fontWeight: '700',
         color: colors.textPrimary,
-        marginBottom: 20,
+        marginBottom: isTablet ? 32 : 20,
     },
     card: {
         backgroundColor: colors.cardBgPrimary,
         borderRadius: 10,
-        padding: 20,
-        marginBottom: 15,
+        padding: isTablet ? 30 : 20,
+        marginBottom: isTablet ? 22 : 15,
     },
     cardTitle: {
         color: colors.textPrimary,
         fontWeight: '700',
-        fontSize: 18,
+        fontSize: isTablet ? 22 : 18,
     },
     cardDesc: {
         color: colors.textSecondary,
-        fontSize: 14,
-        marginTop: 5,
+        fontSize: isTablet ? 18 : 14,
     },
 });
-
