@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Dimensions, Modal, TextInput } from 'react-native';
 import colors from './colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function DashboardScreen({ navigation }) {
     const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
@@ -51,6 +52,17 @@ export default function DashboardScreen({ navigation }) {
         setNewDesc('');
     };
 
+    // Suppression d'un workflow
+    const deleteWorkflow = async (id) => {
+        const newWorkflows = workflows.filter(w => w.id !== id);
+        const newIds = newWorkflows.map(w => w.id);
+        await AsyncStorage.setItem('workflow-ids', JSON.stringify(newIds));
+        await AsyncStorage.removeItem(`workflow-name-${id}`);
+        await AsyncStorage.removeItem(`workflow-desc-${id}`);
+        await AsyncStorage.removeItem(`workflow-links-${id}`);
+        setWorkflows(newWorkflows);
+    };
+
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Your Workflows</Text>
@@ -58,10 +70,17 @@ export default function DashboardScreen({ navigation }) {
                 data={workflows}
                 keyExtractor={item => item.id}
                 renderItem={({ item }) => (
-                    <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('Project', { id: item.id })}>
-                        <Text style={styles.cardTitle}>{item.name}</Text>
-                        <Text style={styles.cardDesc}>{item.description}</Text>
-                    </TouchableOpacity>
+                    <View style={styles.card}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <TouchableOpacity style={{ flex: 1 }} onPress={() => navigation.navigate('Project', { id: item.id })}>
+                                <Text style={styles.cardTitle}>{item.name}</Text>
+                                <Text style={styles.cardDesc}>{item.description}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => deleteWorkflow(item.id)} style={{ marginLeft: 10 }}>
+                                <Ionicons name="trash" size={28} color={colors.buttonColorError} />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
                 )}
                 ListEmptyComponent={<Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 40 }}>No workflow yet.</Text>}
             />
