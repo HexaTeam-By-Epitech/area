@@ -1,41 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { UsersService } from '../../users/users.service';
-import type { ProviderKey as UsersProviderKey } from '../../users/users.service';
-import type { ProviderKey } from './OAuth2Types';
+import type { ProviderKeyEnum } from 'src/common/interfaces/oauth2.type';
+import type { ProviderKey } from '../../../common/interfaces/oauth2.type';
+import type { TokenRecord, TokenStore } from '../../../common/interfaces/crypto.type';
 
-/**
- * Token records used to persist provider tokens and their expiration.
- */
-export interface TokenRecord {
-  accessToken?: string;
-  refreshToken?: string;
-  accessTokenExpiresAt?: Date;
-}
-
-/**
- * Abstraction over persistence for identities and linked accounts.
- */
-export interface TokenStore {
-  getLinkedAccount(userId: string, provider: ProviderKey): Promise<{ access_token?: string; refresh_token?: string } | null>;
-  updateLinkedTokens(userId: string, provider: ProviderKey, tokens: TokenRecord): Promise<void>;
-  upsertIdentityForLogin(input: {
-    provider: ProviderKey;
-    providerUserId: string;
-    email: string;
-    name?: string;
-    avatarUrl?: string;
-  }): Promise<{ id: string; email: string }>;
-  findById(userId: string): Promise<{ id: string; email: string } | null>;
-  linkExternalAccount(input: {
-    userId: string;
-    provider: ProviderKey;
-    providerUserId: string;
-    accessToken?: string | null;
-    refreshToken?: string | null;
-    accessTokenExpiresAt?: Date | null;
-    scopes?: string | null;
-  }): Promise<{ id: string; email: string }>;
-}
 
 @Injectable()
 export class PrismaTokenStore implements TokenStore {
@@ -45,7 +13,7 @@ export class PrismaTokenStore implements TokenStore {
    * Retrieve a linked account's raw encrypted tokens for a user/provider.
    */
   async getLinkedAccount(userId: string, provider: ProviderKey) {
-    const row = await this.users.findLinkedAccount(userId, provider as UsersProviderKey);
+    const row = await this.users.findLinkedAccount(userId, provider as ProviderKeyEnum);
     if (!row) return null;
     return {
       access_token: row.access_token ?? undefined,
@@ -57,7 +25,7 @@ export class PrismaTokenStore implements TokenStore {
    * Update linked account tokens for a user/provider.
    */
   async updateLinkedTokens(userId: string, provider: ProviderKey, tokens: TokenRecord): Promise<void> {
-    await this.users.updateLinkedTokens(userId, provider as UsersProviderKey, {
+    await this.users.updateLinkedTokens(userId, provider as ProviderKeyEnum, {
       accessToken: tokens.accessToken,
       accessTokenExpiresAt: tokens.accessTokenExpiresAt,
       refreshToken: tokens.refreshToken,
@@ -75,7 +43,7 @@ export class PrismaTokenStore implements TokenStore {
     avatarUrl?: string | undefined;
   }): Promise<{ id: string; email: string }> {
     return this.users.upsertIdentityForLogin({
-      provider: input.provider as UsersProviderKey,
+      provider: input.provider as ProviderKeyEnum,
       providerUserId: input.providerUserId,
       email: input.email,
       name: input.name,
@@ -104,7 +72,7 @@ export class PrismaTokenStore implements TokenStore {
   }): Promise<{ id: string; email: string }> {
     const user = await (this.users as any).linkExternalAccount({
       userId: input.userId,
-      provider: input.provider as UsersProviderKey,
+      provider: input.provider as ProviderKeyEnum,
       providerUserId: input.providerUserId,
       accessToken: input.accessToken ?? null,
       refreshToken: input.refreshToken ?? null,

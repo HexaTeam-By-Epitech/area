@@ -1,7 +1,8 @@
 import { google } from 'googleapis';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { UsersService, ProviderKey } from '../../../users/users.service';
+import { UsersService } from '../../../users/users.service';
+import { ProviderKeyEnum as ProviderKey } from 'src/common/interfaces/oauth2.type';
 import { UnauthorizedException, InternalServerErrorException, BadRequestException, Logger } from '@nestjs/common';
 
 /**

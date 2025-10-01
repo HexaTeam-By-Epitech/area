@@ -2,8 +2,8 @@ import { google } from 'googleapis';
 import { Injectable, UnauthorizedException, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { IdentityProvider } from '../../core/OAuth2Types';
-import type { TokenStore } from '../../core/TokenStore';
+import { IdentityProvider } from '../../../../common/interfaces/oauth2.type';
+import type { TokenStore } from 'src/common/interfaces/crypto.type';
 
 /**
  * Google identity plugin implementing ID token sign-in (One Tap or similar).
