@@ -3,7 +3,7 @@ import Default from "@/views/Default.vue";
 import AuthPage from "@/views/auth/AuthPage.vue";
 import Services from "@/views/home/Services.vue";
 import Home from "@/views/home/Home.vue";
-import Workflows from "@/views/home/Workflows.vue";
+import Workflows from "@/views/home/workflows/Workflows.vue";
 import NotFound from "@/views/NotFound.vue";
 
 
