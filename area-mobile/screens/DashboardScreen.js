@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Dimensions, Modal, TextInput } from 'react-native';
 import colors from './colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const WORKFLOW_IDS = ['1', '2', '3'];
 
 export default function DashboardScreen({ navigation }) {
     const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
@@ -21,17 +19,37 @@ export default function DashboardScreen({ navigation }) {
     const styles = createStyles(isTablet);
 
     const [workflows, setWorkflows] = useState([]);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [newName, setNewName] = useState('');
+    const [newDesc, setNewDesc] = useState('');
 
+    // Charge la liste des workflows dynamiquement
     useEffect(() => {
-        // Récupère les infos de chaque workflow depuis AsyncStorage
-        Promise.all(
-            WORKFLOW_IDS.map(async id => {
-                const name = await AsyncStorage.getItem(`workflow-name-${id}`) || `Workflow ${id}`;
-                const description = await AsyncStorage.getItem(`workflow-desc-${id}`) || `Description ${id}`;
-                return { id, name, description };
-            })
-        ).then(setWorkflows);
+        AsyncStorage.getItem('workflow-ids').then(data => {
+            const ids = data ? JSON.parse(data) : [];
+            Promise.all(
+                ids.map(async id => {
+                    const name = await AsyncStorage.getItem(`workflow-name-${id}`) || `Workflow ${id}`;
+                    const description = await AsyncStorage.getItem(`workflow-desc-${id}`) || `Description ${id}`;
+                    return { id, name, description };
+                })
+            ).then(setWorkflows);
+        });
     }, []);
+
+    // Ajout d'un workflow
+    const addWorkflow = async () => {
+        const id = Date.now().toString() + Math.random();
+        const ids = workflows.map(w => w.id);
+        const newIds = [...ids, id];
+        await AsyncStorage.setItem('workflow-ids', JSON.stringify(newIds));
+        await AsyncStorage.setItem(`workflow-name-${id}`, newName || `Workflow ${newIds.length}`);
+        await AsyncStorage.setItem(`workflow-desc-${id}`, newDesc || 'Description');
+        setWorkflows([...workflows, { id, name: newName || `Workflow ${newIds.length}`, description: newDesc || 'Description' }]);
+        setModalVisible(false);
+        setNewName('');
+        setNewDesc('');
+    };
 
     return (
         <View style={styles.container}>
@@ -45,7 +63,40 @@ export default function DashboardScreen({ navigation }) {
                         <Text style={styles.cardDesc}>{item.description}</Text>
                     </TouchableOpacity>
                 )}
+                ListEmptyComponent={<Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 40 }}>No workflow yet.</Text>}
             />
+            <TouchableOpacity style={[styles.button, {position: 'absolute', bottom: 30, alignSelf: 'center', width: isTablet ? 300 : '80%'}]} onPress={() => setModalVisible(true)}>
+                <Text style={styles.buttonText}>Add Workflow</Text>
+            </TouchableOpacity>
+            <Modal visible={modalVisible} transparent animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.sectionTitle}>Create a new workflow</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Workflow name"
+                            placeholderTextColor={colors.textSecondary}
+                            value={newName}
+                            onChangeText={setNewName}
+                        />
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Description"
+                            placeholderTextColor={colors.textSecondary}
+                            value={newDesc}
+                            onChangeText={setNewDesc}
+                        />
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity style={styles.button} onPress={addWorkflow}>
+                                <Text style={styles.buttonText}>Validate</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.button, styles.buttonCancel]} onPress={() => setModalVisible(false)}>
+                                <Text style={styles.buttonText}>Cancel</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -76,5 +127,60 @@ const createStyles = (isTablet) => StyleSheet.create({
     cardDesc: {
         color: colors.textSecondary,
         fontSize: isTablet ? 18 : 14,
+    },
+    button: {
+        backgroundColor: colors.buttonColor,
+        paddingVertical: isTablet ? 18 : 14,
+        paddingHorizontal: isTablet ? 50 : 30,
+        borderRadius: 8,
+        alignItems: 'center',
+        alignSelf: 'center',
+        marginTop: isTablet ? 10 : 5,
+    },
+    buttonText: {
+        color: colors.textPrimary,
+        fontWeight: '700',
+        fontSize: isTablet ? 20 : 16,
+    },
+    buttonCancel: {
+        backgroundColor: colors.buttonColorDisabled,
+        marginLeft: 10,
+    },
+    input: {
+        backgroundColor: colors.cardBgPrimary,
+        color: colors.textPrimary,
+        borderRadius: 8,
+        padding: isTablet ? 20 : 15,
+        marginBottom: isTablet ? 20 : 15,
+        borderWidth: 1,
+        borderColor: 'transparent',
+        width: isTablet ? 400 : '80%',
+        alignSelf: 'center',
+    },
+    sectionTitle: {
+        fontSize: isTablet ? 24 : 18,
+        fontWeight: '700',
+        color: colors.textSecondary,
+        marginBottom: isTablet ? 18 : 10,
+        marginTop: isTablet ? 30 : 20,
+        textAlign: 'center',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(45,46,46,0.95)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        backgroundColor: colors.cardBgPrimary,
+        borderRadius: 16,
+        padding: isTablet ? 40 : 20,
+        width: isTablet ? 500 : '90%',
+        maxHeight: '80%',
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        marginTop: 20,
     },
 });

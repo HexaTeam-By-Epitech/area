@@ -101,7 +101,7 @@ export default function ProjectScreen({ route, navigation }) {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Edit Workflow #{id}</Text>
+            <Text style={styles.title}>Edit Workflow {workflowName}</Text>
             <TextInput style={styles.input} placeholder="Workflow name" placeholderTextColor={colors.textSecondary} value={workflowName} onChangeText={setWorkflowName} />
             <TextInput style={styles.input} placeholder="Description" placeholderTextColor={colors.textSecondary} value={workflowDesc} onChangeText={setWorkflowDesc} />
             <TouchableOpacity style={styles.button} onPress={openAddMenu}>
