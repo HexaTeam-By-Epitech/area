@@ -78,7 +78,7 @@ export class GmailSendService implements Reactions {
     }
 
     getFields(): Field[] {
-        let fields: Field[] = [
+        const fields: Field[] = [
             { name: 'to', type: 'string', required: true },
             { name: 'subject', type: 'string', required: true },
             { name: 'body', type: 'string', required: true },
