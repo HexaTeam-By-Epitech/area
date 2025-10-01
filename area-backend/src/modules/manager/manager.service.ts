@@ -273,7 +273,14 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
      * Deactivate an area by id, remove it from cache, and stop polling if needed.
      * @param areaId - Identifier of the area to deactivate
      */
+    private isUuidV4(id: string): boolean {
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+    }
+
     async deactivateArea(areaId: string): Promise<void> {
+        if (!this.isUuidV4(areaId)) {
+            throw new BadRequestException('Invalid areaId format (expected UUID v4)');
+        }
         const area = await this.prisma.areas.findFirst({
             where: { id: areaId },
             include: { actions: true }

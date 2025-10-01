@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Body, Delete, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Param, Post, Body, Delete, HttpCode, HttpStatus, ParseUUIDPipe, BadRequestException } from '@nestjs/common';
 import { ManagerService } from './manager.service';
 import { ActionCallback, ReactionCallback } from '../../common/interfaces/area.type';
 import { ApiBody } from '@nestjs/swagger/dist/decorators/api-body.decorator';
@@ -50,7 +50,7 @@ export class ManagerController {
   @ApiBody({ type: BindActionDto })
   @ApiParam({ name: 'userId', description: 'ID of the user' })
   @ApiOperation({ summary: 'Bind an action to a reaction for a user' })
-  async bindAction(@Param('userId') userId: string, @Body() bindActionDto: BindActionDto) {
+  async bindAction(@Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string, @Body() bindActionDto: BindActionDto) {
     const areaId = await this.managerService.bindAction(
       userId,
       bindActionDto.actionName,
@@ -74,7 +74,7 @@ export class ManagerController {
   @Get('areas/:userId')
   @ApiParam({ name: 'userId', description: 'ID of the user' })
   @ApiOperation({ summary: 'Get all areas for a user' })
-  async getUserAreas(@Param('userId') userId: string) {
+  async getUserAreas(@Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string) {
     return await this.managerService.getUserAreas(userId);
   }
 
@@ -88,7 +88,7 @@ export class ManagerController {
   @ApiOperation({ summary: 'Deactivate an area' })
   @ApiResponse({ status: 204, description: 'Area deactivated successfully' })
   async deactivateArea(
-    @Param('areaId') areaId: string
+    @Param('areaId', new ParseUUIDPipe({ version: '4' })) areaId: string
   ) {
     await this.managerService.deactivateArea(areaId);
     return {
@@ -97,4 +97,3 @@ export class ManagerController {
     };
   }
 }
-
