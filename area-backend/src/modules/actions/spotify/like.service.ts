@@ -131,7 +131,7 @@ export class SpotifyLikeService implements PollingAction {
     const interval = setInterval(async () => {
       const result = await this.hasNewSpotifyLike(userId);
       callback(result);
-    }, 5000);
+    }, 20000);
 
     this.pollIntervals.set(userId, interval);
   }
