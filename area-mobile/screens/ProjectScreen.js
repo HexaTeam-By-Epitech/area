@@ -37,13 +37,12 @@ export default function ProjectScreen({ route }) {
     const [selectedAction, setSelectedAction] = useState(null);
     const [selectedReactions, setSelectedReactions] = useState([]);
     const [confirmVisible, setConfirmVisible] = useState(false);
+    const [pendingLinks, setPendingLinks] = useState([]);
 
-    // Persistance des liens
     useEffect(() => {
         AsyncStorage.getItem(`workflow-links-${id}`).then(data => {
             if (data) setLinks(JSON.parse(data));
         });
-        // Récupération du nom et de la description
         AsyncStorage.getItem(`workflow-name-${id}`).then(data => {
             if (data) setWorkflowName(data);
         });
@@ -52,14 +51,12 @@ export default function ProjectScreen({ route }) {
         });
     }, [id]);
 
-    // Ajout d'un état temporaire pour les nouveaux liens
-    const [pendingLinks, setPendingLinks] = useState([]);
-
     const openAddMenu = () => {
         setSelectedAction(null);
         setSelectedReactions([]);
         setModalVisible(true);
     };
+
     const toggleReaction = (reactionValue) => {
         setSelectedReactions(prev =>
             prev.includes(reactionValue)
@@ -67,6 +64,7 @@ export default function ProjectScreen({ route }) {
                 : [...prev, reactionValue]
         );
     };
+
     const addPendingLinks = () => {
         if (!selectedAction || selectedReactions.length === 0) return;
         const actionObj = ACTIONS.find(a => a.value === selectedAction);
@@ -84,11 +82,11 @@ export default function ProjectScreen({ route }) {
         setPendingLinks(prev => [...prev, ...newLinks]);
         setModalVisible(false);
     };
+
     const validateAllLinks = async () => {
         const newLinks = [...links, ...pendingLinks];
         setLinks(newLinks);
         setPendingLinks([]);
-        // Sauvegarde du nom et de la description du workflow
         await AsyncStorage.setItem(`workflow-name-${id}`, workflowName);
         await AsyncStorage.setItem(`workflow-desc-${id}`, workflowDesc);
         await AsyncStorage.setItem(`workflow-links-${id}`, JSON.stringify(newLinks));
@@ -96,84 +94,115 @@ export default function ProjectScreen({ route }) {
     };
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Edit Workflow {workflowName}</Text>
-            <TextInput style={styles.input} placeholder="Workflow name" placeholderTextColor={colors.textSecondary} value={workflowName} onChangeText={setWorkflowName} />
-            <TextInput style={styles.input} placeholder="Description" placeholderTextColor={colors.textSecondary} value={workflowDesc} onChangeText={setWorkflowDesc} />
-            <TouchableOpacity style={styles.button} onPress={openAddMenu}>
-                <Text style={styles.buttonText}>Add Action-Reaction</Text>
-            </TouchableOpacity>
-            <Text style={styles.sectionTitle}>Action-Reaction Links</Text>
-            <View style={{ marginBottom: isTablet ? 30 : 20 }}>
-                {([...links, ...pendingLinks]).length === 0 ? (
-                    <Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 20 }}>
-                        No action-reaction links yet.
-                    </Text>
-                ) : (
-                    [...links, ...pendingLinks].map((item, idx) => (
-                        <View key={item.id || idx} style={styles.linkRowVertical}>
-                            <View style={styles.linkCard}>
-                                <Text style={styles.linkCardText}>{item.action}</Text>
+        <View style={{ flex: 1 }}>
+            <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 150 }}>
+                <Text style={styles.title}>Edit Workflow {workflowName}</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Workflow name"
+                    placeholderTextColor={colors.textSecondary}
+                    value={workflowName}
+                    onChangeText={setWorkflowName}
+                />
+                <TextInput
+                    style={styles.input}
+                    placeholder="Description"
+                    placeholderTextColor={colors.textSecondary}
+                    value={workflowDesc}
+                    onChangeText={setWorkflowDesc}
+                />
+                <TouchableOpacity style={styles.button} onPress={openAddMenu}>
+                    <Text style={styles.buttonText}>Add Action-Reaction</Text>
+                </TouchableOpacity>
+
+                <Text style={styles.sectionTitle}>Action-Reaction Links</Text>
+                <View style={{ marginBottom: isTablet ? 30 : 20 }}>
+                    {([...links, ...pendingLinks]).length === 0 ? (
+                        <Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 20 }}>
+                            No action-reaction links yet.
+                        </Text>
+                    ) : (
+                        Object.entries([...links, ...pendingLinks].reduce((acc, item) => {
+                            if (!acc[item.action]) acc[item.action] = [];
+                            acc[item.action].push(item.reaction);
+                            return acc;
+                        }, {})).map(([action, reactions], idx) => (
+                            <View key={action + idx} style={styles.linkRowVertical}>
+                                <View style={styles.linkCard}>
+                                    <Text style={styles.linkCardText}>{action}</Text>
+                                </View>
+
+                                <View style={styles.linkLineVertical} />
+
+                                <View style={styles.reactionContainerCard}>
+                                    {reactions.map((reaction, rIdx) => (
+                                        <View key={rIdx} style={styles.reactionCardNested}>
+                                            <Text style={styles.reactionCardText}>{reaction}</Text>
+                                        </View>
+                                    ))}
+                                </View>
                             </View>
-                            <View style={styles.linkLineVertical} />
-                            <View style={styles.linkCard}>
-                                <Text style={styles.linkCardText}>{item.reaction}</Text>
+                        ))
+                    )}
+                </View>
+
+                <Modal visible={modalVisible} animationType="slide" transparent>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.sectionTitle}>Select Action</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+                                {ACTIONS.map(action => (
+                                    <TouchableOpacity
+                                        key={action.value}
+                                        style={[styles.selectCard, selectedAction === action.value && styles.selectCardSelected]}
+                                        onPress={() => setSelectedAction(action.value)}
+                                    >
+                                        <Text style={styles.selectCardText}>{action.label}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                            <Text style={styles.sectionTitle}>Select Reactions</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+                                {REACTIONS.map(reaction => (
+                                    <TouchableOpacity
+                                        key={reaction.value}
+                                        style={[styles.selectCard, selectedReactions.includes(reaction.value) && styles.selectCardSelected]}
+                                        onPress={() => toggleReaction(reaction.value)}
+                                    >
+                                        <Text style={styles.selectCardText}>{reaction.label}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                            <View style={styles.modalButtons}>
+                                <TouchableOpacity style={styles.button} onPress={addPendingLinks}>
+                                    <Text style={styles.buttonText}>Validate</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={[styles.button, styles.buttonCancel]} onPress={() => setModalVisible(false)}>
+                                    <Text style={styles.buttonText}>Cancel</Text>
+                                </TouchableOpacity>
                             </View>
                         </View>
-                    ))
-                )}
-            </View>
-            <Modal visible={modalVisible} animationType="slide" transparent>
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.sectionTitle}>Select Action</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
-                            {ACTIONS.map(action => (
-                                <TouchableOpacity
-                                    key={action.value}
-                                    style={[styles.selectCard, selectedAction === action.value && styles.selectCardSelected]}
-                                    onPress={() => setSelectedAction(action.value)}
-                                >
-                                    <Text style={styles.selectCardText}>{action.label}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                        <Text style={styles.sectionTitle}>Select Reactions</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
-                            {REACTIONS.map(reaction => (
-                                <TouchableOpacity
-                                    key={reaction.value}
-                                    style={[styles.selectCard, selectedReactions.includes(reaction.value) && styles.selectCardSelected]}
-                                    onPress={() => toggleReaction(reaction.value)}
-                                >
-                                    <Text style={styles.selectCardText}>{reaction.label}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity style={styles.button} onPress={addPendingLinks}>
-                                <Text style={styles.buttonText}>Validate</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={[styles.button, styles.buttonCancel]} onPress={() => setModalVisible(false)}>
-                                <Text style={styles.buttonText}>Cancel</Text>
+                    </View>
+                </Modal>
+
+                <Modal visible={confirmVisible} transparent animationType="fade">
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.sectionTitle}>Validation réussie !</Text>
+                            <TouchableOpacity style={styles.button} onPress={() => setConfirmVisible(false)}>
+                                <Text style={styles.buttonText}>OK</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
-                </View>
-            </Modal>
-            <TouchableOpacity style={[styles.button, {position: 'absolute', bottom: 30, alignSelf: 'center', width: isTablet ? 300 : '80%'}]} onPress={validateAllLinks}>
+                </Modal>
+            </ScrollView>
+
+            <TouchableOpacity
+                style={[styles.button, { position: 'absolute', bottom: 30, alignSelf: 'center', width: isTablet ? 300 : '80%' }]}
+                onPress={validateAllLinks}
+            >
                 <Text style={styles.buttonText}>Validate All</Text>
             </TouchableOpacity>
-            <Modal visible={confirmVisible} transparent animationType="fade">
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.sectionTitle}>Validation réussie !</Text>
-                        <TouchableOpacity style={styles.button} onPress={() => setConfirmVisible(false)}>
-                            <Text style={styles.buttonText}>OK</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
         </View>
     );
 }
@@ -206,25 +235,6 @@ const createStyles = (isTablet) => StyleSheet.create({
         color: colors.textSecondary,
         marginBottom: isTablet ? 18 : 10,
         marginTop: isTablet ? 30 : 20,
-    },
-    card: {
-        backgroundColor: colors.cardBgSecondary,
-        borderRadius: 10,
-        padding: isTablet ? 22 : 15,
-        marginBottom: isTablet ? 18 : 10,
-    },
-    cardText: {
-        color: colors.textPrimary,
-        fontSize: isTablet ? 20 : 16,
-        textAlign: 'center',
-    },
-    action: {
-        color: colors.buttonColor,
-        fontWeight: '700',
-    },
-    reaction: {
-        color: colors.buttonHover,
-        fontWeight: '700',
     },
     button: {
         backgroundColor: colors.buttonColor,
@@ -281,13 +291,6 @@ const createStyles = (isTablet) => StyleSheet.create({
         justifyContent: 'center',
         marginTop: 20,
     },
-    // Ajout des styles pour les cards liées
-    linkRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 18,
-        justifyContent: 'center',
-    },
     linkCard: {
         backgroundColor: colors.cardBgSecondary,
         borderRadius: 12,
@@ -302,25 +305,36 @@ const createStyles = (isTablet) => StyleSheet.create({
         fontWeight: '700',
         fontSize: 18,
     },
-    linkLine: {
-        width: 40,
-        height: 3,
-        backgroundColor: colors.buttonColor,
-        marginHorizontal: 10,
-        borderRadius: 2,
-    },
-    // Ajout des styles pour affichage vertical
     linkRowVertical: {
         flexDirection: 'column',
         alignItems: 'center',
-        marginBottom: 18,
-        justifyContent: 'center',
+        marginBottom: 24,
     },
     linkLineVertical: {
         width: 3,
-        height: 30,
+        height: 20,
         backgroundColor: colors.buttonColor,
-        marginVertical: 6,
+        marginVertical: 8,
         borderRadius: 2,
+    },
+    reactionContainerCard: {
+        backgroundColor: colors.cardBgSecondary,
+        borderRadius: 12,
+        padding: 12,
+        width: isTablet ? 300 : '90%',
+        elevation: 3,
+        marginTop: 4,
+    },
+    reactionCardNested: {
+        backgroundColor: '#2E2E2E', // plus foncé que cardBgSecondary
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        marginBottom: 8,
+    },
+    reactionCardText: {
+        color: colors.textPrimary,
+        fontSize: 16,
+        fontWeight: '600',
     },
 });
