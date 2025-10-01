@@ -47,10 +47,14 @@ describe('GmailSendService', () => {
             // Arrange
             const mockLinkedAccount = { id: 'linked-account-id', provider: 'google' };
             const mockAccessToken = 'valid-access-token';
-            
+            const mockUserinfo = { data: { email: 'user@gmail.com' }, status: 200 };
+            const mockSendResponse = { data: { id: 'message-id' }, status: 200 };
+
             usersService.findLinkedAccount.mockResolvedValue(mockLinkedAccount);
             authService.getCurrentAccessToken.mockResolvedValue(mockAccessToken);
-            authService.oAuth2ApiRequest.mockResolvedValue({ data: { id: 'message-id' }, status: 200 });
+            authService.oAuth2ApiRequest
+                .mockResolvedValueOnce(mockUserinfo) // userinfo GET
+                .mockResolvedValueOnce(mockSendResponse); // send POST
 
             // Act
             await service.run(userId, params);
@@ -58,7 +62,14 @@ describe('GmailSendService', () => {
             // Assert
             expect(usersService.findLinkedAccount).toHaveBeenCalledWith(userId, ProviderKeyEnum.Google);
             expect(authService.getCurrentAccessToken).toHaveBeenCalledWith(ProviderKeyEnum.Google, userId);
-            expect(authService.oAuth2ApiRequest).toHaveBeenCalledWith(
+            expect(authService.oAuth2ApiRequest).toHaveBeenNthCalledWith(
+                1,
+                ProviderKeyEnum.Google,
+                userId,
+                expect.objectContaining({ method: 'GET', url: 'https://openidconnect.googleapis.com/v1/userinfo' })
+            );
+            expect(authService.oAuth2ApiRequest).toHaveBeenNthCalledWith(
+                2,
                 ProviderKeyEnum.Google,
                 userId,
                 expect.objectContaining({
@@ -115,18 +126,18 @@ describe('GmailSendService', () => {
             // Arrange
             const mockLinkedAccount = { id: 'linked-account-id', provider: 'google' };
             const mockAccessToken = 'valid-access-token';
-            
             usersService.findLinkedAccount.mockResolvedValue(mockLinkedAccount);
             authService.getCurrentAccessToken.mockResolvedValue(mockAccessToken);
-            authService.oAuth2ApiRequest.mockResolvedValue({ data: { id: 'message-id' }, status: 200 });
+            authService.oAuth2ApiRequest
+                .mockResolvedValueOnce({ data: { email: 'user@gmail.com' }, status: 200 }) // userinfo
+                .mockResolvedValueOnce({ data: { id: 'message-id' }, status: 200 }); // send
 
             // Act
             await service.run(userId, params);
 
             // Assert
-            const oAuthCall = authService.oAuth2ApiRequest.mock.calls[0][2];
-            const rawEmail = Buffer.from(oAuthCall.data.raw, 'base64').toString();
-            
+            const oAuthSendCall = authService.oAuth2ApiRequest.mock.calls[1][2];
+            const rawEmail = Buffer.from(oAuthSendCall.data.raw, 'base64').toString();
             expect(rawEmail).toContain(`To: ${params.to}`);
             expect(rawEmail).toContain(`Subject: ${params.subject}`);
             expect(rawEmail).toContain('Content-Type: text/plain; charset="UTF-8"');
@@ -138,19 +149,18 @@ describe('GmailSendService', () => {
             // Arrange
             const mockLinkedAccount = { id: 'linked-account-id', provider: 'google' };
             const mockAccessToken = 'valid-access-token';
-            
             usersService.findLinkedAccount.mockResolvedValue(mockLinkedAccount);
             authService.getCurrentAccessToken.mockResolvedValue(mockAccessToken);
-            authService.oAuth2ApiRequest.mockResolvedValue({ data: { id: 'message-id' }, status: 200 });
+            authService.oAuth2ApiRequest
+                .mockResolvedValueOnce({ data: { email: 'user@gmail.com' }, status: 200 })
+                .mockResolvedValueOnce({ data: { id: 'message-id' }, status: 200 });
 
             // Act
             await service.run(userId, params);
 
             // Assert
-            const oAuthCall = authService.oAuth2ApiRequest.mock.calls[0][2];
-            const encodedEmail = oAuthCall.data.raw;
-            
-            // Should be base64url encoded (no + or / characters, no padding =)
+            const oAuthSendCall = authService.oAuth2ApiRequest.mock.calls[1][2];
+            const encodedEmail = oAuthSendCall.data.raw;
             expect(encodedEmail).not.toContain('+');
             expect(encodedEmail).not.toContain('/');
             expect(encodedEmail).not.toContain('=');
@@ -167,18 +177,18 @@ describe('GmailSendService', () => {
                 subject: 'Test with émojis 🚀 and special chars: <>&"',
                 body: 'Body with\nnewlines and\ttabs and special chars: àáâãäå',
             };
-            
             usersService.findLinkedAccount.mockResolvedValue(mockLinkedAccount);
             authService.getCurrentAccessToken.mockResolvedValue(mockAccessToken);
-            authService.oAuth2ApiRequest.mockResolvedValue({ data: { id: 'message-id' }, status: 200 });
+            authService.oAuth2ApiRequest
+                .mockResolvedValueOnce({ data: { email: 'user@gmail.com' }, status: 200 })
+                .mockResolvedValueOnce({ data: { id: 'message-id' }, status: 200 });
 
             // Act
             await service.run(userId, specialParams);
 
             // Assert
-            const oAuthCall = authService.oAuth2ApiRequest.mock.calls[0][2];
-            const rawEmail = Buffer.from(oAuthCall.data.raw, 'base64').toString();
-            
+            const oAuthSendCall = authService.oAuth2ApiRequest.mock.calls[1][2];
+            const rawEmail = Buffer.from(oAuthSendCall.data.raw, 'base64').toString();
             expect(rawEmail).toContain(specialParams.to);
             expect(rawEmail).toContain(specialParams.subject);
             expect(rawEmail).toContain(specialParams.body);
@@ -189,10 +199,11 @@ describe('GmailSendService', () => {
             const mockLinkedAccount = { id: 'linked-account-id', provider: 'google' };
             const mockAccessToken = 'valid-access-token';
             const apiError = new Error('Gmail API error');
-            
             usersService.findLinkedAccount.mockResolvedValue(mockLinkedAccount);
             authService.getCurrentAccessToken.mockResolvedValue(mockAccessToken);
-            authService.oAuth2ApiRequest.mockRejectedValue(apiError);
+            authService.oAuth2ApiRequest
+                .mockResolvedValueOnce({ data: { email: 'user@gmail.com' }, status: 200 }) // userinfo ok
+                .mockRejectedValueOnce(apiError); // send fails
 
             // Act & Assert
             await expect(service.run(userId, params)).rejects.toThrow('Gmail API error');
@@ -265,10 +276,11 @@ describe('GmailSendService', () => {
             const loggerSpy = jest.spyOn(service['logger'], 'log');
             const mockLinkedAccount = { id: 'linked-account-id', provider: 'google' };
             const mockAccessToken = 'valid-access-token';
-            
             usersService.findLinkedAccount.mockResolvedValue(mockLinkedAccount);
             authService.getCurrentAccessToken.mockResolvedValue(mockAccessToken);
-            authService.oAuth2ApiRequest.mockResolvedValue({ data: { id: 'message-id' }, status: 200 });
+            authService.oAuth2ApiRequest
+                .mockResolvedValueOnce({ data: { email: 'user@gmail.com' }, status: 200 })
+                .mockResolvedValueOnce({ data: { id: 'message-id' }, status: 200 });
 
             // Act
             await service.run(userId, params);
