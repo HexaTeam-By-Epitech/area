@@ -110,11 +110,15 @@ export class UsersService {
      * @returns The deleted user object
      */
     async deleteUser(id: string) {
-        if (!(await this.prisma.users.findUnique({ where: { id } })))
-            throw new NotFoundException('User not found');
-        await this.prisma.auth_identities.deleteMany({ where: { user_id: id } });
-        await this.prisma.linked_accounts.deleteMany({ where: { user_id: id } });
-        return this.prisma.users.delete({where: {id}});
+        return await this.prisma.$transaction(async (tx) => {
+            const user = await tx.users.findUnique({ where: { id } });
+            if (!user) {
+                throw new NotFoundException('User not found');
+            }
+            await tx.auth_identities.deleteMany({ where: { user_id: id } });
+            await tx.linked_accounts.deleteMany({ where: { user_id: id } });
+            return tx.users.delete({ where: { id } });
+        });
     }
 
     async findById(id: string) {
