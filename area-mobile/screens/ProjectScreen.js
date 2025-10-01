@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, Dimensions, TouchableOpacity, FlatList, Modal, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Dimensions, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import colors from './colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -14,7 +14,7 @@ const REACTIONS = [
     { label: 'Send Email', value: 'send_email' },
 ];
 
-export default function ProjectScreen({ route, navigation }) {
+export default function ProjectScreen({ route }) {
     const { id } = route.params;
     const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
     useEffect(() => {
@@ -51,10 +51,6 @@ export default function ProjectScreen({ route, navigation }) {
             if (data) setWorkflowDesc(data);
         });
     }, [id]);
-    // Suppression de la sauvegarde automatique
-    // useEffect(() => {
-    //     AsyncStorage.setItem(`workflow-links-${id}`, JSON.stringify(links));
-    // }, [links, id]);
 
     // Ajout d'un état temporaire pour les nouveaux liens
     const [pendingLinks, setPendingLinks] = useState([]);
@@ -108,40 +104,49 @@ export default function ProjectScreen({ route, navigation }) {
                 <Text style={styles.buttonText}>Add Action-Reaction</Text>
             </TouchableOpacity>
             <Text style={styles.sectionTitle}>Action-Reaction Links</Text>
-            <FlatList
-                data={[...links, ...pendingLinks]}
-                keyExtractor={item => item.id}
-                renderItem={({ item }) => (
-                    <View style={styles.card}>
-                        <Text style={styles.cardText}><Text style={styles.action}>{item.action}</Text> → <Text style={styles.reaction}>{item.reaction}</Text></Text>
-                    </View>
+            <View style={{ marginBottom: isTablet ? 30 : 20 }}>
+                {([...links, ...pendingLinks]).length === 0 ? (
+                    <Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 20 }}>
+                        No action-reaction links yet.
+                    </Text>
+                ) : (
+                    [...links, ...pendingLinks].map((item, idx) => (
+                        <View key={item.id || idx} style={styles.linkRowVertical}>
+                            <View style={styles.linkCard}>
+                                <Text style={styles.linkCardText}>{item.action}</Text>
+                            </View>
+                            <View style={styles.linkLineVertical} />
+                            <View style={styles.linkCard}>
+                                <Text style={styles.linkCardText}>{item.reaction}</Text>
+                            </View>
+                        </View>
+                    ))
                 )}
-                style={{ marginBottom: isTablet ? 30 : 20 }}
-            />
+            </View>
             <Modal visible={modalVisible} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <Text style={styles.sectionTitle}>Select Action</Text>
-                        <ScrollView>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
                             {ACTIONS.map(action => (
                                 <TouchableOpacity
                                     key={action.value}
-                                    style={[styles.modalItem, selectedAction === action.value && styles.modalItemSelected]}
+                                    style={[styles.selectCard, selectedAction === action.value && styles.selectCardSelected]}
                                     onPress={() => setSelectedAction(action.value)}
                                 >
-                                    <Text style={styles.modalItemText}>{action.label}</Text>
+                                    <Text style={styles.selectCardText}>{action.label}</Text>
                                 </TouchableOpacity>
                             ))}
                         </ScrollView>
                         <Text style={styles.sectionTitle}>Select Reactions</Text>
-                        <ScrollView>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
                             {REACTIONS.map(reaction => (
                                 <TouchableOpacity
                                     key={reaction.value}
-                                    style={[styles.modalItem, selectedReactions.includes(reaction.value) && styles.modalItemSelected]}
+                                    style={[styles.selectCard, selectedReactions.includes(reaction.value) && styles.selectCardSelected]}
                                     onPress={() => toggleReaction(reaction.value)}
                                 >
-                                    <Text style={styles.modalItemText}>{reaction.label}</Text>
+                                    <Text style={styles.selectCardText}>{reaction.label}</Text>
                                 </TouchableOpacity>
                             ))}
                         </ScrollView>
@@ -252,23 +257,70 @@ const createStyles = (isTablet) => StyleSheet.create({
         width: isTablet ? 500 : '90%',
         maxHeight: '80%',
     },
-    modalItem: {
-        padding: isTablet ? 18 : 12,
-        borderRadius: 8,
-        marginBottom: 8,
+    selectCard: {
         backgroundColor: colors.cardBgSecondary,
+        borderRadius: 12,
+        paddingVertical: 18,
+        paddingHorizontal: 28,
+        marginRight: 14,
+        marginBottom: 6,
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 2,
     },
-    modalItemSelected: {
+    selectCardSelected: {
         backgroundColor: colors.buttonColor,
     },
-    modalItemText: {
+    selectCardText: {
         color: colors.textPrimary,
-        fontSize: isTablet ? 20 : 16,
-        fontWeight: '600',
+        fontWeight: '700',
+        fontSize: 18,
     },
     modalButtons: {
         flexDirection: 'row',
         justifyContent: 'center',
         marginTop: 20,
+    },
+    // Ajout des styles pour les cards liées
+    linkRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 18,
+        justifyContent: 'center',
+    },
+    linkCard: {
+        backgroundColor: colors.cardBgSecondary,
+        borderRadius: 12,
+        paddingVertical: 14,
+        paddingHorizontal: 28,
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 2,
+    },
+    linkCardText: {
+        color: colors.textPrimary,
+        fontWeight: '700',
+        fontSize: 18,
+    },
+    linkLine: {
+        width: 40,
+        height: 3,
+        backgroundColor: colors.buttonColor,
+        marginHorizontal: 10,
+        borderRadius: 2,
+    },
+    // Ajout des styles pour affichage vertical
+    linkRowVertical: {
+        flexDirection: 'column',
+        alignItems: 'center',
+        marginBottom: 18,
+        justifyContent: 'center',
+    },
+    linkLineVertical: {
+        width: 3,
+        height: 30,
+        backgroundColor: colors.buttonColor,
+        marginVertical: 6,
+        borderRadius: 2,
     },
 });
