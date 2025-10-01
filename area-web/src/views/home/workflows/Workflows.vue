@@ -81,13 +81,17 @@ interact(myInter.CANVAS_SELECTOR)
   width: 10vw;
   height: 6vh;
   margin: 1rem 0 0 1rem;
-  background-color: var(--button-hover);
+  background-color: var(--button-color);
   color: var(--text-primary);
   border-radius: 0.75em;
   padding: 4%;
   touch-action: none;
   user-select: none;
   border: solid 1px var(--text-secondary);
+}
+
+.area:hover {
+  background-color: var(--button-hover);
 }
 
 .workflow-canvas .area {
