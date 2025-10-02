@@ -1,21 +1,20 @@
 import React from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import styles from '../styles';
-import colors from './colors';
 import Button from '../components/Button';
 
 export default function LandingScreen({ navigation }) {
     return (
-        <ScrollView contentContainerStyle={[styles.container, { paddingVertical: 40, paddingHorizontal: 24 }]}>
+        <ScrollView contentContainerStyle={[styles.container, styles.scrollContent]}>
             {/* Hero Section */}
-            <Text style={[styles.title, { fontSize: 34, fontWeight: '900', marginBottom: 12 }]}>
+            <Text style={[styles.title, styles.title]}>
                 Supercharge Your Day with AREA
             </Text>
-            <Text style={[styles.text, { fontSize: 20, color: colors.textSecondary, marginBottom: 25, textAlign: 'center' }]}>
+            <Text style={[styles.text, styles.sectionTitle]}>
                 Automate. Simplify. Achieve more.
             </Text>
 
-            {/* Why AREA Section */}
+            {/* Why AREA */}
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Why AREA?</Text>
                 <Text style={styles.paragraph}>
@@ -24,7 +23,7 @@ export default function LandingScreen({ navigation }) {
                 </Text>
             </View>
 
-            {/* Benefits Section */}
+            {/* Benefits */}
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Benefits You'll Love</Text>
                 <Text style={styles.bullet}>• Save hours every week</Text>
@@ -33,7 +32,7 @@ export default function LandingScreen({ navigation }) {
                 <Text style={styles.bullet}>• Keep all your favorite services connected</Text>
             </View>
 
-            {/* Use Cases Section */}
+            {/* Use Cases */}
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Real-Life Use Cases</Text>
                 <Text style={styles.paragraph}>
@@ -47,19 +46,10 @@ export default function LandingScreen({ navigation }) {
             <Button
                 title="Get Started Now"
                 onPress={() => navigation.navigate('Login')}
-                style={{
-                    marginTop: 25,
-                    backgroundColor: colors.buttonColor,
-                    paddingVertical: 16,
-                    paddingHorizontal: 35,
-                    borderRadius: 10,
-                }}
-                textStyle={{
-                    color: colors.textPrimary,
-                    fontWeight: '700',
-                    fontSize: 19,
-                }}
+                style={styles.button}
+                textStyle={styles.buttonText}
             />
         </ScrollView>
     );
 }
+

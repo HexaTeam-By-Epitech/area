@@ -2,10 +2,22 @@ import { StyleSheet } from 'react-native';
 import colors from './screens/colors';
 
 export default StyleSheet.create({
-    section: {
-        marginBottom: 30,
-        width: '100%',
+    // Layout
+    container: {
+        flex: 1,
+        justifyContent: 'center',
         alignItems: 'center',
+        padding: 20,
+        backgroundColor: colors.bgPrimary,
+    },
+
+    // Typography
+    title: {
+        fontSize: 28,
+        fontWeight: '600',
+        color: colors.textPrimary,
+        marginBottom: 40,
+        textAlign: 'center',
     },
     sectionTitle: {
         fontSize: 22,
@@ -27,6 +39,27 @@ export default StyleSheet.create({
         marginBottom: 6,
         marginLeft: 12,
     },
+    text: {
+        fontSize: 16,
+        color: colors.textSecondary,
+    },
+
+    // Inputs
+    input: {
+        width: '100%',
+        padding: 15,
+        marginBottom: 15,
+        borderRadius: 8,
+        backgroundColor: colors.cardBgPrimary,
+        color: colors.textPrimary,
+        borderWidth: 1,
+        borderColor: 'transparent',
+    },
+    inputFocused: {
+        borderColor: colors.buttonColor,
+    },
+
+    // Buttons
     button: {
         width: '100%',
         padding: 15,
@@ -42,51 +75,31 @@ export default StyleSheet.create({
     },
     buttonText: {
         color: colors.textPrimary,
-        fontWeight: 'bold',
+        fontWeight: '600',
         fontSize: 16,
     },
     buttonTextSecondary: {
         color: colors.buttonColor,
     },
+
+    // Cards
     card: {
         backgroundColor: colors.cardBgPrimary,
         borderRadius: 10,
         padding: 16,
         marginVertical: 8,
+        width: '100%',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,
         shadowRadius: 4,
         elevation: 5,
     },
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-        backgroundColor: colors.bgPrimary,
-    },
-    title: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        marginBottom: 40,
-        color: colors.textPrimary,
-    },
-    text: {
-        fontSize: 16,
-        color: colors.textSecondary,
-    },
-    input: {
+
+    // Sections
+    section: {
+        marginBottom: 30,
         width: '100%',
-        padding: 15,
-        marginBottom: 15,
-        borderRadius: 8,
-        backgroundColor: colors.cardBgPrimary,
-        color: colors.textPrimary,
-        borderWidth: 1,
-        borderColor: 'transparent',
-    },
-    inputFocused: {
-        borderColor: colors.buttonColor,
+        alignItems: 'center',
     },
 });
