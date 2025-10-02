@@ -326,7 +326,7 @@ const createStyles = (isTablet) => StyleSheet.create({
         marginTop: 4,
     },
     reactionCardNested: {
-        backgroundColor: '#2E2E2E', // plus foncé que cardBgSecondary
+        backgroundColor: '#2E2E2E',
         paddingVertical: 10,
         paddingHorizontal: 16,
         borderRadius: 8,
