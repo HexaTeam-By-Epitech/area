@@ -1,7 +1,9 @@
+// screens/LoginScreen.js
 import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, Text, StyleSheet, Alert } from 'react-native';
+import { View, TextInput, Text, Alert } from 'react-native';
 import axios from 'axios';
-import colors from './colors';
+import styles from '../styles';
+import Button from '../components/Button';
 
 export default function LoginScreen({ navigation }) {
     const [email, setEmail] = useState('');
@@ -22,10 +24,7 @@ export default function LoginScreen({ navigation }) {
         <View style={styles.container}>
             <Text style={styles.title}>Welcome</Text>
             <TextInput
-                style={[
-                    styles.input,
-                    focusInput === 'email' && styles.inputFocused
-                ]}
+                style={[styles.input, focusInput === 'email' && styles.inputFocused]}
                 placeholder="Email"
                 placeholderTextColor="#c3c9d5"
                 value={email}
@@ -36,10 +35,7 @@ export default function LoginScreen({ navigation }) {
                 onBlur={() => setFocusInput(null)}
             />
             <TextInput
-                style={[
-                    styles.input,
-                    focusInput === 'password' && styles.inputFocused
-                ]}
+                style={[styles.input, focusInput === 'password' && styles.inputFocused]}
                 placeholder="Password"
                 placeholderTextColor="#c3c9d5"
                 value={password}
@@ -48,62 +44,13 @@ export default function LoginScreen({ navigation }) {
                 onFocus={() => setFocusInput('password')}
                 onBlur={() => setFocusInput(null)}
             />
-            <TouchableOpacity style={styles.button} onPress={() => handleAuth('login')}>
-                <Text style={styles.buttonText}>Login</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.button, styles.buttonSecondary]} onPress={() => handleAuth('register')}>
-                <Text style={[styles.buttonText, styles.buttonTextSecondary]}>Register</Text>
-            </TouchableOpacity>
+            <Button title="Login" onPress={() => handleAuth('login')} />
+            <Button
+                title="Register"
+                onPress={() => handleAuth('register')}
+                style={styles.buttonSecondary}
+                textStyle={styles.buttonTextSecondary}
+            />
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-        backgroundColor: colors.bgPrimary,
-    },
-    title: {
-        fontSize: 28,
-        fontWeight: '600',
-        marginBottom: 40,
-        color: colors.textPrimary,
-    },
-    input: {
-        width: '100%',
-        padding: 15,
-        marginBottom: 15,
-        borderRadius: 8,
-        backgroundColor: colors.cardBgPrimary,
-        color: colors.textPrimary,
-        borderWidth: 1,
-        borderColor: 'transparent',
-    },
-    inputFocused: {
-        borderColor: colors.buttonColor,
-    },
-    button: {
-        width: '100%',
-        padding: 15,
-        borderRadius: 8,
-        backgroundColor: colors.buttonColor,
-        alignItems: 'center',
-        marginBottom: 10,
-    },
-    buttonSecondary: {
-        backgroundColor: colors.cardBgSecondary,
-        borderWidth: 1,
-        borderColor: colors.buttonColor,
-    },
-    buttonText: {
-        color: colors.textPrimary,
-        fontWeight: '600',
-        fontSize: 16,
-    },
-    buttonTextSecondary: {
-        color: colors.buttonColor,
-    },
-});

@@ -1,87 +1,33 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import colors from './colors';
+import { View, Text, useWindowDimensions } from 'react-native';
+import styles from '../styles';
+import Card from '../components/Card';
 
 export default function HomeScreen({ route }) {
     const { email } = route.params || {};
+    const { width, height } = useWindowDimensions();
+    const isLandscape = width > height;
 
     const placeholderData = Array(4).fill({ title: 'Mock name', subtitle: 'Mock sub', value: 0 });
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Welcome{email ? `, ${email}` : ''}!</Text>
-            <Text style={styles.subtitle}>
-                Use the menu to access your workflows, services, or account.
-            </Text>
-
-            <Text style={styles.dashboardTitle}>Dashboard</Text>
-
-            <View style={styles.cardsContainer}>
-                {placeholderData.map((item, index) => (
-                    <View key={index} style={styles.card}>
-                        <Text style={styles.cardTitle}>{item.title}</Text>
-                        <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
-                        <Text style={styles.cardValue}>{item.value}</Text>
-                    </View>
-                ))}
+        <View style={[styles.container, isLandscape && { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', paddingHorizontal: 40 }]}>
+            <View style={{ flex: 1 }}>
+                <Text style={styles.title}>Welcome{email ? `, ${email}` : ''}!</Text>
+                <Text style={styles.text}>
+                    Use the menu to access your workflows, services, or account.
+                </Text>
+                <Text style={[styles.title, { fontSize: 20, marginTop: 24 }]}>Dashboard</Text>
+                <View style={{ flexDirection: isLandscape ? 'row' : 'column', justifyContent: 'center', alignItems: isLandscape ? 'flex-start' : 'center' }}>
+                    {placeholderData.map((item, index) => (
+                        <Card key={index} style={{ width: isLandscape ? 200 : '90%' }}>
+                            <Text style={styles.title}>{item.title}</Text>
+                            <Text style={styles.text}>{item.subtitle}</Text>
+                            <Text style={styles.text}>{item.value}</Text>
+                        </Card>
+                    ))}
+                </View>
             </View>
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: colors.bgPrimary,
-        padding: 20,
-    },
-    title: {
-        fontSize: 26,
-        fontWeight: '700',
-        color: colors.textPrimary,
-        textAlign: 'center',
-        marginBottom: 10,
-    },
-    subtitle: {
-        fontSize: 16,
-        color: colors.textSecondary,
-        textAlign: 'center',
-        marginBottom: 30,
-    },
-    dashboardTitle: {
-        fontSize: 22,
-        fontWeight: '700',
-        color: colors.textPrimary,
-        textAlign: 'center',
-        marginBottom: 20,
-    },
-    cardsContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        gap: 10,
-    },
-    card: {
-        backgroundColor: colors.cardBgSecondary,
-        borderRadius: 8,
-        padding: 15,
-        width: '48%',
-        marginBottom: 15,
-    },
-    cardTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: colors.textPrimary,
-        marginBottom: 4,
-    },
-    cardSubtitle: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        marginBottom: 10,
-    },
-    cardValue: {
-        fontSize: 22,
-        fontWeight: '700',
-        color: colors.textPrimary,
-    },
-});

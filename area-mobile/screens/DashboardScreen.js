@@ -1,30 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Dimensions, Modal, TextInput } from 'react-native';
-import colors from './colors';
+import { View, Text, FlatList, Modal, TextInput } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import styles from '../styles';
+import Card from '../components/Card';
+import Button from '../components/Button';
 
 export default function DashboardScreen({ navigation }) {
-    const [screenWidth, setScreenWidth] = useState(Dimensions.get('window').width);
-    useEffect(() => {
-        const onChange = ({ window }) => {
-            setScreenWidth(window.width);
-        };
-        const subscription = Dimensions.addEventListener('change', onChange);
-        return () => {
-            if (subscription?.remove) subscription.remove();
-            else Dimensions.removeEventListener('change', onChange);
-        };
-    }, []);
-    const isTablet = screenWidth >= 768;
-    const styles = createStyles(isTablet);
-
     const [workflows, setWorkflows] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [newName, setNewName] = useState('');
     const [newDesc, setNewDesc] = useState('');
 
-    // Charge la liste des workflows dynamiquement
     useEffect(() => {
         AsyncStorage.getItem('workflow-ids').then(data => {
             const ids = data ? JSON.parse(data) : [];
@@ -38,7 +25,6 @@ export default function DashboardScreen({ navigation }) {
         });
     }, []);
 
-    // Ajout d'un workflow
     const addWorkflow = async () => {
         const id = Date.now().toString() + Math.random();
         const ids = workflows.map(w => w.id);
@@ -52,7 +38,6 @@ export default function DashboardScreen({ navigation }) {
         setNewDesc('');
     };
 
-    // Suppression d'un workflow
     const deleteWorkflow = async (id) => {
         const newWorkflows = workflows.filter(w => w.id !== id);
         const newIds = newWorkflows.map(w => w.id);
@@ -70,136 +55,48 @@ export default function DashboardScreen({ navigation }) {
                 data={workflows}
                 keyExtractor={item => item.id}
                 renderItem={({ item }) => (
-                    <View style={styles.card}>
+                    <Card style={{ marginBottom: 12 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <TouchableOpacity style={{ flex: 1 }} onPress={() => navigation.navigate('Project', { id: item.id })}>
-                                <Text style={styles.cardTitle}>{item.name}</Text>
-                                <Text style={styles.cardDesc}>{item.description}</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => deleteWorkflow(item.id)} style={{ marginLeft: 10 }}>
-                                <Ionicons name="trash" size={28} color={colors.buttonColorError} />
-                            </TouchableOpacity>
+                            <Button
+                                title={item.name}
+                                style={{ flex: 1, backgroundColor: 'transparent', color: styles.title.color, fontWeight: 'bold', fontSize: 18 }}
+                                onPress={() => navigation.navigate('Project', { id: item.id })}
+                            />
+                            <Button
+                                title={<Ionicons name="trash" size={24} color="#d32f2f" />}
+                                style={{ backgroundColor: 'transparent', marginLeft: 10 }}
+                                onPress={() => deleteWorkflow(item.id)}
+                            />
                         </View>
-                    </View>
+                        <Text style={styles.text}>{item.description}</Text>
+                    </Card>
                 )}
-                ListEmptyComponent={<Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 40 }}>No workflow yet.</Text>}
+                ListEmptyComponent={<Text style={styles.text}>No workflow yet.</Text>}
             />
-            <TouchableOpacity style={[styles.button, {position: 'absolute', bottom: 30, alignSelf: 'center', width: isTablet ? 300 : '80%'}]} onPress={() => setModalVisible(true)}>
-                <Text style={styles.buttonText}>Add Workflow</Text>
-            </TouchableOpacity>
+            <Button title="Add Workflow" onPress={() => setModalVisible(true)} style={{ position: 'absolute', bottom: 30, alignSelf: 'center', width: '80%' }} />
             <Modal visible={modalVisible} transparent animationType="fade">
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.sectionTitle}>Create a new workflow</Text>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                    <Card style={{ width: '90%' }}>
+                        <Text style={styles.title}>Create a new workflow</Text>
                         <TextInput
                             style={styles.input}
                             placeholder="Workflow name"
-                            placeholderTextColor={colors.textSecondary}
+                            placeholderTextColor="#c3c9d5"
                             value={newName}
                             onChangeText={setNewName}
                         />
                         <TextInput
                             style={styles.input}
                             placeholder="Description"
-                            placeholderTextColor={colors.textSecondary}
+                            placeholderTextColor="#c3c9d5"
                             value={newDesc}
                             onChangeText={setNewDesc}
                         />
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity style={styles.button} onPress={addWorkflow}>
-                                <Text style={styles.buttonText}>Validate</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={[styles.button, styles.buttonCancel]} onPress={() => setModalVisible(false)}>
-                                <Text style={styles.buttonText}>Cancel</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
+                        <Button title="Create" onPress={addWorkflow} />
+                        <Button title="Cancel" onPress={() => setModalVisible(false)} style={{ backgroundColor: '#d32f2f' }} />
+                    </Card>
                 </View>
             </Modal>
         </View>
     );
 }
-
-const createStyles = (isTablet) => StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: colors.bgPrimary,
-        padding: isTablet ? 60 : 20,
-    },
-    title: {
-        fontSize: isTablet ? 32 : 24,
-        fontWeight: '700',
-        color: colors.textPrimary,
-        marginBottom: isTablet ? 32 : 20,
-    },
-    card: {
-        backgroundColor: colors.cardBgPrimary,
-        borderRadius: 10,
-        padding: isTablet ? 30 : 20,
-        marginBottom: isTablet ? 22 : 15,
-    },
-    cardTitle: {
-        color: colors.textPrimary,
-        fontWeight: '700',
-        fontSize: isTablet ? 22 : 18,
-    },
-    cardDesc: {
-        color: colors.textSecondary,
-        fontSize: isTablet ? 18 : 14,
-    },
-    button: {
-        backgroundColor: colors.buttonColor,
-        paddingVertical: isTablet ? 18 : 14,
-        paddingHorizontal: isTablet ? 50 : 30,
-        borderRadius: 8,
-        alignItems: 'center',
-        alignSelf: 'center',
-        marginTop: isTablet ? 10 : 5,
-    },
-    buttonText: {
-        color: colors.textPrimary,
-        fontWeight: '700',
-        fontSize: isTablet ? 20 : 16,
-    },
-    buttonCancel: {
-        backgroundColor: colors.buttonColorDisabled,
-        marginLeft: 10,
-    },
-    input: {
-        backgroundColor: colors.cardBgPrimary,
-        color: colors.textPrimary,
-        borderRadius: 8,
-        padding: isTablet ? 20 : 15,
-        marginBottom: isTablet ? 20 : 15,
-        borderWidth: 1,
-        borderColor: 'transparent',
-        width: isTablet ? 400 : '80%',
-        alignSelf: 'center',
-    },
-    sectionTitle: {
-        fontSize: isTablet ? 24 : 18,
-        fontWeight: '700',
-        color: colors.textSecondary,
-        marginBottom: isTablet ? 18 : 10,
-        marginTop: isTablet ? 30 : 20,
-        textAlign: 'center',
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(45,46,46,0.95)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    modalContent: {
-        backgroundColor: colors.cardBgPrimary,
-        borderRadius: 16,
-        padding: isTablet ? 40 : 20,
-        width: isTablet ? 500 : '90%',
-        maxHeight: '80%',
-    },
-    modalButtons: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        marginTop: 20,
-    },
-});

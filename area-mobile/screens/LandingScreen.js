@@ -1,13 +1,19 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
+import styles from '../styles';
 import colors from './colors';
+import Button from '../components/Button';
 
 export default function LandingScreen({ navigation }) {
     return (
-        <ScrollView contentContainerStyle={styles.container}>
+        <ScrollView contentContainerStyle={[styles.container, { paddingVertical: 40, paddingHorizontal: 24 }]}>
             {/* Hero Section */}
-            <Text style={styles.title}>Supercharge Your Day with AREA</Text>
-            <Text style={styles.subtitle}>Automate. Simplify. Achieve more.</Text>
+            <Text style={[styles.title, { fontSize: 34, fontWeight: '900', marginBottom: 12 }]}>
+                Supercharge Your Day with AREA
+            </Text>
+            <Text style={[styles.text, { fontSize: 20, color: colors.textSecondary, marginBottom: 25, textAlign: 'center' }]}>
+                Automate. Simplify. Achieve more.
+            </Text>
 
             {/* Why AREA Section */}
             <View style={styles.section}>
@@ -38,88 +44,22 @@ export default function LandingScreen({ navigation }) {
             </View>
 
             {/* Call-to-Action */}
-            <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Login')}>
-                <Text style={styles.buttonText}>Get Started Now</Text>
-            </TouchableOpacity>
+            <Button
+                title="Get Started Now"
+                onPress={() => navigation.navigate('Login')}
+                style={{
+                    marginTop: 25,
+                    backgroundColor: colors.buttonColor,
+                    paddingVertical: 16,
+                    paddingHorizontal: 35,
+                    borderRadius: 10,
+                }}
+                textStyle={{
+                    color: colors.textPrimary,
+                    fontWeight: '700',
+                    fontSize: 19,
+                }}
+            />
         </ScrollView>
     );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flexGrow: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: colors.bgPrimary,
-        paddingVertical: 40,
-        paddingHorizontal: 24,
-    },
-    title: {
-        fontSize: 34,
-        fontWeight: '900',
-        color: colors.textPrimary,
-        marginBottom: 12,
-        textAlign: 'center',
-    },
-    subtitle: {
-        fontSize: 20,
-        color: colors.textSecondary || colors.textPrimary,
-        marginBottom: 25,
-        textAlign: 'center',
-    },
-    heroImage: {
-        width: '100%',
-        height: 180,
-        borderRadius: 12,
-        marginBottom: 35,
-    },
-    section: {
-        marginBottom: 30,
-        width: '100%',
-        alignItems: 'center',
-    },
-    sectionTitle: {
-        fontSize: 22,
-        fontWeight: '800',
-        color: colors.textPrimary,
-        marginBottom: 10,
-        textAlign: 'center',
-    },
-    paragraph: {
-        fontSize: 17,
-        lineHeight: 24,
-        color: colors.textPrimary,
-        textAlign: 'center',
-        marginBottom: 12,
-    },
-    bullet: {
-        fontSize: 17,
-        color: colors.textPrimary,
-        marginBottom: 6,
-        marginLeft: 12,
-    },
-    sectionImage: {
-        width: '90%',
-        height: 180,
-        borderRadius: 12,
-        marginTop: 15,
-    },
-    button: {
-        marginTop: 25,
-        backgroundColor: colors.buttonColor,
-        paddingVertical: 16,
-        paddingHorizontal: 35,
-        borderRadius: 10,
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
-        elevation: 6,
-    },
-    buttonText: {
-        color: colors.textPrimary,
-        fontWeight: '700',
-        fontSize: 19,
-    },
-});
