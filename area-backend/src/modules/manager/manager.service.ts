@@ -4,6 +4,7 @@ import { ActionPollingService } from './polling/action-polling.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { GmailSendService } from '../reactions/gmail/send.service';
+import { GmailNewMailService } from '../actions/gmail/new-mail.service';
 import type { ActionCallback, ReactionCallback, AreaExecution } from '../../common/interfaces/area.type';
 
 /**
@@ -23,6 +24,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         private readonly redisService: RedisService,
         private readonly polling: ActionPollingService,
         private readonly gmailSendService: GmailSendService,
+        private readonly gmailNewMailService: GmailNewMailService,
     ) {}
 
     /**
@@ -33,6 +35,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         await this.registerReactionCallbacks();
         // Register available pollers (extensible)
         this.polling.register(this.spotifyLikeService);
+        this.polling.register(this.gmailNewMailService);
         await this.initPollingForActiveAreas();
         this.logger.log('Manager Service initialized with action-reaction system');
     }
@@ -58,6 +61,15 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                 return await this.spotifyLikeService.hasNewSpotifyLike(userId);
             },
             description: 'Check if user has liked songs on Spotify'
+        });
+
+        // Gmail Actions
+        this.actionCallbacks.set('gmail_new_mail', {
+            name: 'gmail_new_mail',
+            callback: async (userId: string) => {
+                return await this.gmailNewMailService.hasNewGmailEmail(userId);
+            },
+            description: 'Detect new incoming email in Gmail inbox'
         });
 
         this.logger.log(`Registered ${this.actionCallbacks.size} action callbacks`);
