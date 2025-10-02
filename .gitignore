@@ -152,4 +152,3 @@ dist
 *.iml
 gen
 Session.vim
-area-backend/src/prisma/migrations/*
