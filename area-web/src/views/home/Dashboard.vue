@@ -29,7 +29,7 @@ const data = ref(mock_list);
 
 <template>
   <div class="center-container-vertical">
-    <h1>Beautiful dashboard</h1>
+    <h1>Dashboard</h1>
     <ul class="data-box">
       <li v-for="d in data" class="data-item" :key="d.id">
         <h3>{{ d.name }}</h3>
