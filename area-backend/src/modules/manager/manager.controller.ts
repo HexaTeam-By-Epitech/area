@@ -1,13 +1,16 @@
-import { Controller, Get, Param, Post, Body, Delete, HttpCode, HttpStatus } from '@nestjs/common';
-import { ManagerService, ActionCallback, ReactionCallback } from './manager.service';
+import { Controller, Get, Param, Post, Body, Delete, HttpCode, HttpStatus, ParseUUIDPipe, BadRequestException } from '@nestjs/common';
+import { ManagerService } from './manager.service';
+import { ActionCallback, ReactionCallback } from '../../common/interfaces/area.type';
 import { ApiBody } from '@nestjs/swagger/dist/decorators/api-body.decorator';
-import { ApiParam, ApiProperty } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiProperty, ApiResponse } from '@nestjs/swagger';
 
 class BindActionDto {
   @ApiProperty({ description: 'Name of the action to bind', example: 'new_email' })
   actionName: string;
   @ApiProperty({ description: 'Name of the reaction to bind', example: 'send_email' })
   reactionName: string;
+  @ApiProperty({ description: 'Configuration for the reaction', example: { to: 'user@example.com', subject: 'New Email', body: 'You have a new email!' } })
+  config: {};
 }
 
 /**
@@ -22,6 +25,7 @@ export class ManagerController {
    * @returns List of registered action callbacks
    */
   @Get('actions')
+  @ApiOperation({ summary: 'Get available actions' })
   getAvailableActions(): ActionCallback[] {
     return this.managerService.getAvailableActions();
   }
@@ -31,6 +35,7 @@ export class ManagerController {
    * @returns List of registered reaction callbacks
    */
   @Get('reactions')
+  @ApiOperation({ summary: 'Get available reactions' })
   getAvailableReactions(): ReactionCallback[] {
     return this.managerService.getAvailableReactions();
   }
@@ -38,17 +43,19 @@ export class ManagerController {
   /**
    * Bind an action to a reaction for a user
    * @param userId - Target user ID
-   * @param bindActionDto - Pair of action/reaction names
+   * @param bindActionDto - Pair of action/reaction names with potential configuration
    * @returns Creation message and identifiers
    */
   @Post('areas/:userId')
   @ApiBody({ type: BindActionDto })
   @ApiParam({ name: 'userId', description: 'ID of the user' })
-  async bindAction(@Param('userId') userId: string, @Body() bindActionDto: BindActionDto) {
+  @ApiOperation({ summary: 'Bind an action to a reaction for a user' })
+  async bindAction(@Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string, @Body() bindActionDto: BindActionDto) {
     const areaId = await this.managerService.bindAction(
       userId,
       bindActionDto.actionName,
       bindActionDto.reactionName,
+      bindActionDto.config
     );
     return {
       message: 'Area created successfully',
@@ -56,6 +63,7 @@ export class ManagerController {
       userId,
       action: bindActionDto.actionName,
       reaction: bindActionDto.reactionName,
+      config: bindActionDto.config
     };
   }
 
@@ -64,7 +72,9 @@ export class ManagerController {
    * @param userId - Target user ID
    */
   @Get('areas/:userId')
-  async getUserAreas(@Param('userId') userId: string) {
+  @ApiParam({ name: 'userId', description: 'ID of the user' })
+  @ApiOperation({ summary: 'Get all areas for a user' })
+  async getUserAreas(@Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string) {
     return await this.managerService.getUserAreas(userId);
   }
 
@@ -74,8 +84,11 @@ export class ManagerController {
    */
   @Delete('areas/:areaId')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiParam({ name: 'areaId', description: 'ID of the area to deactivate' })
+  @ApiOperation({ summary: 'Deactivate an area' })
+  @ApiResponse({ status: 204, description: 'Area deactivated successfully' })
   async deactivateArea(
-    @Param('areaId') areaId: string
+    @Param('areaId', new ParseUUIDPipe({ version: '4' })) areaId: string
   ) {
     await this.managerService.deactivateArea(areaId);
     return {
@@ -84,4 +97,3 @@ export class ManagerController {
     };
   }
 }
-

@@ -1,10 +1,11 @@
-import { OAuth2LinkProvider } from './OAuth2LinkProvider';
+import { OAuth2LinkProvider } from './link.provider';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { UsersService, ProviderKey } from '../../../users/users.service';
+import { UsersService } from '../../../users/users.service';
+import { ProviderKeyEnum as ProviderKey } from 'src/common/interfaces/oauth2.type';
 import { UnauthorizedException, InternalServerErrorException, BadRequestException, Logger } from '@nestjs/common';
 import { google } from 'googleapis';
-import { TokenCryptoUtil } from '../TokenCryptoUtil';
+import { AesGcmTokenCrypto } from '../../core/token-crypto';
 
 /**
  * Google OAuth linker that connects a Google account to an existing user.
@@ -19,7 +20,7 @@ export class GoogleOAuthLinkProvider implements OAuth2LinkProvider {
     private readonly usersService: UsersService,
     private readonly config: ConfigService,
     private readonly jwtService: JwtService,
-    private readonly crypto: TokenCryptoUtil,
+    private readonly crypto: AesGcmTokenCrypto,
   ) {}
 
   /**

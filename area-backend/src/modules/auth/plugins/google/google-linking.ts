@@ -1,10 +1,9 @@
 import { Injectable, BadRequestException, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { LinkingProvider } from '../../core/OAuth2Types';
-import type { TokenStore } from '../../core/TokenStore';
-import type { TokenCrypto } from '../../core/TokenCrypto';
-import { OAuth2Client } from '../../core/OAuth2Client';
+import { LinkingProvider } from '../../../../common/interfaces/oauth2.type';
+import type { TokenStore, TokenCrypto } from 'src/common/interfaces/crypto.type';
+import { OAuth2Client } from '../../core/oauth2-client';
 
 /**
  * Google linking plugin for connecting a Google account to an existing user.
@@ -43,6 +42,7 @@ export class GoogleLinking implements LinkingProvider {
           'email',
           'profile',
           'https://www.googleapis.com/auth/gmail.readonly',
+          'https://www.googleapis.com/auth/gmail.send',
           'https://www.googleapis.com/auth/calendar.readonly',
         ]).join(' ');
 

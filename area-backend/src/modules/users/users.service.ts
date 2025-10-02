@@ -2,12 +2,8 @@ import {Injectable, NotFoundException} from '@nestjs/common';
 import {PrismaService} from '../../prisma/prisma.service';
 import {CreateUserDto} from './dto/create-user.dto';
 import {UpdateUserDto} from './dto/update-user.dto';
+import { ProviderKeyEnum } from 'src/common/interfaces/oauth2.type';
 import * as crypto from 'crypto';
-
-export enum ProviderKey {
-    Google = 'google',
-    Spotify = 'spotify',
-}
 
 /**
  * Domain service for user management and identity/linking operations.
@@ -114,7 +110,15 @@ export class UsersService {
      * @returns The deleted user object
      */
     async deleteUser(id: string) {
-        return this.prisma.users.delete({where: {id}});
+        return await this.prisma.$transaction(async (tx) => {
+            const user = await tx.users.findUnique({ where: { id } });
+            if (!user) {
+                throw new NotFoundException('User not found');
+            }
+            await tx.auth_identities.deleteMany({ where: { user_id: id } });
+            await tx.linked_accounts.deleteMany({ where: { user_id: id } });
+            return tx.users.delete({ where: { id } });
+        });
     }
 
     async findById(id: string) {
@@ -127,7 +131,7 @@ export class UsersService {
      * @param provider - Provider enum key.
      * @returns The linked account row or null if not found.
      */
-    async findLinkedAccount(userId: string, provider: ProviderKey) {
+    async findLinkedAccount(userId: string, provider: ProviderKeyEnum) {
         const providerId = await this.getOrCreateProviderIdByName(provider);
         return this.prisma.linked_accounts.findUnique({
             where: { user_id_provider_id: { user_id: userId, provider_id: providerId } },
@@ -137,7 +141,7 @@ export class UsersService {
     /**
      * Ensure the oauth provider row exists (by fixed numeric id) to satisfy FK constraints.
      */
-    private async ensureProviderByName(name: ProviderKey): Promise<{ id: number }> {
+    private async ensureProviderByName(name: ProviderKeyEnum): Promise<{ id: number }> {
         // Avoid raw SQL: try find by name, else create. Also set active if found.
         const existing = await this.prisma.oauth_providers.findFirst({ where: { name } });
         if (existing) {
@@ -155,7 +159,7 @@ export class UsersService {
      * @param name - Provider enum key.
      * @returns Numeric provider id.
      */
-    private async getOrCreateProviderIdByName(name: ProviderKey): Promise<number> {
+    private async getOrCreateProviderIdByName(name: ProviderKeyEnum): Promise<number> {
         const { id } = await this.ensureProviderByName(name);
         return id;
     }
@@ -168,7 +172,7 @@ export class UsersService {
      */
     async updateLinkedTokens(
         userId: string,
-        provider: ProviderKey,
+        provider: ProviderKeyEnum,
         input: { accessToken?: string; accessTokenExpiresAt?: Date; refreshToken?: string },
     ) {
         const providerId = await this.getOrCreateProviderIdByName(provider);
@@ -188,7 +192,7 @@ export class UsersService {
      * Creates the user if they do not yet exist (by email).
      */
     async upsertIdentityForLogin(input: {
-        provider: ProviderKey;
+        provider: ProviderKeyEnum;
         providerUserId: string;
         email: string;
         name?: string;
@@ -246,7 +250,7 @@ export class UsersService {
      */
     async linkExternalAccount(input: {
         userId: string;
-        provider: ProviderKey;
+        provider: ProviderKeyEnum;
         providerUserId: string;
         accessToken?: string | null;
         refreshToken?: string | null;
@@ -296,7 +300,7 @@ export class UsersService {
     /**
      * Unlink an external account (remove linked_accounts row) for a user and provider
      */
-    async unlinkLinkedAccount(userId: string, provider: ProviderKey): Promise<void> {
+    async unlinkLinkedAccount(userId: string, provider: ProviderKeyEnum): Promise<void> {
         const providerId = await this.getOrCreateProviderIdByName(provider);
         await this.prisma.linked_accounts.deleteMany({
             where: { user_id: userId, provider_id: providerId },

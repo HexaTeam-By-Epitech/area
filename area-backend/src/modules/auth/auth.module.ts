@@ -9,9 +9,9 @@ import {RedisModule} from '../redis/redis.module';
 import {EmailModule} from '../email/email.module';
 import {JwtModule} from '@nestjs/jwt';
 import {ConfigModule, ConfigService} from '@nestjs/config';
-import { AesGcmTokenCrypto } from './core/TokenCrypto';
-import { PrismaTokenStore } from './core/TokenStore';
-import { OAuth2Client } from './core/OAuth2Client';
+import { AesGcmTokenCrypto } from './core/token-crypto';
+import { PrismaTokenStore } from './core/token-store';
+import { OAuth2Client } from './core/oauth2-client';
 
 /**
  * Authentication module aggregating email/password and generic OAuth/OIDC flows.

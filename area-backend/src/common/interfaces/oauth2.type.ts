@@ -6,6 +6,11 @@ import type { AxiosRequestConfig } from 'axios';
  */
 export type ProviderKey = 'google' | 'spotify' | (string & {});
 
+export enum ProviderKeyEnum {
+    Google = 'google',
+    Spotify = 'spotify',
+}
+
 /**
  * Pluggable identity provider interface for login flows.
  * Implementations may optionally support ID token login and/or code login.
