@@ -72,7 +72,12 @@ export class GmailNewMailService implements PollingAction {
     // List most recent message (INBOX by default). We rely on recency order.
     const cachedBefore = await this.redisService.getValue(cacheKey);
     this.logger.debug(`[Gmail] Listing latest message for user=${userId} (previous cached=${cachedBefore ?? 'none'})`);
-    const lastIdBefore = await this.redisService.getValue(cacheIdKey);
+    let lastIdBefore = await this.redisService.getValue(cacheIdKey);
+    // Heuristic: if cached id equals cached internalDate (likely due to legacy single-value caching), ignore the id
+    if (lastIdBefore && cachedBefore && lastIdBefore === cachedBefore) {
+      this.logger.debug(`[Gmail] Cached message id appears to be same as internalDate value; ignoring cachedId user=${userId}`);
+      lastIdBefore = null;
+    }
     let listRes;
     try {
       listRes = await this.authService.oAuth2ApiRequest<{
@@ -119,13 +124,12 @@ export class GmailNewMailService implements PollingAction {
     }
 
     if (messages.length === 0) {
-      if (cachedBefore === '' && lastIdBefore) {
-        this.logger.debug(`[Gmail] Inbox still empty (cached empty) lastMsgId=${lastIdBefore} user=${userId}`);
-      } else if (cachedBefore === '') {
-        this.logger.debug(`[Gmail] Inbox still empty (cached empty, no lastId) user=${userId}`);
+      // Always (re)store empty baseline so external expectations see a write
+      await this.redisService.setValue(cacheKey, '');
+      await this.redisService.setValue(cacheIdKey, '');
+      if (cachedBefore === '') {
+        this.logger.debug(`[Gmail] Inbox still empty (idempotent empty baseline) user=${userId}`);
       } else {
-        await this.redisService.setValue(cacheKey, '');
-        await this.redisService.setValue(cacheIdKey, '');
         this.logger.debug(`[Gmail] Inbox empty baseline set (was=${cachedBefore ?? 'none'}) user=${userId}`);
       }
       return 1;
@@ -172,23 +176,25 @@ export class GmailNewMailService implements PollingAction {
       return 1;
     }
 
-    // Trigger if newer timestamp OR same timestamp but new messageId
-    const isNewerTimestamp = cached !== null && internalDate > cached;
-    const isNewId = !!cachedId && latestId !== cachedId;
+    // Determine if we should trigger:
+    // 1. Newer timestamp than cached (and cached not empty string)
+    // 2. Previous state was an empty inbox baseline (cached === '') and now we have a message
+    const isNewerTimestamp = cached !== null && cached !== '' && internalDate > cached;
+    const wasEmptyBaseline = cached === '';
 
-    if (isNewerTimestamp || (isNewId && internalDate === cached)) {
+    if (isNewerTimestamp || wasEmptyBaseline) {
       await this.redisService.setValue(cacheKey, internalDate);
       await this.redisService.setValue(cacheIdKey, latestId);
-      this.logger.log(`[Gmail] New email detected user=${userId} messageId=${latestId} internalDate=${internalDate} oldCachedDate=${cached} oldCachedId=${cachedId}`);
+      this.logger.log(`[Gmail] New email detected user=${userId} messageId=${latestId} internalDate=${internalDate} prevDate=${cached} prevId=${cachedId}`);
       return 0;
     }
 
-    // Ensure id stored if previously missing
+    // Only store id if missing (do not treat id-only change with same timestamp as new mail)
     if (!cachedId) {
       await this.redisService.setValue(cacheIdKey, latestId);
     }
 
-    this.logger.debug(`[Gmail] No newer email (timestamp/id unchanged) user=${userId}`);
+    this.logger.debug(`[Gmail] No newer email (timestamp unchanged) user=${userId}`);
     return 1;
   }
 
@@ -218,4 +224,3 @@ export class GmailNewMailService implements PollingAction {
     }
   }
 }
-
