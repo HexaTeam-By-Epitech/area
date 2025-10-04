@@ -30,6 +30,14 @@ export interface TokenStore {
     name?: string;
     avatarUrl?: string;
   }): Promise<{ id: string; email: string }>;
+  linkIdentityToUser(input: {
+    userId: string;
+    provider: ProviderKey;
+    providerUserId: string;
+    email: string;
+    name?: string;
+    avatarUrl?: string;
+  }): Promise<{ id: string; email: string }>;
   findById(userId: string): Promise<{ id: string; email: string } | null>;
   linkExternalAccount(input: {
     userId: string;

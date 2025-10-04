@@ -32,8 +32,9 @@ describe('GenericAuthIdentityController', () => {
     mockAuthService.buildLoginUrl.mockReturnValue('https://provider/login');
     const redirect = jest.fn();
     const res: any = { redirect };
-    await controller.startLogin(res, 'google');
-    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google');
+    const req: any = {};
+    await controller.startLogin(res, req, 'google');
+    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', undefined);
     expect(redirect).toHaveBeenCalledWith('https://provider/login');
   });
 

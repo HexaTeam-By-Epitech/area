@@ -241,11 +241,11 @@ export class AuthService {
         return p.buildLinkUrl({ userId: opts.userId, scopes: opts.scopes });
     }
 
-    /** Build an OAuth login URL for the provider (code flow). */
-    buildLoginUrl(provider: ProviderKey): string {
+    /** Build an OAuth login URL for the provider (code flow). If userId provided, links identity to existing user. */
+    buildLoginUrl(provider: ProviderKey, userId?: string): string {
         const p = this.providers.getIdentity(provider);
         if (!p || !p.buildLoginUrl) throw new BadRequestException(`Login URL not supported for provider ${provider}`);
-        return p.buildLoginUrl();
+        return p.buildLoginUrl(userId);
     }
 
     /** Handle provider login callback (code flow) and issue an application JWT. */
@@ -322,5 +322,19 @@ export class AuthService {
         await this.usersService.unlinkLinkedAccount(userId, provider as any);
         this.logger.log(`Unlinked provider ${String(provider)} for user ${userId}`);
         return { provider: String(provider), userId };
+    }
+
+    /**
+     * Unlink an identity provider from a user.
+     * - If user has password_hash: removes the identity only
+     * - If user has no password_hash: deletes the entire user account
+     */
+    async unlinkIdentity(provider: ProviderKey, userId: string): Promise<{ provider: string; userId: string; deleted: boolean }> {
+        if (!userId) throw new BadRequestException('Missing userId');
+        const user = await this.usersService.findById(userId);
+        if (!user) throw new NotFoundException('User not found');
+        const result = await this.usersService.unlinkIdentity(userId, provider as any);
+        this.logger.log(`Unlinked identity ${String(provider)} for user ${userId} (deleted=${result.deleted})`);
+        return { provider: String(provider), userId, deleted: result.deleted };
     }
 }

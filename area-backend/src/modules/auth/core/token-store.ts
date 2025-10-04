@@ -59,6 +59,27 @@ export class PrismaTokenStore implements TokenStore {
   }
 
   /**
+   * Link an identity provider to an existing authenticated user.
+   */
+  async linkIdentityToUser(input: {
+    userId: string;
+    provider: ProviderKey;
+    providerUserId: string;
+    email: string;
+    name?: string;
+    avatarUrl?: string;
+  }): Promise<{ id: string; email: string }> {
+    return this.users.linkIdentityToUser({
+      userId: input.userId,
+      provider: input.provider as ProviderKeyEnum,
+      providerUserId: input.providerUserId,
+      email: input.email,
+      name: input.name,
+      avatarUrl: input.avatarUrl,
+    });
+  }
+
+  /**
    * Link an external account to an existing user.
    */
   async linkExternalAccount(input: {

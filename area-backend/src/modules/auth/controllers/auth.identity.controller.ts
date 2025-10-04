@@ -1,12 +1,15 @@
-import { Controller, Get, Post, Res, Body, Param, Query } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Post, Delete, Res, Body, Param, Query, Req, UseGuards } from '@nestjs/common';
+import { ApiBody, ApiOperation, ApiResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import express from 'express';
 import { AuthService } from '../auth.service';
 import { Public } from '../../../common/decorators/public.decorator';
+import { OptionalAuth } from '../../../common/decorators/optional-auth.decorator';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 
 /**
  * Controller exposing generic identity-based auth (e.g., ID token sign-in)
  * and OAuth login code flows for any registered provider.
+ * Supports both public login and authenticated identity linking.
  */
 @ApiTags('Auth - Identity (Generic)')
 @Controller('auth')
@@ -32,24 +35,64 @@ export class GenericAuthIdentityController {
   }
 
   /**
+   * Get the OAuth login URL for the provider without redirecting.
+   * Useful for Swagger/Postman testing and frontend applications.
+   *
+   * Can be used in two modes:
+   * - Public (no auth): Returns URL for login/registration
+   * - Authenticated: Returns URL for identity linking
+   *
+   * @param provider - The provider key.
+   * @param req - Express request containing optional user from JWT
+   * @returns Object containing the OAuth URL
+   */
+  @OptionalAuth()
+  @ApiBearerAuth('JWT-auth')
+  @Get(':provider/login/url')
+  @ApiOperation({ summary: 'Get provider OAuth login URL. If authenticated, returns URL for identity linking.' })
+  @ApiResponse({ status: 200, description: 'Returns the OAuth URL', schema: { properties: { url: { type: 'string' } } } })
+  getLoginUrl(@Param('provider') provider: string, @Req() req: express.Request) {
+    // Extract userId from JWT if present (optional authentication)
+    const user = (req as any).user;
+    const userId = user?.sub as string | undefined;
+
+    const url = this.auth.buildLoginUrl(provider, userId);
+    return { url };
+  }
+
+  /**
    * Starts provider OAuth login (authorization code flow) by redirecting
    * the client to the provider consent screen.
    *
+   * Can be used in two modes:
+   * - Public (no auth): Creates new user or logs in existing user
+   * - Authenticated: Links identity to current user
+   *
    * @param res - Express response used to perform the HTTP redirect.
+   * @param req - Express request containing optional user from JWT
    * @param provider - The provider key.
    */
-  @Public()
+  @OptionalAuth()
+  @ApiBearerAuth('JWT-auth')
   @Get(':provider/login')
-  @ApiOperation({ summary: 'Start provider OAuth login (code flow), if supported' })
+  @ApiOperation({ summary: 'Start provider OAuth login (code flow). If authenticated, links identity to current user.' })
   @ApiResponse({ status: 302, description: 'Redirect to provider consent screen' })
-  async startLogin(@Res() res: express.Response, @Param('provider') provider: string) {
-    const url = this.auth.buildLoginUrl(provider);
+  async startLogin(
+    @Res() res: express.Response,
+    @Req() req: express.Request,
+    @Param('provider') provider: string
+  ) {
+    // Extract userId from JWT if present (optional authentication)
+    const user = (req as any).user;
+    const userId = user?.sub as string | undefined;
+
+    const url = this.auth.buildLoginUrl(provider, userId);
     return res.redirect(url);
   }
 
   /**
    * Handles the OAuth login callback from the provider, exchanging the code
-   * for tokens and finalizing the login.
+   * for tokens and finalizing the login or identity linking.
    *
    * @param provider - The provider key.
    * @param code - Authorization code returned by the provider.
@@ -62,5 +105,25 @@ export class GenericAuthIdentityController {
   @ApiResponse({ status: 200, description: 'Login successful' })
   async loginCallback(@Param('provider') provider: string, @Query('code') code: string, @Query('state') state?: string) {
     return this.auth.handleLoginCallback(provider, code, state);
+  }
+
+  /**
+   * Unlink an identity provider from the authenticated user.
+   * - If the user has a password_hash: removes the identity only
+   * - If the user has no password_hash: deletes the entire user account (prevents lockout)
+   *
+   * @param provider - The provider key to unlink.
+   * @param req - Express request containing user from JWT
+   * @returns Confirmation with deletion status
+   */
+  @Delete(':provider/identity')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Unlink identity provider from user. Deletes account if no password exists.' })
+  @ApiResponse({ status: 200, description: 'Identity unlinked or account deleted' })
+  @ApiResponse({ status: 404, description: 'Identity or user not found' })
+  async unlinkIdentity(@Param('provider') provider: string, @Req() req: express.Request) {
+    const user = (req as any).user;
+    const userId = user?.sub as string;
+    return this.auth.unlinkIdentity(provider, userId);
   }
 }
