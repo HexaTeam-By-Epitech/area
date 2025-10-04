@@ -199,25 +199,30 @@ export class UsersService {
         email: string;
         name?: string;
         avatarUrl?: string;
+        userId?: string; // optional existing user to attach identity to
     }) {
-        const { provider, providerUserId, email, name, avatarUrl } = input;
+        const { provider, providerUserId, email, name, avatarUrl, userId: targetUserId } = input;
 
-        // Resolve provider id by name and ensure it exists
         const providerId = await this.getOrCreateProviderIdByName(provider);
 
-        // find or create user by email
-        let user = await this.prisma.users.findUnique({ where: { email } });
-        if (!user) {
-            user = await this.prisma.users.create({
-                data: {
-                    email,
-                    is_verified: true,
-                    is_active: true,
-                },
-            });
+        let user;
+        if (targetUserId) {
+            user = await this.prisma.users.findUnique({ where: { id: targetUserId } });
+            if (!user) throw new NotFoundException('User not found for provided userId');
+            // Optionally, could enforce email consistency; for now we keep existing user email.
+        } else {
+            user = await this.prisma.users.findUnique({ where: { email } });
+            if (!user) {
+                user = await this.prisma.users.create({
+                    data: {
+                        email,
+                        is_verified: true,
+                        is_active: true,
+                    },
+                });
+            }
         }
 
-        // Upsert identity
         await this.prisma.auth_identities.upsert({
             where: {
                 provider_id_provider_user_id: {
@@ -309,4 +314,3 @@ export class UsersService {
         });
     }
 }
-
