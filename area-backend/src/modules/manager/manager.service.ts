@@ -6,6 +6,7 @@ import { RedisService } from '../redis/redis.service';
 import { GmailSendService } from '../reactions/gmail/send.service';
 import { GmailNewMailService } from '../actions/gmail/new-mail.service';
 import type { ActionCallback, ReactionCallback, AreaExecution } from '../../common/interfaces/area.type';
+import { ActionNamesEnum, ReactionNamesEnum } from '../../common/interfaces/action-names.enum';
 
 /**
  * Orchestrates the AREA engine: registers actions/reactions, binds them for users,
@@ -55,8 +56,8 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
      */
     private async registerActionCallbacks() {
         // Spotify Actions
-        this.actionCallbacks.set('spotify_has_likes', {
-            name: 'spotify_has_likes',
+        this.actionCallbacks.set(ActionNamesEnum.SPOTIFY_HAS_LIKES, {
+            name: ActionNamesEnum.SPOTIFY_HAS_LIKES,
             callback: async (userId: string) => {
                 return await this.spotifyLikeService.hasNewSpotifyLike(userId);
             },
@@ -64,8 +65,8 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         });
 
         // Gmail Actions
-        this.actionCallbacks.set('gmail_new_mail', {
-            name: 'gmail_new_mail',
+        this.actionCallbacks.set(ActionNamesEnum.GMAIL_NEW_EMAIL, {
+            name: ActionNamesEnum.GMAIL_NEW_EMAIL,
             callback: async (userId: string) => {
                 return await this.gmailNewMailService.hasNewGmailEmail(userId);
             },
@@ -80,8 +81,8 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
      */
     private async registerReactionCallbacks() {
         // Email notification reaction
-        this.reactionCallbacks.set('send_email', {
-            name: 'send_email',
+        this.reactionCallbacks.set(ReactionNamesEnum.SEND_EMAIL, {
+            name: ReactionNamesEnum.SEND_EMAIL,
             callback: async (userId: string, actionResult: any, config: { subject: string; body: string; to: string }) => {
                 return await this.gmailSendService.run(userId, config);
             },
@@ -89,8 +90,8 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         });
 
         // Log event reaction
-        this.reactionCallbacks.set('log_event', {
-            name: 'log_event',
+        this.reactionCallbacks.set(ReactionNamesEnum.LOG_EVENT, {
+            name: ReactionNamesEnum.LOG_EVENT,
             callback: async (userId: string, actionResult: any, config?: any) => {
                 await this.prisma.event_logs.create({
                     data: {

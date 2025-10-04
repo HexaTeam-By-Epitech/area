@@ -3,7 +3,7 @@ import { GmailNewMailService } from '../../../src/modules/actions/gmail/new-mail
 import { UsersService } from '../../../src/modules/users/users.service';
 import { AuthService } from '../../../src/modules/auth/auth.service';
 import { RedisService } from '../../../src/modules/redis/redis.service';
-import { ProviderKeyEnum } from '../../../src/common/interfaces/oauth2.type';
+import { ActionNamesEnum } from '../../../src/common/interfaces/action-names.enum';
 
 // Mocks
 const mockUsersService = { findLinkedAccount: jest.fn() };
@@ -29,7 +29,7 @@ describe('GmailNewMailService', () => {
 
   describe('supports', () => {
     it('should support gmail_new_mail action', () => {
-      expect(service.supports('gmail_new_mail')).toBe(true);
+      expect(service.supports(ActionNamesEnum.GMAIL_NEW_EMAIL)).toBe(true);
       expect(service.supports('other_action')).toBe(false);
     });
   });

@@ -4,6 +4,7 @@ import { AuthService } from '../../auth/auth.service';
 import { RedisService } from '../../redis/redis.service';
 import { ProviderKeyEnum } from '../../../common/interfaces/oauth2.type';
 import type { PollingAction } from '../../../common/interfaces/area.type';
+import { ActionNamesEnum } from '../../../common/interfaces/action-names.enum';
 
 /**
  * Gmail polling action that detects arrival of a new email in the user's primary inbox.
@@ -37,7 +38,7 @@ export class GmailNewMailService implements PollingAction {
 
   /** Name supported by this polling action. */
   supports(actionName: string): boolean {
-    return actionName === 'gmail_new_mail';
+    return actionName === ActionNamesEnum.GMAIL_NEW_EMAIL;
   }
 
   /** Start polling loop for a user. */
