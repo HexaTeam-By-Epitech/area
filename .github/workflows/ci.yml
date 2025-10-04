@@ -36,6 +36,8 @@ jobs:
         working-directory: area-backend
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/area_test
+      JWT_SECRET: test-jwt-secret-key-for-ci
+      TOKENS_ENC_KEY: test-tokens-encryption-key-for-ci
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

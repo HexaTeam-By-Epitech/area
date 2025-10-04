@@ -94,13 +94,13 @@ export class AuthService {
     }
 
     /**
-     * Validates a user's credentials.
+     * Validates a user's credentials and generates a JWT token.
      * Throws UnauthorizedException if credentials are invalid or user is not verified.
      * @param email - The user's email address
      * @param password - The user's plain password
-     * @returns The user object if validation succeeds
+     * @returns JWT access token and user info
      */
-    async validateUser(email: string, password: string) {
+    async validateUser(email: string, password: string): Promise<{ accessToken: string; userId: string; email: string }> {
         // Find user by email
         const user = await this.usersService.findByEmail(email);
         if (!user) {
@@ -126,7 +126,19 @@ export class AuthService {
         }
 
         this.logger.log(`User logged in successfully: ${email}`);
-        return user;
+
+        // Generate JWT token
+        const accessToken = await this.jwtService.signAsync({
+            sub: user.id,
+            email: user.email,
+            provider: 'email',
+        });
+
+        return {
+            accessToken,
+            userId: user.id,
+            email: user.email,
+        };
     }
 
     /**

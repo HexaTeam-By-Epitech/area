@@ -5,6 +5,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
+import { Public } from '../../common/decorators/public.decorator';
 
 /**
  * Controller handling email/password authentication flows:
@@ -21,6 +22,7 @@ export class AuthEmailController {
    * @param dto - Registration payload containing email and password.
    * @returns A confirmation message and the newly created user ID.
    */
+  @Public()
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
   @ApiBody({ type: RegisterDto })
@@ -36,17 +38,21 @@ export class AuthEmailController {
    * Authenticates a user with email and password.
    *
    * @param dto - Login payload containing email and password.
-   * @returns A confirmation message and the authenticated user ID.
+   * @returns JWT access token and user information.
    */
+  @Public()
   @Post('login')
   @ApiOperation({ summary: 'Login a user' })
   @ApiBody({ type: LoginDto })
-  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiResponse({ status: 200, description: 'Login successful. Returns JWT access token.' })
   @ApiResponse({ status: 401, description: 'Invalid credentials or account not verified' })
   async login(@Body() dto: LoginDto) {
-    // Validate credentials and ensure account is verified as needed
-    const user = await this.authService.validateUser(dto.email, dto.password);
-    return { message: 'Login successful', userId: user.id };
+    // Validate credentials and generate JWT
+    const result = await this.authService.validateUser(dto.email, dto.password);
+    return {
+      message: 'Login successful',
+      ...result,
+    };
   }
 
   /**
@@ -55,6 +61,7 @@ export class AuthEmailController {
    * @param dto - DTO with email and verification code.
    * @returns A confirmation message upon successful verification.
    */
+  @Public()
   @Post('verify-email')
   @ApiOperation({ summary: 'Verify email with verification code' })
   @ApiBody({ type: VerifyEmailDto })
@@ -72,6 +79,7 @@ export class AuthEmailController {
    * @param dto - DTO with the target email address.
    * @returns A confirmation message when the email is dispatched.
    */
+  @Public()
   @Post('resend-verification')
   @ApiOperation({ summary: 'Resend verification email' })
   @ApiBody({ type: ResendVerificationDto })
