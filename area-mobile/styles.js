@@ -26,6 +26,13 @@ export default StyleSheet.create({
         marginBottom: 10,
         textAlign: 'center',
     },
+    subtitle: {
+        fontSize: 26,
+        fontWeight: '700',
+        color: colors.textPrimary,
+        marginBottom: 20,
+        textAlign: 'center',
+    },
     paragraph: {
         fontSize: 17,
         lineHeight: 24,
