@@ -305,14 +305,69 @@ export class UsersService {
     }
 
     /**
-     * Unlink an external account (remove linked_accounts row) for a user and provider
+     * Unlink an external account (remove linked_accounts row) for a user and provider.
+     * Also deletes areas and event_logs that depend on this specific provider to avoid FK errors.
      */
     async unlinkLinkedAccount(userId: string, provider: ProviderKeyEnum): Promise<void> {
         const providerId = await this.getOrCreateProviderIdByName(provider);
+
         await this.prisma.$transaction(async (tx) => {
-            await tx.event_logs.deleteMany({ where: { user_id: userId } });
-            await tx.areas.deleteMany({ where: { user_id: userId } });
-            await tx.linked_accounts.deleteMany({ where: { user_id: userId, provider_id: providerId } });
+            // Find the service that matches the provider name (e.g., 'spotify' provider -> 'spotify' service)
+            const service = await tx.services.findFirst({
+                where: {
+                    name: {
+                        equals: provider,
+                        mode: 'insensitive'
+                    }
+                }
+            });
+
+            if (service) {
+                // Find all actions and reactions for this service
+                const actionsForService = await tx.actions.findMany({
+                    where: { service_id: service.id },
+                    select: { id: true }
+                });
+
+                const reactionsForService = await tx.reactions.findMany({
+                    where: { service_id: service.id },
+                    select: { id: true }
+                });
+
+                const actionIds = actionsForService.map(a => a.id);
+                const reactionIds = reactionsForService.map(r => r.id);
+
+                // Find areas that use this provider's actions or reactions
+                const areasToDelete = await tx.areas.findMany({
+                    where: {
+                        user_id: userId,
+                        OR: [
+                            { action_id: { in: actionIds } },
+                            { reaction_id: { in: reactionIds } }
+                        ]
+                    },
+                    select: { id: true }
+                });
+
+                const areaIds = areasToDelete.map(a => a.id);
+
+                // Delete event_logs for these specific areas
+                if (areaIds.length > 0) {
+                    await tx.event_logs.deleteMany({
+                        where: { area_id: { in: areaIds } }
+                    });
+
+                    // Delete the areas
+                    await tx.areas.deleteMany({
+                        where: { id: { in: areaIds } }
+                    });
+                }
+            }
+
+            // Finally, delete the linked account
+            await tx.linked_accounts.deleteMany({
+                where: { user_id: userId, provider_id: providerId }
+            });
         });
     }
 }
