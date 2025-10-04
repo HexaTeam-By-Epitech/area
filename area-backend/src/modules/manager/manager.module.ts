@@ -7,7 +7,15 @@ import { RedisModule } from '../redis/redis.module';
 import { SpotifyLikeService } from '../actions/spotify/like.service';
 import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
+import { ActionPollingService } from './polling/action-polling.service';
+import { GmailSendService } from '../reactions/gmail/send.service';
+import { GmailNewMailService } from '../actions/gmail/new-mail.service';
 
+/**
+ * Manager module orchestrating AREA logic (Actions <-> Reactions).
+ * Wires persistence (Prisma), caching (Redis), auth, and action pollers.
+ * Exposes `ManagerController` and exports `ManagerService`.
+ */
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -16,10 +24,10 @@ import { AuthModule } from '../auth/auth.module';
     PrismaModule,
     RedisModule,
     UsersModule,
-    AuthModule
+    AuthModule,
   ],
   controllers: [ManagerController],
-  providers: [ManagerService, SpotifyLikeService],
+  providers: [ManagerService, SpotifyLikeService, ActionPollingService, GmailSendService, GmailNewMailService],
   exports: [ManagerService],
 })
 export class ManagerModule {}

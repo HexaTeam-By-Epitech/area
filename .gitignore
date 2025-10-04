@@ -151,3 +151,4 @@ dist
 .vscode
 *.iml
 gen
+Session.vim

@@ -2,13 +2,15 @@ import {Injectable, NotFoundException} from '@nestjs/common';
 import {PrismaService} from '../../prisma/prisma.service';
 import {CreateUserDto} from './dto/create-user.dto';
 import {UpdateUserDto} from './dto/update-user.dto';
+import { ProviderKeyEnum } from 'src/common/interfaces/oauth2.type';
 import * as crypto from 'crypto';
 
-export enum ProviderKey {
-    Google = 'google',
-    Spotify = 'spotify',
-}
-
+/**
+ * Domain service for user management and identity/linking operations.
+ *
+ * Wraps Prisma queries and encapsulates logic for OAuth provider linking,
+ * identity upserts, and token updates.
+ */
 @Injectable()
 export class UsersService {
     constructor(private prisma: PrismaService) {
@@ -19,7 +21,23 @@ export class UsersService {
      * @returns Array of user objects
      */
     async findAll() {
-        return this.prisma.users.findMany();
+        return this.prisma.users.findMany({
+            include: {
+                auth_identities: true,
+                linked_accounts: {
+                    select: {
+                        id: true,
+                        provider_user_id: true,
+                        scopes: true,
+                        access_token_expires_at: true,
+                        is_active: true,
+                        created_at: true,
+                        updated_at: true,
+                        oauth_providers: { select: { id: true, name: true, is_active: true } },
+                    },
+                },
+            },
+        });
     }
 
     /**
@@ -29,7 +47,24 @@ export class UsersService {
      * @returns The user object if found
      */
     async findOne(id: string) {
-        const user = await this.prisma.users.findUnique({where: {id}});
+        const user = await this.prisma.users.findUnique({
+            where: { id },
+            include: {
+                auth_identities: true,
+                linked_accounts: {
+                    select: {
+                        id: true,
+                        provider_user_id: true,
+                        scopes: true,
+                        access_token_expires_at: true,
+                        is_active: true,
+                        created_at: true,
+                        updated_at: true,
+                        oauth_providers: { select: { id: true, name: true, is_active: true } },
+                    },
+                },
+            },
+        });
         if (!user) throw new NotFoundException('User not found');
         return user;
     }
@@ -75,14 +110,30 @@ export class UsersService {
      * @returns The deleted user object
      */
     async deleteUser(id: string) {
-        return this.prisma.users.delete({where: {id}});
+        return await this.prisma.$transaction(async (tx) => {
+            const user = await tx.users.findUnique({ where: { id } });
+            if (!user) {
+                throw new NotFoundException('User not found');
+            }
+            await tx.event_logs.deleteMany({ where: { user_id: id } });
+            await tx.auth_identities.deleteMany({ where: { user_id: id } });
+            await tx.linked_accounts.deleteMany({ where: { user_id: id } });
+            await tx.areas.deleteMany({ where: { user_id: id } });
+            return tx.users.delete({ where: { id } });
+        });
     }
 
     async findById(id: string) {
         return this.prisma.users.findUnique({where: {id}});
     }
 
-    async findLinkedAccount(userId: string, provider: ProviderKey) {
+    /**
+     * Find a linked external account for a given user and provider.
+     * @param userId - The user ID.
+     * @param provider - Provider enum key.
+     * @returns The linked account row or null if not found.
+     */
+    async findLinkedAccount(userId: string, provider: ProviderKeyEnum) {
         const providerId = await this.getOrCreateProviderIdByName(provider);
         return this.prisma.linked_accounts.findUnique({
             where: { user_id_provider_id: { user_id: userId, provider_id: providerId } },
@@ -92,7 +143,7 @@ export class UsersService {
     /**
      * Ensure the oauth provider row exists (by fixed numeric id) to satisfy FK constraints.
      */
-    private async ensureProviderByName(name: ProviderKey): Promise<{ id: number }> {
+    private async ensureProviderByName(name: ProviderKeyEnum): Promise<{ id: number }> {
         // Avoid raw SQL: try find by name, else create. Also set active if found.
         const existing = await this.prisma.oauth_providers.findFirst({ where: { name } });
         if (existing) {
@@ -105,14 +156,25 @@ export class UsersService {
         return { id: created.id };
     }
 
-    private async getOrCreateProviderIdByName(name: ProviderKey): Promise<number> {
+    /**
+     * Resolve provider id by name, creating the provider row if needed.
+     * @param name - Provider enum key.
+     * @returns Numeric provider id.
+     */
+    private async getOrCreateProviderIdByName(name: ProviderKeyEnum): Promise<number> {
         const { id } = await this.ensureProviderByName(name);
         return id;
     }
 
+    /**
+     * Update stored OAuth tokens for a user's linked account.
+     * @param userId - The user ID.
+     * @param provider - Provider enum key.
+     * @param input - Partial token fields to update.
+     */
     async updateLinkedTokens(
         userId: string,
-        provider: ProviderKey,
+        provider: ProviderKeyEnum,
         input: { accessToken?: string; accessTokenExpiresAt?: Date; refreshToken?: string },
     ) {
         const providerId = await this.getOrCreateProviderIdByName(provider);
@@ -127,32 +189,40 @@ export class UsersService {
         });
     }
 
-    // Upsert a login identity (e.g., Google) and return the associated user
+    /**
+     * Upsert a login identity (e.g., Google) and return the associated user.
+     * Creates the user if they do not yet exist (by email).
+     */
     async upsertIdentityForLogin(input: {
-        provider: ProviderKey;
+        provider: ProviderKeyEnum;
         providerUserId: string;
         email: string;
         name?: string;
         avatarUrl?: string;
+        userId?: string; // optional existing user to attach identity to
     }) {
-        const { provider, providerUserId, email, name, avatarUrl } = input;
+        const { provider, providerUserId, email, name, avatarUrl, userId: targetUserId } = input;
 
-        // Resolve provider id by name and ensure it exists
         const providerId = await this.getOrCreateProviderIdByName(provider);
 
-        // find or create user by email
-        let user = await this.prisma.users.findUnique({ where: { email } });
-        if (!user) {
-            user = await this.prisma.users.create({
-                data: {
-                    email,
-                    is_verified: true,
-                    is_active: true,
-                },
-            });
+        let user;
+        if (targetUserId) {
+            user = await this.prisma.users.findUnique({ where: { id: targetUserId } });
+            if (!user) throw new NotFoundException('User not found for provided userId');
+            // Optionally, could enforce email consistency; for now we keep existing user email.
+        } else {
+            user = await this.prisma.users.findUnique({ where: { email } });
+            if (!user) {
+                user = await this.prisma.users.create({
+                    data: {
+                        email,
+                        is_verified: true,
+                        is_active: true,
+                    },
+                });
+            }
         }
 
-        // upsert identity
         await this.prisma.auth_identities.upsert({
             where: {
                 provider_id_provider_user_id: {
@@ -181,10 +251,13 @@ export class UsersService {
         return user;
     }
 
-    // Link an external account (e.g., Spotify) to an existing user using tokens
+    /**
+     * Link an external account (e.g., Spotify) to an existing user using tokens.
+     * Creates or updates the `linked_accounts` row.
+     */
     async linkExternalAccount(input: {
         userId: string;
-        provider: ProviderKey;
+        provider: ProviderKeyEnum;
         providerUserId: string;
         accessToken?: string | null;
         refreshToken?: string | null;
@@ -230,5 +303,14 @@ export class UsersService {
 
         return user;
     }
-}
 
+    /**
+     * Unlink an external account (remove linked_accounts row) for a user and provider
+     */
+    async unlinkLinkedAccount(userId: string, provider: ProviderKeyEnum): Promise<void> {
+        const providerId = await this.getOrCreateProviderIdByName(provider);
+        await this.prisma.linked_accounts.deleteMany({
+            where: { user_id: userId, provider_id: providerId },
+        });
+    }
+}
