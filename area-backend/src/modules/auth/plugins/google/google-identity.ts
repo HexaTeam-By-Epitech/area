@@ -63,7 +63,7 @@ export class GoogleIdentity implements IdentityProvider {
    * Build the Google Authorization URL to initiate the login (code) flow.
    * NOTE: We keep this minimal (no state) but could later embed a signed state for CSRF.
    */
-  buildLoginUrl(): string {
+  buildLoginUrl(opts?: { userId?: string }): string {
     const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
     const redirectUri = this.config.get<string>('GOOGLE_LOGIN_REDIRECT_URI') || this.config.get<string>('GOOGLE_REDIRECT_URI');
     if (!clientId || !redirectUri) {
@@ -71,6 +71,9 @@ export class GoogleIdentity implements IdentityProvider {
       throw new InternalServerErrorException('Google OAuth not configured');
     }
     const scopes = ['openid', 'email', 'profile'].join(' ');
+    const state = opts?.userId
+      ? this.jwt.sign({ provider: 'google', mode: 'login', userId: opts.userId }, { expiresIn: '10m' })
+      : undefined;
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
@@ -80,6 +83,7 @@ export class GoogleIdentity implements IdentityProvider {
       include_granted_scopes: 'true',
       prompt: 'consent',
     });
+    if (state) params.set('state', state);
     const url = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
     this.logger.debug(`Google login URL generated: ${url}`);
     return url;
@@ -90,8 +94,21 @@ export class GoogleIdentity implements IdentityProvider {
    * upserts identity, and returns user identity info (userId/email). The AuthService
    * wraps this into an application JWT.
    */
-  async handleLoginCallback(code: string, _state?: string): Promise<{ userId: string; email: string }> {
+  async handleLoginCallback(code: string, state?: string): Promise<{ userId: string; email: string }> {
     if (!code) throw new BadRequestException('Missing code');
+
+    let targetUserId: string | undefined;
+    if (state) {
+      try {
+        const decoded: any = this.jwt.verify(state);
+        if (decoded?.mode === 'login' && decoded?.provider === 'google' && decoded?.userId) {
+          targetUserId = decoded.userId as string;
+        }
+      } catch (e) {
+        this.logger.warn('Failed to verify state token for Google login');
+        // Continue without userId (treat as plain login)
+      }
+    }
 
     const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
     const clientSecret = this.config.get<string>('GOOGLE_CLIENT_SECRET');
@@ -140,6 +157,7 @@ export class GoogleIdentity implements IdentityProvider {
       email,
       name,
       avatarUrl: picture,
+      userId: targetUserId,
     });
 
     return { userId: user.id, email: user.email };

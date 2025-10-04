@@ -230,10 +230,10 @@ export class AuthService {
     }
 
     /** Build an OAuth login URL for the provider (code flow). */
-    buildLoginUrl(provider: ProviderKey): string {
+    buildLoginUrl(provider: ProviderKey, opts?: { userId?: string }): string {
         const p = this.providers.getIdentity(provider);
         if (!p || !p.buildLoginUrl) throw new BadRequestException(`Login URL not supported for provider ${provider}`);
-        return p.buildLoginUrl();
+        return p.buildLoginUrl(opts);
     }
 
     /** Handle provider login callback (code flow) and issue an application JWT. */

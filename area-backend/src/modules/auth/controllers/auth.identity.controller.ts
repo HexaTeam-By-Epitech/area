@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Res, Body, Param, Query } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiResponse, ApiTags, ApiQuery } from '@nestjs/swagger';
 import express from 'express';
 import { AuthService } from '../auth.service';
 
@@ -39,8 +39,9 @@ export class GenericAuthIdentityController {
   @Get(':provider/login')
   @ApiOperation({ summary: 'Start provider OAuth login (code flow), if supported' })
   @ApiResponse({ status: 302, description: 'Redirect to provider consent screen' })
-  async startLogin(@Res() res: express.Response, @Param('provider') provider: string) {
-    const url = this.auth.buildLoginUrl(provider);
+  @ApiQuery({ name: 'userId', required: false, description: 'Existing user id to attach identity to; omit to create a new user automatically.' })
+  async startLogin(@Res() res: express.Response, @Param('provider') provider: string, @Query('userId') userId?: string) {
+    const url = userId ? this.auth.buildLoginUrl(provider as any, { userId }) : this.auth.buildLoginUrl(provider as any);
     return res.redirect(url);
   }
 
@@ -69,8 +70,9 @@ export class GenericAuthIdentityController {
   @Get(':provider/login/url')
   @ApiOperation({ summary: 'Get provider OAuth login URL (Swagger friendly)' })
   @ApiResponse({ status: 200, description: 'Returns the OAuth login URL', schema: { properties: { url: { type: 'string' } } } })
-  getLoginUrl(@Param('provider') provider: string) {
-    const url = this.auth.buildLoginUrl(provider as any);
+  @ApiQuery({ name: 'userId', required: false, description: 'Existing user id to attach identity to; omit to create a new user automatically.' })
+  getLoginUrl(@Param('provider') provider: string, @Query('userId') userId?: string) {
+    const url = userId ? this.auth.buildLoginUrl(provider as any, { userId }) : this.auth.buildLoginUrl(provider as any);
     return { url };
   }
 }

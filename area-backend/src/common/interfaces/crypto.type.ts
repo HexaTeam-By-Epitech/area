@@ -29,6 +29,8 @@ export interface TokenStore {
     email: string;
     name?: string;
     avatarUrl?: string;
+    /** Optional existing user id to attach this identity to (do not create new user). */
+    userId?: string;
   }): Promise<{ id: string; email: string }>;
   findById(userId: string): Promise<{ id: string; email: string } | null>;
   linkExternalAccount(input: {
