@@ -1,22 +1,18 @@
-# Description
-Summary of the change and related issue (e.g., Fixes #123). Include context and motivation if needed.
+## Description
+Provide a clear summary of the changes introduced by this PR and their purpose. Explain the motivation and any relevant context.
 
-# Type of change
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Breaking change
-- [ ] Documentation update
+## Type of Change
+- [ ] Feature
+- [ ] Bug Fix
+- [ ] Refactor
+- [ ] Documentation
+- [ ] Other (please specify)
 
-# Tests
-List of tests performed and instructions to reproduce if needed.
+## Testing
+List the tests performed to verify your changes. Include instructions to reproduce if needed.
 
-**Example:**
 - [ ] Unit tests
-- [ ] Integration tests
-
-# Checklist
-- [ ] Code follows project standards
-- [ ] Self-review completed
-- [ ] Documentation updated if necessary
-- [ ] Unit tests passed
-- [ ] Dependencies merged and published
+- [ ] Manual tests
+- [ ] Integration tests (if applicable)
+---
+Closes #[issue number] (if applicable)
