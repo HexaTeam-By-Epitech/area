@@ -309,8 +309,10 @@ export class UsersService {
      */
     async unlinkLinkedAccount(userId: string, provider: ProviderKeyEnum): Promise<void> {
         const providerId = await this.getOrCreateProviderIdByName(provider);
-        await this.prisma.linked_accounts.deleteMany({
-            where: { user_id: userId, provider_id: providerId },
+        await this.prisma.$transaction(async (tx) => {
+            await tx.event_logs.deleteMany({ where: { user_id: userId } });
+            await tx.areas.deleteMany({ where: { user_id: userId } });
+            await tx.linked_accounts.deleteMany({ where: { user_id: userId, provider_id: providerId } });
         });
     }
 }
