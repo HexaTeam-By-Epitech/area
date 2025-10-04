@@ -1,5 +1,5 @@
 import { Controller, Post, Param, Body, HttpCode } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from '../auth.service';
 
 /**
@@ -8,6 +8,7 @@ import { AuthService } from '../auth.service';
  * Uses stored refresh tokens to obtain a new access token from the provider.
  */
 @ApiTags('Auth - Token Refresh (Generic)')
+@ApiBearerAuth('JWT-auth')
 @Controller('auth')
 export class GenericAuthTokenController {
   constructor(private readonly auth: AuthService) {}

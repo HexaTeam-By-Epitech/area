@@ -22,7 +22,14 @@ export class UsersService {
      */
     async findAll() {
         return this.prisma.users.findMany({
-            include: {
+            select: {
+                id: true,
+                email: true,
+                is_verified: true,
+                is_active: true,
+                created_at: true,
+                updated_at: true,
+                deleted_at: true,
                 auth_identities: true,
                 linked_accounts: {
                     select: {
@@ -49,7 +56,14 @@ export class UsersService {
     async findOne(id: string) {
         const user = await this.prisma.users.findUnique({
             where: { id },
-            include: {
+            select: {
+                id: true,
+                email: true,
+                is_verified: true,
+                is_active: true,
+                created_at: true,
+                updated_at: true,
+                deleted_at: true,
                 auth_identities: true,
                 linked_accounts: {
                     select: {
@@ -101,7 +115,19 @@ export class UsersService {
      * @returns The updated user object
      */
     async updateUser(id: string, data: UpdateUserDto) {
-        return this.prisma.users.update({where: {id}, data});
+        return this.prisma.users.update({
+            where: {id},
+            data,
+            select: {
+                id: true,
+                email: true,
+                is_verified: true,
+                is_active: true,
+                created_at: true,
+                updated_at: true,
+                deleted_at: true,
+            },
+        });
     }
 
     /**
@@ -204,13 +230,33 @@ export class UsersService {
         const providerId = await this.getOrCreateProviderIdByName(provider);
 
         // find or create user by email
-        let user = await this.prisma.users.findUnique({ where: { email } });
+        let user = await this.prisma.users.findUnique({
+            where: { email },
+            select: {
+                id: true,
+                email: true,
+                is_verified: true,
+                is_active: true,
+                created_at: true,
+                updated_at: true,
+                deleted_at: true,
+            },
+        });
         if (!user) {
             user = await this.prisma.users.create({
                 data: {
                     email,
                     is_verified: true,
                     is_active: true,
+                },
+                select: {
+                    id: true,
+                    email: true,
+                    is_verified: true,
+                    is_active: true,
+                    created_at: true,
+                    updated_at: true,
+                    deleted_at: true,
                 },
             });
         }
@@ -259,7 +305,18 @@ export class UsersService {
     }) {
         const { userId, provider, providerUserId, accessToken = null, refreshToken = null, accessTokenExpiresAt = null, scopes = null } = input;
 
-        const user = await this.prisma.users.findUnique({ where: { id: userId } });
+        const user = await this.prisma.users.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                email: true,
+                is_verified: true,
+                is_active: true,
+                created_at: true,
+                updated_at: true,
+                deleted_at: true,
+            },
+        });
         if (!user) throw new NotFoundException('User not found');
 
         // Resolve provider id by name and ensure it exists

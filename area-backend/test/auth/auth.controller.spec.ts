@@ -30,9 +30,18 @@ describe('AuthEmailController', () => {
         expect(res).toEqual({ message: 'User registered successfully. Please check your email for verification code.', userId: '1' });
     });
 
-    it('login: should return userId', async () => {
-        authService.validateUser.mockResolvedValue({ id: '2' });
+    it('login: should return JWT and user info', async () => {
+        authService.validateUser.mockResolvedValue({
+            accessToken: 'jwt-token',
+            userId: '2',
+            email: 'b@b.com'
+        });
         const res = await controller.login({ email: 'b@b.com', password: 'password' });
-        expect(res).toEqual({ message: 'Login successful', userId: '2' });
+        expect(res).toEqual({
+            message: 'Login successful',
+            accessToken: 'jwt-token',
+            userId: '2',
+            email: 'b@b.com'
+        });
     });
 });

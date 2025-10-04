@@ -2,6 +2,7 @@ import { Controller, Get, Post, Res, Body, Param, Query } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import express from 'express';
 import { AuthService } from '../auth.service';
+import { Public } from '../../../common/decorators/public.decorator';
 
 /**
  * Controller exposing generic identity-based auth (e.g., ID token sign-in)
@@ -19,6 +20,7 @@ export class GenericAuthIdentityController {
    * @param token - The opaque ID token string obtained from the provider SDK.
    * @returns Auth result as provided by `AuthService` (e.g., user and session info).
    */
+  @Public()
   @Post(':provider/id-token')
   @ApiOperation({ summary: 'Sign-in with provider ID token (e.g., Google One Tap)' })
   @ApiBody({ schema: { properties: { token: { type: 'string' } }, required: ['token'] } })
@@ -36,6 +38,7 @@ export class GenericAuthIdentityController {
    * @param res - Express response used to perform the HTTP redirect.
    * @param provider - The provider key.
    */
+  @Public()
   @Get(':provider/login')
   @ApiOperation({ summary: 'Start provider OAuth login (code flow), if supported' })
   @ApiResponse({ status: 302, description: 'Redirect to provider consent screen' })
@@ -53,6 +56,7 @@ export class GenericAuthIdentityController {
    * @param state - Optional opaque state for CSRF protection.
    * @returns Auth result as provided by `AuthService`.
    */
+  @Public()
   @Get(':provider/login/callback')
   @ApiOperation({ summary: 'Provider login callback (code flow)' })
   @ApiResponse({ status: 200, description: 'Login successful' })
