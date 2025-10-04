@@ -241,11 +241,11 @@ export class AuthService {
         return p.buildLinkUrl({ userId: opts.userId, scopes: opts.scopes });
     }
 
-    /** Build an OAuth login URL for the provider (code flow). If userId provided, links identity to existing user. */
-    buildLoginUrl(provider: ProviderKey, userId?: string): string {
+    /** Build an OAuth login URL for the provider (code flow). */
+    buildLoginUrl(provider: ProviderKey, opts?: { userId?: string }): string {
         const p = this.providers.getIdentity(provider);
         if (!p || !p.buildLoginUrl) throw new BadRequestException(`Login URL not supported for provider ${provider}`);
-        return p.buildLoginUrl(userId);
+        return p.buildLoginUrl(opts);
     }
 
     /** Handle provider login callback (code flow) and issue an application JWT. */
@@ -319,6 +319,7 @@ export class AuthService {
         if (!userId) throw new BadRequestException('Missing userId');
         const user = await this.usersService.findById(userId);
         if (!user) throw new NotFoundException('User not found');
+        
         await this.usersService.unlinkLinkedAccount(userId, provider as any);
         this.logger.log(`Unlinked provider ${String(provider)} for user ${userId}`);
         return { provider: String(provider), userId };

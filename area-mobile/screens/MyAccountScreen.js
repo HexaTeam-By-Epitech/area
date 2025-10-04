@@ -1,13 +1,15 @@
 import React from 'react';
-import { View, Text, Button } from 'react-native';
+import { View, Text } from 'react-native';
+import styles from '../styles';
+import Button from '../components/Button';
 
 export default function MyAccountScreen({ route, navigation }) {
     const { token, email } = route.params;
 
     return (
-        <View style={{ padding: 20, marginTop: 50 }}>
-            <Text>Email: {email}</Text>
-            <Text>Token: {token.slice(0, 10)}...</Text>
+        <View style={[styles.container, { marginTop: 50 }]}>
+            <Text style={styles.text}>Email: {email}</Text>
+            <Text style={styles.text}>Token: {token ? token.slice(0, 10) + '...' : ''}</Text>
             <Button title="Logout" onPress={() => navigation.replace('Login')} />
         </View>
     );

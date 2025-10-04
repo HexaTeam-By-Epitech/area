@@ -61,30 +61,33 @@ export class GoogleIdentity implements IdentityProvider {
 
   /**
    * Build the Google OAuth login URL (authorization code flow).
-   * @param userId - Optional user ID for linking identity to existing user
+   * @param opts - Optional userId for linking identity to existing user
    * @returns The URL to redirect the user to for login.
    */
-  buildLoginUrl(userId?: string): string {
+  buildLoginUrl(opts?: { userId?: string }): string {
     const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
-    const redirectUri = this.config.get<string>('GOOGLE_IDENTITY_REDIRECT_URI');
+    const redirectUri = this.config.get<string>('GOOGLE_IDENTITY_REDIRECT_URI') || this.config.get<string>('GOOGLE_LOGIN_REDIRECT_URI') || this.config.get<string>('GOOGLE_REDIRECT_URI');
     if (!clientId || !redirectUri) {
+      this.logger.error('Missing GOOGLE_CLIENT_ID or redirect URI (GOOGLE_IDENTITY_REDIRECT_URI / GOOGLE_LOGIN_REDIRECT_URI / GOOGLE_REDIRECT_URI)');
       throw new InternalServerErrorException('Google identity OAuth not configured');
     }
 
     const scopes = ['openid', 'email', 'profile'].join(' ');
-    const state = this.jwt.sign(
-      { provider: 'google', mode: 'identity', userId: userId ?? null },
-      { expiresIn: '10m' }
-    );
+    const state = opts?.userId
+      ? this.jwt.sign({ provider: 'google', mode: 'identity', userId: opts.userId }, { expiresIn: '10m' })
+      : undefined;
 
-    const q = new URLSearchParams({
+    const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
       response_type: 'code',
       scope: scopes,
-      state,
+      access_type: 'offline',
+      include_granted_scopes: 'true',
+      prompt: 'consent',
     });
-    return `https://accounts.google.com/o/oauth2/v2/auth?${q.toString()}`;
+    if (state) params.set('state', state);
+    return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
   }
 
   /**
@@ -100,70 +103,71 @@ export class GoogleIdentity implements IdentityProvider {
   async handleLoginCallback(code: string, state?: string): Promise<{ userId: string; email: string }> {
     if (!code) throw new BadRequestException('Missing code');
 
+    // Decode state to check if this is a linking flow
+    let targetUserId: string | undefined;
+    if (state) {
+      try {
+        const decoded: any = this.jwt.verify(state);
+        if (decoded?.mode === 'identity' && decoded?.provider === 'google' && decoded?.userId) {
+          targetUserId = decoded.userId as string;
+        }
+      } catch (e) {
+        this.logger.warn('Failed to verify state token for Google login');
+        // Continue without userId (treat as plain login)
+      }
+    }
+
     const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
     const clientSecret = this.config.get<string>('GOOGLE_CLIENT_SECRET');
-    const redirectUri = this.config.get<string>('GOOGLE_IDENTITY_REDIRECT_URI');
+    const redirectUri = this.config.get<string>('GOOGLE_IDENTITY_REDIRECT_URI') || this.config.get<string>('GOOGLE_LOGIN_REDIRECT_URI') || this.config.get<string>('GOOGLE_REDIRECT_URI');
     if (!clientId || !clientSecret || !redirectUri) {
-      throw new InternalServerErrorException('Google identity OAuth not configured');
+      this.logger.error('Google OAuth not configured (clientId/secret/redirectUri)');
+      throw new InternalServerErrorException('Google OAuth not configured');
     }
 
-    // Decode state to check if this is a linking flow
-    const decoded = state ? (this.jwt.verify(state) as any) : null;
-    const linkUserId = decoded?.userId as string | undefined;
+    const oauth2 = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
     // Exchange code for tokens
-    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri,
-      }),
-    });
-
-    if (!tokenRes.ok) throw new UnauthorizedException('Google token exchange failed');
-    const tokens = await tokenRes.json();
-    const idToken = tokens.id_token as string | undefined;
-    if (!idToken) throw new UnauthorizedException('No ID token returned');
-
-    // Verify ID token and extract user info
-    const oauth2 = new google.auth.OAuth2();
-    const ticket = await oauth2.verifyIdToken({ idToken, audience: clientId });
-    const payload = ticket.getPayload();
-    if (!payload) throw new UnauthorizedException('Invalid Google token payload');
-
-    const sub = payload.sub as string;
-    const email = payload.email as string | undefined;
-    const emailVerified = payload.email_verified === true;
-    const name = (payload.name as string) ?? '';
-    const picture = (payload.picture as string) ?? '';
-
-    if (!sub) throw new UnauthorizedException('Google subject missing');
-    if (!email || !emailVerified) throw new UnauthorizedException('Email not verified by Google');
-
-    // If linkUserId is present, link identity to existing user
-    if (linkUserId) {
-      const user = await this.store.linkIdentityToUser({
-        userId: linkUserId,
-        provider: 'google',
-        providerUserId: sub,
-        email,
-        name,
-        avatarUrl: picture,
-      });
-      return { userId: user.id, email: user.email };
+    let tokens;
+    try {
+      const result = await oauth2.getToken({ code, redirect_uri: redirectUri });
+      tokens = result.tokens;
+    } catch (e: any) {
+      this.logger.error(`Google token exchange failed: ${e?.message ?? e}`, e?.stack);
+      throw new UnauthorizedException('Token exchange failed');
     }
 
-    // Otherwise, login or create new user
+    const idToken = tokens.id_token;
+    if (!idToken) throw new UnauthorizedException('No id_token returned by Google');
+
+    // Verify ID token and extract user info
+    let payload: any;
+    try {
+      const ticket = await oauth2.verifyIdToken({ idToken, audience: clientId });
+      payload = ticket.getPayload();
+    } catch (e: any) {
+      this.logger.error(`Invalid id_token from Google: ${e?.message ?? e}`);
+      throw new UnauthorizedException('Invalid id_token from Google');
+    }
+
+    const sub = payload?.sub as string | undefined;
+    const email = payload?.email as string | undefined;
+    const emailVerified = payload?.email_verified === true;
+    const name = (payload?.name as string) ?? '';
+    const picture = (payload?.picture as string) ?? '';
+
+    if (!sub || !email || !emailVerified) {
+      throw new UnauthorizedException('Google account not verified or payload invalid');
+    }
+
+    // Upsert identity (will link if targetUserId provided)
     const user = await this.store.upsertIdentityForLogin({
       provider: 'google',
       providerUserId: sub,
       email,
       name,
       avatarUrl: picture,
+      userId: targetUserId,
     });
 
     return { userId: user.id, email: user.email };

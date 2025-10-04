@@ -41,6 +41,7 @@ export class PrismaTokenStore implements TokenStore {
     email: string;
     name?: string | undefined;
     avatarUrl?: string | undefined;
+    userId?: string | undefined;
   }): Promise<{ id: string; email: string }> {
     return this.users.upsertIdentityForLogin({
       provider: input.provider as ProviderKeyEnum,
@@ -48,6 +49,7 @@ export class PrismaTokenStore implements TokenStore {
       email: input.email,
       name: input.name,
       avatarUrl: input.avatarUrl,
+      userId: input.userId,
     });
   }
 

@@ -1,10 +1,9 @@
-import { Controller, Get, Post, Delete, Res, Body, Param, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Res, Body, Param, Query, Req } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import express from 'express';
 import { AuthService } from '../auth.service';
 import { Public } from '../../../common/decorators/public.decorator';
 import { OptionalAuth } from '../../../common/decorators/optional-auth.decorator';
-import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 
 /**
  * Controller exposing generic identity-based auth (e.g., ID token sign-in)
@@ -56,7 +55,7 @@ export class GenericAuthIdentityController {
     const user = (req as any).user;
     const userId = user?.sub as string | undefined;
 
-    const url = this.auth.buildLoginUrl(provider, userId);
+    const url = this.auth.buildLoginUrl(provider, userId ? { userId } : undefined);
     return { url };
   }
 
@@ -86,7 +85,7 @@ export class GenericAuthIdentityController {
     const user = (req as any).user;
     const userId = user?.sub as string | undefined;
 
-    const url = this.auth.buildLoginUrl(provider, userId);
+    const url = this.auth.buildLoginUrl(provider, userId ? { userId } : undefined);
     return res.redirect(url);
   }
 
