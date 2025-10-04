@@ -102,6 +102,29 @@ export default StyleSheet.create({
         shadowRadius: 4,
         elevation: 5,
     },
+    // Ajout pour DashboardScreen
+    gridContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        alignItems: 'flex-start',
+        width: '100%',
+    },
+    cardCompact: {
+        backgroundColor: colors.cardBgPrimary,
+        borderRadius: 10,
+        padding: 12,
+        margin: '2.5%',
+        width: '45%',
+        minHeight: 120,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
 
     // Sections
     section: {
