@@ -1,43 +1,30 @@
+<script setup lang="ts">
+import useAuthStore from "@/stores/webauth";
+
+const authStore = useAuthStore();
+</script>
+
 <template>
   <div class="home-container center-container">
     <div class="home-card">
       <h1 class="home-title">Welcome to Area!</h1>
       <p class="home-message">
-        You are logged in{{ userEmail ? ` as ${userEmail}` : '' }}.
+        You are logged in as {{ authStore.email }}
       </p>
-      <button class="logout-btn" @click="logout">Logout</button>
+      <button class="logout-btn" @click="authStore.logout()">Logout</button>
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
-
-const userEmail = ref('')
-
-onMounted(() => {
-  document.title = 'Home - Area'
-  userEmail.value = localStorage.getItem('userEmail') || ''
-})
-
-const logout = () => {
-  localStorage.removeItem('userToken')
-  localStorage.removeItem('userEmail')
-  window.dispatchEvent(new CustomEvent('logout'))
-}
-
-</script>
 
 <style scoped>
 
 .home-container {
   width: 100vw;
-  min-height: 100vh;
-  background: #f8f9fa;
 }
 
 .home-card {
-  background: white;
+  background: var(--card-bg-primary);
+  padding: clamp(20px, 4vw, 40px);
   border-radius: 1em;
   box-shadow: 0 8px 24px rgba(0,0,0,0.08);
   text-align: center;
@@ -46,13 +33,11 @@ const logout = () => {
 
 .home-title {
   font-size: clamp(2rem, 3vw, 2.5rem);
-  color: #1a1a1a;
 }
 
 .home-message {
   font-size: clamp(1.1rem, 2vw, 1.3rem);
   margin-bottom: 2em;
-  color: #374151;
 }
 
 .logout-btn {
@@ -60,7 +45,8 @@ const logout = () => {
 
 }
 .logout-btn:hover {
-  background: #dc2626;
+  background: #dc2626 !important;
+  border: none;
 }
 
 </style>

@@ -1,0 +1,19 @@
+:root {
+  --button-color: #ff6f5c;
+  --button-color-disabled: #9ca3af;
+  --button-color-error: #ef4444;
+  --button-hover: #ef4e39;
+
+  --text-primary: #f1f3f9;
+  --text-secondary: #c3c9d5;
+
+  --card-bg-primary: #414244;
+  --card-bg-secondary: #404245;
+  --card-bg-ternary: #1f1f1f;
+
+  --outline-color: #353535;
+
+  --bg-primary: #2d2e2e;
+
+  --logo-color: #ea4b71;
+}
