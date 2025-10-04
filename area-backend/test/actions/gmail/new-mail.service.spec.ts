@@ -4,6 +4,7 @@ import { UsersService } from '../../../src/modules/users/users.service';
 import { AuthService } from '../../../src/modules/auth/auth.service';
 import { RedisService } from '../../../src/modules/redis/redis.service';
 import { ActionNamesEnum } from '../../../src/common/interfaces/action-names.enum';
+import { ProviderKeyEnum } from '../../../src/common/interfaces/oauth2.type';
 
 // Mocks
 const mockUsersService = { findLinkedAccount: jest.fn() };
