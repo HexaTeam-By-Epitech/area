@@ -46,6 +46,10 @@ describe('UsersService', () => {
             auth_identities: {
               deleteMany: jest.fn(),
               upsert: jest.fn(),
+              findUnique: jest.fn(),
+              update: jest.fn(),
+              create: jest.fn(),
+              delete: jest.fn(),
             },
             linked_accounts: {
               deleteMany: jest.fn(),
@@ -272,21 +276,24 @@ describe('UsersService', () => {
         id: 1,
         name: ProviderKeyEnum.Google,
       });
+      // Mock: identity doesn't exist (new user flow)
+      (prisma.auth_identities.findUnique as jest.Mock).mockResolvedValue(null);
+      // Mock: email doesn't exist
       (prisma.users.findUnique as jest.Mock).mockResolvedValue(null);
       (prisma.users.create as jest.Mock).mockResolvedValue({
         ...mockUser,
         email: input.email,
       });
-      (prisma.auth_identities.upsert as jest.Mock).mockResolvedValue({});
+      (prisma.auth_identities.create as jest.Mock).mockResolvedValue({});
 
       const result = await service.upsertIdentityForLogin(input);
 
       expect(result.email).toBe(input.email);
       expect(prisma.users.create).toHaveBeenCalled();
-      expect(prisma.auth_identities.upsert).toHaveBeenCalled();
+      expect(prisma.auth_identities.create).toHaveBeenCalled();
     });
 
-    it('should link identity to existing user', async () => {
+    it('should login with existing identity', async () => {
       const input = {
         provider: ProviderKeyEnum.Google,
         providerUserId: 'google-123',
@@ -297,13 +304,18 @@ describe('UsersService', () => {
         id: 1,
         name: ProviderKeyEnum.Google,
       });
-      (prisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      (prisma.auth_identities.upsert as jest.Mock).mockResolvedValue({});
+      // Mock: identity already exists (login flow)
+      (prisma.auth_identities.findUnique as jest.Mock).mockResolvedValue({
+        user_id: mockUser.id,
+        users: mockUser,
+      });
+      (prisma.auth_identities.update as jest.Mock).mockResolvedValue({});
 
       const result = await service.upsertIdentityForLogin(input);
 
       expect(result).toEqual(mockUser);
       expect(prisma.users.create).not.toHaveBeenCalled();
+      expect(prisma.auth_identities.update).toHaveBeenCalled();
     });
   });
 
