@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Modal, ScrollView } from 'react-native';
+import {
+    View,
+    Text,
+    TextInput,
+    Modal,
+    ScrollView,
+    KeyboardAvoidingView,
+    Platform
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import styles from '../styles';
 import Card from '../components/Card';
@@ -10,6 +18,7 @@ const ACTIONS = [
     { label: 'Gmail', value: 'gmail' },
     { label: 'Weather', value: 'weather' },
 ];
+
 const REACTIONS = [
     { label: 'Spotify Playlist', value: 'spotify_playlist' },
     { label: 'Slack Message', value: 'slack_message' },
@@ -55,6 +64,7 @@ export default function ProjectScreen({ route }) {
 
     const addPendingLinks = () => {
         if (!selectedAction || selectedReactions.length === 0) return;
+
         const actionObj = ACTIONS.find(a => a.value === selectedAction);
         const newLinks = selectedReactions.map(reactionValue => {
             const reactionObj = REACTIONS.find(r => r.value === reactionValue);
@@ -67,6 +77,7 @@ export default function ProjectScreen({ route }) {
             }
             return null;
         }).filter(Boolean);
+
         setPendingLinks(prev => [...prev, ...newLinks]);
         setModalVisible(false);
     };
@@ -81,80 +92,132 @@ export default function ProjectScreen({ route }) {
         setConfirmVisible(true);
     };
 
+    const groupedLinks = [...links, ...pendingLinks].reduce((acc, link) => {
+        if (!acc[link.action]) acc[link.action] = [];
+        acc[link.action].push(link.reaction);
+        return acc;
+    }, {});
+
     return (
         <View style={styles.container}>
-            <ScrollView contentContainerStyle={{ paddingBottom: 150 }}>
-                <Text style={styles.title}>Edit Workflow {workflowName}</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Workflow name"
-                    placeholderTextColor="#c3c9d5"
-                    value={workflowName}
-                    onChangeText={setWorkflowName}
-                />
-                <TextInput
-                    style={styles.input}
-                    placeholder="Description"
-                    placeholderTextColor="#c3c9d5"
-                    value={workflowDesc}
-                    onChangeText={setWorkflowDesc}
-                />
-                <Button title="Add Action-Reaction" onPress={openAddMenu} />
-                <Text style={[styles.title, { fontSize: 18, marginTop: 24 }]}>Action-Reaction Links</Text>
-                <View style={{ marginBottom: 20 }}>
-                    {([...links, ...pendingLinks]).length === 0 ? (
-                        <Text style={styles.text}>No action-reaction links yet.</Text>
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            >
+                <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 140 }}>
+                    <Text style={styles.title}>Editing: {workflowName}</Text>
+
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Workflow name"
+                        placeholderTextColor="#c3c9d5"
+                        value={workflowName}
+                        onChangeText={setWorkflowName}
+                    />
+
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Description"
+                        placeholderTextColor="#c3c9d5"
+                        value={workflowDesc}
+                        onChangeText={setWorkflowDesc}
+                    />
+
+                    <Button title="Add Action + Reaction" onPress={openAddMenu} />
+
+                    <Text style={styles.sectionTitle}>Action → Reaction Links</Text>
+
+                    {Object.keys(groupedLinks).length === 0 ? (
+                        <Text style={styles.text}>No links yet.</Text>
                     ) : (
-                        Object.entries([...links, ...pendingLinks].reduce((acc, item) => {
-                            if (!acc[item.action]) acc[item.action] = [];
-                            acc[item.action].push(item.reaction);
-                            return acc;
-                        }, {})).map(([action, reactions], idx) => (
-                            <Card key={action + idx} style={{ marginBottom: 8 }}>
-                                <Text style={styles.title}>{action}</Text>
-                                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                        Object.entries(groupedLinks).map(([action, reactions], idx) => (
+                            <View key={idx} style={{ width: '100%', alignItems: 'center', marginBottom: 24 }}>
+                                <Card style={[styles.card, { marginBottom: 0, alignItems: 'center', justifyContent: 'center' }]}>
+                                    <Text style={[styles.subtitle, { fontSize: 18, marginBottom: 0, textAlign: 'center' }]}>{action}</Text>
+                                </Card>
+                                {/* Trait vertical avec couleur string */}
+                                <View style={{ width: 4, height: 32, backgroundColor: styles.button.backgroundColor || '#2196f3', borderRadius: 2, marginVertical: 4 }} />
+                                <Card style={[styles.card, { width: '98%', flexDirection: 'column', alignItems: 'center', marginTop: 0 }]}>
                                     {reactions.map((reaction, rIdx) => (
-                                        <Card key={rIdx} style={{ margin: 4, padding: 8 }}>
-                                            <Text style={styles.text}>{reaction}</Text>
+                                        <Card
+                                            key={rIdx}
+                                            style={[styles.card, {
+                                                width: '98%',
+                                                marginVertical: 4,
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                paddingVertical: 10
+                                            }]}
+                                        >
+                                            <Text style={[styles.text, { textAlign: 'center', fontSize: 15 }]}>{reaction}</Text>
                                         </Card>
                                     ))}
-                                </View>
-                            </Card>
+                                </Card>
+                            </View>
                         ))
                     )}
+                </ScrollView>
+
+                <View style={{
+                    position: 'absolute',
+                    bottom: 20,
+                    left: 20,
+                    right: 20,
+                }}>
+                    <Button title="Save" onPress={validateAllLinks} />
                 </View>
-                <Button title="Save" onPress={validateAllLinks} />
-            </ScrollView>
+            </KeyboardAvoidingView>
+
+            {/* Modal - Add Action + Reactions */}
             <Modal visible={modalVisible} animationType="slide" transparent>
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-                    <Card style={{ width: '90%' }}>
-                        <Text style={styles.title}>Select Action</Text>
+                <View style={{
+                    flex: 1,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: 'rgba(0,0,0,0.3)',
+                    padding: 20,
+                }}>
+                    <Card style={{ width: '100%' }}>
+                        <Text style={styles.title}>Select an Action</Text>
                         {ACTIONS.map(action => (
                             <Button
                                 key={action.value}
                                 title={action.label}
                                 onPress={() => setSelectedAction(action.value)}
-                                style={{ backgroundColor: selectedAction === action.value ? '#2196f3' : undefined }}
+                                style={{
+                                    backgroundColor: selectedAction === action.value ? '#2196f3' : undefined,
+                                }}
                             />
                         ))}
-                        <Text style={[styles.title, { fontSize: 18, marginTop: 16 }]}>Select Reactions</Text>
+
+                        <Text style={[styles.subtitle, { marginTop: 16 }]}>Select Reactions</Text>
                         {REACTIONS.map(reaction => (
                             <Button
                                 key={reaction.value}
                                 title={reaction.label}
                                 onPress={() => toggleReaction(reaction.value)}
-                                style={{ backgroundColor: selectedReactions.includes(reaction.value) ? '#2196f3' : undefined }}
+                                style={{
+                                    backgroundColor: selectedReactions.includes(reaction.value) ? '#2196f3' : undefined,
+                                }}
                             />
                         ))}
+
                         <Button title="Add" onPress={addPendingLinks} />
                         <Button title="Cancel" onPress={() => setModalVisible(false)} style={{ backgroundColor: '#d32f2f' }} />
                     </Card>
                 </View>
             </Modal>
+
+            {/* Modal - Save Confirmation */}
             <Modal visible={confirmVisible} animationType="fade" transparent>
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                <View style={{
+                    flex: 1,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: 'rgba(0,0,0,0.3)'
+                }}>
                     <Card style={{ width: '80%' }}>
-                        <Text style={styles.title}>Workflow saved!</Text>
+                        <Text style={styles.title}>Workflow saved</Text>
                         <Button title="OK" onPress={() => setConfirmVisible(false)} />
                     </Card>
                 </View>
