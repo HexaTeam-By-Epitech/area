@@ -4,6 +4,7 @@ import { ProviderKeyEnum } from '../../../common/interfaces/oauth2.type';
 import { AuthService } from '../../auth/auth.service';
 import { RedisService } from '../../redis/redis.service';
 import type { PollingAction } from '../../../common/interfaces/area.type';
+import { ActionNamesEnum } from '../../../common/interfaces/action-names.enum';
 
 /**
  * Spotify polling action that detects if the user has liked a new track.
@@ -12,7 +13,7 @@ import type { PollingAction } from '../../../common/interfaces/area.type';
  * saved track ("liked" track) of a user and compares it with a timestamp
  * stored in Redis to determine if a new like occurred.
  *
- * Implements the `PollingAction` interface with action name `spotify_has_likes`.
+ * Implements the `PollingAction` interface with action name `ActionNamesEnum.SPOTIFY_HAS_LIKES`.
  */
 @Injectable()
 export class SpotifyLikeService implements PollingAction {
@@ -37,10 +38,10 @@ export class SpotifyLikeService implements PollingAction {
    * Returns whether this action supports the given `actionName`.
    *
    * @param actionName - The identifier of the action to check.
-   * @returns `true` if the action name is `spotify_has_likes`.
+   * @returns `true` if the action name is `ActionNamesEnum.SPOTIFY_HAS_LIKES`.
    */
   supports(actionName: string): boolean {
-    return actionName === 'spotify_has_likes';
+    return actionName === ActionNamesEnum.SPOTIFY_HAS_LIKES;
   }
 
   /**

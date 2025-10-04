@@ -4,7 +4,9 @@ import { ActionPollingService } from './polling/action-polling.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { GmailSendService } from '../reactions/gmail/send.service';
+import { GmailNewMailService } from '../actions/gmail/new-mail.service';
 import type { ActionCallback, ReactionCallback, AreaExecution } from '../../common/interfaces/area.type';
+import { ActionNamesEnum, ReactionNamesEnum } from '../../common/interfaces/action-names.enum';
 
 /**
  * Orchestrates the AREA engine: registers actions/reactions, binds them for users,
@@ -23,6 +25,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         private readonly redisService: RedisService,
         private readonly polling: ActionPollingService,
         private readonly gmailSendService: GmailSendService,
+        private readonly gmailNewMailService: GmailNewMailService,
     ) {}
 
     /**
@@ -33,6 +36,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         await this.registerReactionCallbacks();
         // Register available pollers (extensible)
         this.polling.register(this.spotifyLikeService);
+        this.polling.register(this.gmailNewMailService);
         await this.initPollingForActiveAreas();
         this.logger.log('Manager Service initialized with action-reaction system');
     }
@@ -52,12 +56,21 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
      */
     private async registerActionCallbacks() {
         // Spotify Actions
-        this.actionCallbacks.set('spotify_has_likes', {
-            name: 'spotify_has_likes',
+        this.actionCallbacks.set(ActionNamesEnum.SPOTIFY_HAS_LIKES, {
+            name: ActionNamesEnum.SPOTIFY_HAS_LIKES,
             callback: async (userId: string) => {
                 return await this.spotifyLikeService.hasNewSpotifyLike(userId);
             },
             description: 'Check if user has liked songs on Spotify'
+        });
+
+        // Gmail Actions
+        this.actionCallbacks.set(ActionNamesEnum.GMAIL_NEW_EMAIL, {
+            name: ActionNamesEnum.GMAIL_NEW_EMAIL,
+            callback: async (userId: string) => {
+                return await this.gmailNewMailService.hasNewGmailEmail(userId);
+            },
+            description: 'Detect new incoming email in Gmail inbox'
         });
 
         this.logger.log(`Registered ${this.actionCallbacks.size} action callbacks`);
@@ -68,8 +81,8 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
      */
     private async registerReactionCallbacks() {
         // Email notification reaction
-        this.reactionCallbacks.set('send_email', {
-            name: 'send_email',
+        this.reactionCallbacks.set(ReactionNamesEnum.SEND_EMAIL, {
+            name: ReactionNamesEnum.SEND_EMAIL,
             callback: async (userId: string, actionResult: any, config: { subject: string; body: string; to: string }) => {
                 return await this.gmailSendService.run(userId, config);
             },
@@ -77,8 +90,8 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         });
 
         // Log event reaction
-        this.reactionCallbacks.set('log_event', {
-            name: 'log_event',
+        this.reactionCallbacks.set(ReactionNamesEnum.LOG_EVENT, {
+            name: ReactionNamesEnum.LOG_EVENT,
             callback: async (userId: string, actionResult: any, config?: any) => {
                 await this.prisma.event_logs.create({
                     data: {

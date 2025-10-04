@@ -9,6 +9,7 @@ import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
 import { ActionPollingService } from './polling/action-polling.service';
 import { GmailSendService } from '../reactions/gmail/send.service';
+import { GmailNewMailService } from '../actions/gmail/new-mail.service';
 
 /**
  * Manager module orchestrating AREA logic (Actions <-> Reactions).
@@ -26,7 +27,7 @@ import { GmailSendService } from '../reactions/gmail/send.service';
     AuthModule,
   ],
   controllers: [ManagerController],
-  providers: [ManagerService, SpotifyLikeService, ActionPollingService, GmailSendService],
+  providers: [ManagerService, SpotifyLikeService, ActionPollingService, GmailSendService, GmailNewMailService],
   exports: [ManagerService],
 })
 export class ManagerModule {}
