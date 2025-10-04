@@ -307,6 +307,7 @@ export class AuthService {
         if (!userId) throw new BadRequestException('Missing userId');
         const user = await this.usersService.findById(userId);
         if (!user) throw new NotFoundException('User not found');
+        
         await this.usersService.unlinkLinkedAccount(userId, provider as any);
         this.logger.log(`Unlinked provider ${String(provider)} for user ${userId}`);
         return { provider: String(provider), userId };
