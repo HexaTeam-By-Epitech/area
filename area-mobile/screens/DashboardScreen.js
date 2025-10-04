@@ -96,7 +96,7 @@ export default function DashboardScreen({ navigation }) {
 
     return (
         <View style={[styles.container, { justifyContent: 'flex-start', paddingTop: 32 }]}>
-            <Text style={styles.title}>Vos Workflows</Text>
+            <Text style={styles.title}>Your Workflows</Text>
 
             <FlatList
                 data={workflows}
@@ -108,7 +108,7 @@ export default function DashboardScreen({ navigation }) {
                 }}
                 ListEmptyComponent={
                     <Text style={[styles.text, { textAlign: 'center', marginTop: 32 }]}>
-                        Aucun workflow pour l'instant.
+                        No workflow at this time.
                     </Text>
                 }
             />
@@ -133,7 +133,7 @@ export default function DashboardScreen({ navigation }) {
                     paddingHorizontal: 20,
                 }}>
                     <Card style={{ width: '100%', maxWidth: 500 }}>
-                        <Text style={styles.title}>Créer un nouveau workflow</Text>
+                        <Text style={styles.title}>Create a new workflow</Text>
                         <TextInput
                             style={styles.input}
                             placeholder="Nom du workflow"
