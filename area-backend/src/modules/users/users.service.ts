@@ -115,8 +115,10 @@ export class UsersService {
             if (!user) {
                 throw new NotFoundException('User not found');
             }
+            await tx.event_logs.deleteMany({ where: { user_id: id } });
             await tx.auth_identities.deleteMany({ where: { user_id: id } });
             await tx.linked_accounts.deleteMany({ where: { user_id: id } });
+            await tx.areas.deleteMany({ where: { user_id: id } });
             return tx.users.delete({ where: { id } });
         });
     }
