@@ -27,7 +27,7 @@ describe('LoginScreen', () => {
         fireEvent.press(getByText('Login'));
 
         await waitFor(() => {
-            expect(mockNavigation.navigate).toHaveBeenCalledWith('Home', { token: 'fake-token', email: '' });
+            expect(mockNavigation.navigate).toHaveBeenCalledWith('Protected', { token: 'fake-token', email: '' });
         });
     });
 
@@ -38,7 +38,7 @@ describe('LoginScreen', () => {
         fireEvent.press(getByText('Register'));
 
         await waitFor(() => {
-            expect(mockNavigation.navigate).toHaveBeenCalledWith('Home', { token: 'fake-token', email: '' });
+            expect(mockNavigation.navigate).toHaveBeenCalledWith('Protected', { token: 'fake-token', email: '' });
         });
     });
 });

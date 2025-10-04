@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, useWindowDimensions, FlatList } from 'react-native';
 import Card from '../components/Card';
+import Button from '../components/Button';
 
-export default function HomeScreen({ route }) {
+export default function HomeScreen({ navigation, route }) {
     const { email } = route.params || {};
     const { width } = useWindowDimensions();
 
@@ -49,7 +50,14 @@ export default function HomeScreen({ route }) {
             <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#fff', textAlign: 'center', marginBottom: 24 }}>
                 Beautiful dashboard
             </Text>
-
+            <Text style={{ fontSize: 18, color: '#fff', textAlign: 'center', marginBottom: 16 }}>
+                {email ? `Welcome ${email}` : 'Welcome!'}
+            </Text>
+            <Button
+                title="My Account"
+                onPress={() => navigation.navigate('MyAccount', { token: route.params?.token, email })}
+                style={{ marginBottom: 24, width: '80%', alignSelf: 'center' }}
+            />
             <FlatList
                 data={data}
                 renderItem={renderItem}
