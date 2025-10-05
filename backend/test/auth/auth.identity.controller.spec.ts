@@ -6,6 +6,8 @@ const mockAuthService = {
   signInWithIdToken: jest.fn(),
   buildLoginUrl: jest.fn(),
   handleLoginCallback: jest.fn(),
+  unlinkIdentity: jest.fn(),
+  getLinkedIdentities: jest.fn(),
 };
 
 describe('GenericAuthIdentityController', () => {
@@ -38,11 +40,42 @@ describe('GenericAuthIdentityController', () => {
     expect(redirect).toHaveBeenCalledWith('https://provider/login');
   });
 
-  it('loginCallback: should call service and return result', async () => {
+  it('loginCallback: should return JSON when no state (regular login)', async () => {
     mockAuthService.handleLoginCallback.mockResolvedValue({ accessToken: 'app.jwt', userId: 'u1', email: 'a@a.com' });
-    const res = await controller.loginCallback('google', 'code123', 'state');
-    expect(mockAuthService.handleLoginCallback).toHaveBeenCalledWith('google', 'code123', 'state');
-    expect(res).toEqual({ accessToken: 'app.jwt', userId: 'u1', email: 'a@a.com' });
+    const json = jest.fn();
+    const res: any = { json };
+    await controller.loginCallback(res, 'google', 'code123');
+    expect(mockAuthService.handleLoginCallback).toHaveBeenCalledWith('google', 'code123', undefined);
+    expect(json).toHaveBeenCalledWith({ accessToken: 'app.jwt', userId: 'u1', email: 'a@a.com' });
+  });
+
+  it('loginCallback: should redirect to settings when state present (identity linking)', async () => {
+    mockAuthService.handleLoginCallback.mockResolvedValue({ accessToken: 'app.jwt', userId: 'u1', email: 'a@a.com' });
+    const redirect = jest.fn();
+    const res: any = { redirect };
+    await controller.loginCallback(res, 'google', 'code123', 'state-abc');
+    expect(mockAuthService.handleLoginCallback).toHaveBeenCalledWith('google', 'code123', 'state-abc');
+    expect(redirect).toHaveBeenCalledWith(expect.stringContaining('/home/settings?provider=google&status=success'));
+  });
+
+  it('loginCallback: should handle error with JSON when no state', async () => {
+    mockAuthService.handleLoginCallback.mockRejectedValue(new Error('Login failed'));
+    const status = jest.fn().mockReturnThis();
+    const json = jest.fn();
+    const res: any = { status, json };
+    await controller.loginCallback(res, 'google', 'code123');
+    expect(mockAuthService.handleLoginCallback).toHaveBeenCalledWith('google', 'code123', undefined);
+    expect(status).toHaveBeenCalledWith(401);
+    expect(json).toHaveBeenCalledWith({ message: 'Login failed' });
+  });
+
+  it('loginCallback: should handle error with redirect when state present', async () => {
+    mockAuthService.handleLoginCallback.mockRejectedValue(new Error('Link failed'));
+    const redirect = jest.fn();
+    const res: any = { redirect };
+    await controller.loginCallback(res, 'google', 'code123', 'state-abc');
+    expect(mockAuthService.handleLoginCallback).toHaveBeenCalledWith('google', 'code123', 'state-abc');
+    expect(redirect).toHaveBeenCalledWith(expect.stringContaining('/home/settings?provider=google&status=error'));
   });
 
   it('getLoginUrl: should return provider oauth login url', () => {

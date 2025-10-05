@@ -269,7 +269,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
      * @param userId - Target user ID
      */
     async getUserAreas(userId: string) {
-        return await this.prisma.areas.findMany({
+        const areas = await this.prisma.areas.findMany({
             where: {
                 user_id: userId,
                 is_active: true,
@@ -280,6 +280,17 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                 reactions: true
             }
         });
+
+        // Transform to include action and reaction names as strings
+        return areas.map(area => ({
+            id: area.id,
+            action: area.actions.name,
+            reaction: area.reactions.name,
+            config: area.config,
+            is_active: area.is_active,
+            created_at: area.created_at,
+            updated_at: area.updated_at,
+        }));
     }
 
     /**

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { handleGoogleResponse } from '@/utils/googleAuth'
+import { handleGoogleResponse, googleLoading, googleError, googleSuccess } from '@/utils/googleAuth'
 import useAuthStore from "@/stores/webauth";
 
 const authStore = useAuthStore();
@@ -46,8 +46,8 @@ const handleSubmit = async () => {
       throw new Error(data.message || 'Login failed')
     }
     const data = await response.json();
-    if (data.userId) {
-      authStore.login(email.value, data.userId);
+    if (data.accessToken && data.userId) {
+      authStore.login(data.email || email.value, data.accessToken, data.userId);
     }
     successMessage.value = 'Login successful!'
     email.value = ''
@@ -130,7 +130,17 @@ onMounted(() => {
 
       <div v-if="apiError" class="api-error">{{ apiError }}</div>
       <div v-if="successMessage" class="success-message">{{ successMessage }}</div>
-      <div id="google-signin-button"></div>
+
+      <div class="divider">
+        <span>OR</span>
+      </div>
+
+      <div class="google-signin-container">
+        <div v-if="googleLoading" class="google-loading">Signing in with Google...</div>
+        <div v-if="googleError" class="api-error">{{ googleError }}</div>
+        <div v-if="googleSuccess" class="success-message">{{ googleSuccess }}</div>
+        <div id="google-signin-button"></div>
+      </div>
 
       <p class="login-link">
         Don't have an account? <a href="#" @click.prevent="authStore.setPage('register')">Register</a>
@@ -141,4 +151,40 @@ onMounted(() => {
 
 <style scoped>
 @import "authCommon.css";
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.5rem 0;
+  color: var(--text-secondary);
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--text-secondary);
+}
+
+.divider span {
+  padding: 0 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.google-signin-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.google-loading {
+  text-align: center;
+  padding: 0.75rem;
+  background-color: rgba(66, 133, 244, 0.1);
+  border-radius: 0.5rem;
+  color: #4285F4;
+  font-weight: 500;
+}
 </style>

@@ -29,22 +29,28 @@ export class ManagerController {
 
   /**
    * Get available actions
-   * @returns List of registered action callbacks
+   * @returns List of registered action metadata (name and description only)
    */
   @Get('actions')
   @ApiOperation({ summary: 'Get available actions' })
-  getAvailableActions(): ActionCallback[] {
-    return this.managerService.getAvailableActions();
+  getAvailableActions() {
+    return this.managerService.getAvailableActions().map(action => ({
+      name: action.name,
+      description: action.description
+    }));
   }
 
   /**
    * Get available reactions
-   * @returns List of registered reaction callbacks
+   * @returns List of registered reaction metadata (name and description only)
    */
   @Get('reactions')
   @ApiOperation({ summary: 'Get available reactions' })
-  getAvailableReactions(): ReactionCallback[] {
-    return this.managerService.getAvailableReactions();
+  getAvailableReactions() {
+    return this.managerService.getAvailableReactions().map(reaction => ({
+      name: reaction.name,
+      description: reaction.description
+    }));
   }
 
   /**

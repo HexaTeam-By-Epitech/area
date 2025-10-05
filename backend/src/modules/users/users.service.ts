@@ -167,6 +167,54 @@ export class UsersService {
     }
 
     /**
+     * Get all linked accounts for a user with provider information
+     * @param userId - The user ID
+     * @returns Array of linked accounts with provider details
+     */
+    async getLinkedAccounts(userId: string) {
+        return this.prisma.linked_accounts.findMany({
+            where: { user_id: userId, is_active: true },
+            select: {
+                id: true,
+                provider_user_id: true,
+                scopes: true,
+                is_active: true,
+                oauth_providers: {
+                    select: {
+                        id: true,
+                        name: true,
+                        is_active: true,
+                    },
+                },
+            },
+        });
+    }
+
+    /**
+     * Get all linked identity providers for a user
+     * @param userId - The user ID
+     * @returns Array of linked identity providers with provider details
+     */
+    async getLinkedIdentities(userId: string) {
+        return this.prisma.auth_identities.findMany({
+            where: { user_id: userId },
+            select: {
+                id: true,
+                provider_user_id: true,
+                email: true,
+                name: true,
+                oauth_providers: {
+                    select: {
+                        id: true,
+                        name: true,
+                        is_active: true,
+                    },
+                },
+            },
+        });
+    }
+
+    /**
      * Ensure the oauth provider row exists (by fixed numeric id) to satisfy FK constraints.
      */
     private async ensureProviderByName(name: ProviderKeyEnum): Promise<{ id: number }> {

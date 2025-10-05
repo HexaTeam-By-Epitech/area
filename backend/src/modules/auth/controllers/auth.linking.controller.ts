@@ -11,6 +11,21 @@ import { GetUser, JwtPayload } from '../../../common/decorators/get-user.decorat
 export class GenericAuthLinkingController {
   constructor(private readonly auth: AuthService) {}
 
+  @Public()
+  @Get('providers')
+  @ApiOperation({ summary: 'Get list of available OAuth providers for linking' })
+  @ApiResponse({ status: 200, description: 'Returns array of provider keys', schema: { properties: { providers: { type: 'array', items: { type: 'string' } } } } })
+  getAvailableProviders() {
+    return { providers: this.auth.listProviders() };
+  }
+
+  @Get('linked-providers')
+  @ApiOperation({ summary: 'Get list of linked providers for authenticated user' })
+  @ApiResponse({ status: 200, description: 'Returns array of linked provider names' })
+  async getLinkedProviders(@GetUser('sub') userId: string) {
+    return this.auth.getLinkedProviders(userId);
+  }
+
   @Get(':provider/url')
   @ApiOperation({ summary: 'Get OAuth URL for provider linking (Authenticated)' })
   @ApiResponse({ status: 200, description: 'Returns the OAuth URL', schema: { properties: { url: { type: 'string' } } } })
@@ -37,13 +52,23 @@ export class GenericAuthLinkingController {
   @Public()
   @Get(':provider/callback')
   @ApiOperation({ summary: 'Generic OAuth callback (Public - handles state validation internally)' })
-  @ApiResponse({ status: 200, description: 'OAuth flow successful' })
+  @ApiResponse({ status: 302, description: 'OAuth flow successful - redirects to frontend' })
   async callback(
+    @Res() res: express.Response,
     @Param('provider') provider: string,
     @Query('code') code: string,
     @Query('state') state?: string,
   ) {
-    return this.auth.handleOAuthCallback(provider, code, state);
+    try {
+      const result = await this.auth.handleOAuthCallback(provider, code, state);
+      // Redirect to frontend with success message
+      const frontendUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+      return res.redirect(`${frontendUrl}/home/services?provider=${provider}&status=success`);
+    } catch (error) {
+      const frontendUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+      const errorMessage = error instanceof Error ? error.message : 'OAuth linking failed';
+      return res.redirect(`${frontendUrl}/home/services?provider=${provider}&status=error&message=${encodeURIComponent(errorMessage)}`);
+    }
   }
 
   @Delete(':provider/link')
