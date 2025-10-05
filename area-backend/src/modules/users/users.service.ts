@@ -1,4 +1,4 @@
-import {Injectable, NotFoundException} from '@nestjs/common';
+import {Injectable, NotFoundException, ConflictException} from '@nestjs/common';
 import {PrismaService} from '../../prisma/prisma.service';
 import {CreateUserDto} from './dto/create-user.dto';
 import {UpdateUserDto} from './dto/update-user.dto';
@@ -22,7 +22,14 @@ export class UsersService {
      */
     async findAll() {
         return this.prisma.users.findMany({
-            include: {
+            select: {
+                id: true,
+                email: true,
+                is_verified: true,
+                is_active: true,
+                created_at: true,
+                updated_at: true,
+                deleted_at: true,
                 auth_identities: true,
                 linked_accounts: {
                     select: {
@@ -49,7 +56,14 @@ export class UsersService {
     async findOne(id: string) {
         const user = await this.prisma.users.findUnique({
             where: { id },
-            include: {
+            select: {
+                id: true,
+                email: true,
+                is_verified: true,
+                is_active: true,
+                created_at: true,
+                updated_at: true,
+                deleted_at: true,
                 auth_identities: true,
                 linked_accounts: {
                     select: {
@@ -101,7 +115,19 @@ export class UsersService {
      * @returns The updated user object
      */
     async updateUser(id: string, data: UpdateUserDto) {
-        return this.prisma.users.update({where: {id}, data});
+        return this.prisma.users.update({
+            where: {id},
+            data,
+            select: {
+                id: true,
+                email: true,
+                is_verified: true,
+                is_active: true,
+                created_at: true,
+                updated_at: true,
+                deleted_at: true,
+            },
+        });
     }
 
     /**
@@ -191,7 +217,8 @@ export class UsersService {
 
     /**
      * Upsert a login identity (e.g., Google) and return the associated user.
-     * Creates the user if they do not yet exist (by email).
+     * SECURITY: Only logs in if the identity already exists. Creates new user only if identity is new.
+     * This prevents account takeover by someone using the same email on a different provider.
      */
     async upsertIdentityForLogin(input: {
         provider: ProviderKeyEnum;
@@ -205,24 +232,135 @@ export class UsersService {
 
         const providerId = await this.getOrCreateProviderIdByName(provider);
 
-        let user;
+        // If targetUserId provided, delegate to linkIdentityToUser for authenticated linking
         if (targetUserId) {
-            user = await this.prisma.users.findUnique({ where: { id: targetUserId } });
-            if (!user) throw new NotFoundException('User not found for provided userId');
-            // Optionally, could enforce email consistency; for now we keep existing user email.
-        } else {
-            user = await this.prisma.users.findUnique({ where: { email } });
-            if (!user) {
-                user = await this.prisma.users.create({
-                    data: {
-                        email,
-                        is_verified: true,
-                        is_active: true,
-                    },
-                });
-            }
+            return this.linkIdentityToUser({
+                userId: targetUserId,
+                provider,
+                providerUserId,
+                email,
+                name,
+                avatarUrl,
+            });
         }
 
+        // SECURITY FIX: First check if this specific identity (provider + providerUserId) exists
+        const existingIdentity = await this.prisma.auth_identities.findUnique({
+            where: {
+                provider_id_provider_user_id: {
+                    provider_id: providerId,
+                    provider_user_id: providerUserId,
+                },
+            },
+            select: {
+                user_id: true,
+                users: {
+                    select: {
+                        id: true,
+                        email: true,
+                        is_verified: true,
+                        is_active: true,
+                        created_at: true,
+                        updated_at: true,
+                        deleted_at: true,
+                    },
+                },
+            },
+        });
+
+        // If identity exists, return the associated user (login)
+        if (existingIdentity) {
+            // Update identity metadata
+            await this.prisma.auth_identities.update({
+                where: {
+                    provider_id_provider_user_id: {
+                        provider_id: providerId,
+                        provider_user_id: providerUserId,
+                    },
+                },
+                data: {
+                    email: email ?? undefined,
+                    name: name ?? undefined,
+                    avatar_url: avatarUrl ?? undefined,
+                    updated_at: new Date(),
+                },
+            });
+            return existingIdentity.users;
+        }
+
+        // Identity doesn't exist - check if email is already taken
+        const existingUser = await this.prisma.users.findUnique({
+            where: { email },
+            select: { id: true, email: true },
+        });
+
+        if (existingUser) {
+            // Email already exists with a different account (e.g., email/password or different provider)
+            // SECURITY: Reject to prevent account takeover
+            throw new ConflictException(
+                `An account with email ${email} already exists. Please log in with your existing account and link ${provider} from your profile settings.`
+            );
+        }
+
+        // Email is free - create new user with this identity
+        const newUser = await this.prisma.users.create({
+            data: {
+                email,
+                is_verified: true,
+                is_active: true,
+            },
+            select: {
+                id: true,
+                email: true,
+                is_verified: true,
+                is_active: true,
+                created_at: true,
+                updated_at: true,
+                deleted_at: true,
+            },
+        });
+
+        // Create the identity
+        await this.prisma.auth_identities.create({
+            data: {
+                id: crypto.randomUUID(),
+                user_id: newUser.id,
+                provider_id: providerId,
+                provider_user_id: providerUserId,
+                email,
+                name,
+                avatar_url: avatarUrl,
+            },
+        });
+
+        return newUser;
+    }
+
+    /**
+     * Link an identity provider to an existing user (for authenticated identity linking).
+     * Creates or updates the `auth_identities` row for the given user.
+     */
+    async linkIdentityToUser(input: {
+        userId: string;
+        provider: ProviderKeyEnum;
+        providerUserId: string;
+        email: string;
+        name?: string;
+        avatarUrl?: string;
+    }) {
+        const { userId, provider, providerUserId, email, name, avatarUrl } = input;
+
+        // Resolve provider id by name and ensure it exists
+        const providerId = await this.getOrCreateProviderIdByName(provider);
+
+        // Verify user exists
+        const user = await this.prisma.users.findUnique({
+            where: { id: userId },
+            select: { id: true, email: true },
+        });
+        if (!user) throw new NotFoundException('User not found');
+
+        // Upsert identity for this specific user
         await this.prisma.auth_identities.upsert({
             where: {
                 provider_id_provider_user_id: {
@@ -231,7 +369,7 @@ export class UsersService {
                 },
             },
             update: {
-                user_id: user.id,
+                user_id: userId,
                 email: email ?? undefined,
                 name: name ?? undefined,
                 avatar_url: avatarUrl ?? undefined,
@@ -239,7 +377,7 @@ export class UsersService {
             },
             create: {
                 id: crypto.randomUUID(),
-                user_id: user.id,
+                user_id: userId,
                 provider_id: providerId,
                 provider_user_id: providerUserId,
                 email,
@@ -266,7 +404,18 @@ export class UsersService {
     }) {
         const { userId, provider, providerUserId, accessToken = null, refreshToken = null, accessTokenExpiresAt = null, scopes = null } = input;
 
-        const user = await this.prisma.users.findUnique({ where: { id: userId } });
+        const user = await this.prisma.users.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                email: true,
+                is_verified: true,
+                is_active: true,
+                created_at: true,
+                updated_at: true,
+                deleted_at: true,
+            },
+        });
         if (!user) throw new NotFoundException('User not found');
 
         // Resolve provider id by name and ensure it exists
@@ -369,5 +518,39 @@ export class UsersService {
                 where: { user_id: userId, provider_id: providerId }
             });
         });
+    }
+
+    /**
+     * Unlink an identity provider from a user, or delete the user if no password exists.
+     * Only allows unlinking if the user has a password_hash (to prevent account lockout).
+     * If no password_hash exists, deletes the user account entirely.
+     */
+    async unlinkIdentity(userId: string, provider: ProviderKeyEnum): Promise<{ deleted: boolean }> {
+        // Get user with password_hash
+        const user = await this.prisma.users.findUnique({
+            where: { id: userId },
+            select: { id: true, password_hash: true, auth_identities: { select: { provider_id: true } } },
+        });
+        if (!user) throw new NotFoundException('User not found');
+
+        const providerId = await this.getOrCreateProviderIdByName(provider);
+
+        // Check if this identity exists
+        const identity = await this.prisma.auth_identities.findUnique({
+            where: { user_id_provider_id: { user_id: userId, provider_id: providerId } },
+        });
+        if (!identity) throw new NotFoundException('Identity not found for this provider');
+
+        // If user has no password_hash, delete the entire user account
+        if (!user.password_hash) {
+            await this.prisma.users.delete({ where: { id: userId } });
+            return { deleted: true };
+        }
+
+        // Otherwise, just unlink the identity
+        await this.prisma.auth_identities.delete({
+            where: { user_id_provider_id: { user_id: userId, provider_id: providerId } },
+        });
+        return { deleted: false };
     }
 }

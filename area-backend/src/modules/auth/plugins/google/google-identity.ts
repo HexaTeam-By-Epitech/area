@@ -6,7 +6,7 @@ import { IdentityProvider } from '../../../../common/interfaces/oauth2.type';
 import type { TokenStore } from 'src/common/interfaces/crypto.type';
 
 /**
- * Google identity plugin implementing ID token sign-in (One Tap or similar).
+ * Google identity plugin implementing ID token sign-in (One Tap) and OAuth code flow login.
  */
 @Injectable()
 export class GoogleIdentity implements IdentityProvider {
@@ -60,20 +60,23 @@ export class GoogleIdentity implements IdentityProvider {
   }
 
   /**
-   * Build the Google Authorization URL to initiate the login (code) flow.
-   * NOTE: We keep this minimal (no state) but could later embed a signed state for CSRF.
+   * Build the Google OAuth login URL (authorization code flow).
+   * @param opts - Optional userId for linking identity to existing user
+   * @returns The URL to redirect the user to for login.
    */
   buildLoginUrl(opts?: { userId?: string }): string {
     const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
-    const redirectUri = this.config.get<string>('GOOGLE_LOGIN_REDIRECT_URI') || this.config.get<string>('GOOGLE_REDIRECT_URI');
+    const redirectUri = this.config.get<string>('GOOGLE_IDENTITY_REDIRECT_URI') || this.config.get<string>('GOOGLE_LOGIN_REDIRECT_URI') || this.config.get<string>('GOOGLE_REDIRECT_URI');
     if (!clientId || !redirectUri) {
-      this.logger.error('Missing GOOGLE_CLIENT_ID or redirect URI (GOOGLE_LOGIN_REDIRECT_URI / GOOGLE_REDIRECT_URI)');
-      throw new InternalServerErrorException('Google OAuth not configured');
+      this.logger.error('Missing GOOGLE_CLIENT_ID or redirect URI (GOOGLE_IDENTITY_REDIRECT_URI / GOOGLE_LOGIN_REDIRECT_URI / GOOGLE_REDIRECT_URI)');
+      throw new InternalServerErrorException('Google identity OAuth not configured');
     }
+
     const scopes = ['openid', 'email', 'profile'].join(' ');
     const state = opts?.userId
-      ? this.jwt.sign({ provider: 'google', mode: 'login', userId: opts.userId }, { expiresIn: '10m' })
+      ? this.jwt.sign({ provider: 'google', mode: 'identity', userId: opts.userId }, { expiresIn: '10m' })
       : undefined;
+
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
@@ -84,24 +87,28 @@ export class GoogleIdentity implements IdentityProvider {
       prompt: 'consent',
     });
     if (state) params.set('state', state);
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-    this.logger.debug(`Google login URL generated: ${url}`);
-    return url;
+    return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
   }
 
   /**
-   * Handle the Authorization Code login callback: exchanges code, verifies id_token,
-   * upserts identity, and returns user identity info (userId/email). The AuthService
-   * wraps this into an application JWT.
+   * Handle OAuth login callback for identity login (code flow).
+   * Supports both:
+   * - New user login/registration (when state.userId is null)
+   * - Linking identity to existing user (when state.userId is present)
+   *
+   * @param code - Authorization code returned by Google
+   * @param state - Optional signed state containing userId for linking
+   * @returns The user id and email
    */
   async handleLoginCallback(code: string, state?: string): Promise<{ userId: string; email: string }> {
     if (!code) throw new BadRequestException('Missing code');
 
+    // Decode state to check if this is a linking flow
     let targetUserId: string | undefined;
     if (state) {
       try {
         const decoded: any = this.jwt.verify(state);
-        if (decoded?.mode === 'login' && decoded?.provider === 'google' && decoded?.userId) {
+        if (decoded?.mode === 'identity' && decoded?.provider === 'google' && decoded?.userId) {
           targetUserId = decoded.userId as string;
         }
       } catch (e) {
@@ -112,7 +119,7 @@ export class GoogleIdentity implements IdentityProvider {
 
     const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
     const clientSecret = this.config.get<string>('GOOGLE_CLIENT_SECRET');
-    const redirectUri = this.config.get<string>('GOOGLE_LOGIN_REDIRECT_URI') || this.config.get<string>('GOOGLE_REDIRECT_URI');
+    const redirectUri = this.config.get<string>('GOOGLE_IDENTITY_REDIRECT_URI') || this.config.get<string>('GOOGLE_LOGIN_REDIRECT_URI') || this.config.get<string>('GOOGLE_REDIRECT_URI');
     if (!clientId || !clientSecret || !redirectUri) {
       this.logger.error('Google OAuth not configured (clientId/secret/redirectUri)');
       throw new InternalServerErrorException('Google OAuth not configured');
@@ -120,6 +127,7 @@ export class GoogleIdentity implements IdentityProvider {
 
     const oauth2 = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 
+    // Exchange code for tokens
     let tokens;
     try {
       const result = await oauth2.getToken({ code, redirect_uri: redirectUri });
@@ -132,6 +140,7 @@ export class GoogleIdentity implements IdentityProvider {
     const idToken = tokens.id_token;
     if (!idToken) throw new UnauthorizedException('No id_token returned by Google');
 
+    // Verify ID token and extract user info
     let payload: any;
     try {
       const ticket = await oauth2.verifyIdToken({ idToken, audience: clientId });
@@ -151,6 +160,7 @@ export class GoogleIdentity implements IdentityProvider {
       throw new UnauthorizedException('Google account not verified or payload invalid');
     }
 
+    // Upsert identity (will link if targetUserId provided)
     const user = await this.store.upsertIdentityForLogin({
       provider: 'google',
       providerUserId: sub,

@@ -32,8 +32,9 @@ describe('GenericAuthIdentityController', () => {
     mockAuthService.buildLoginUrl.mockReturnValue('https://provider/login');
     const redirect = jest.fn();
     const res: any = { redirect };
-    await controller.startLogin(res, 'google');
-    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google');
+    const req: any = {};
+    await controller.startLogin(res, req, 'google');
+    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', undefined);
     expect(redirect).toHaveBeenCalledWith('https://provider/login');
   });
 
@@ -46,8 +47,9 @@ describe('GenericAuthIdentityController', () => {
 
   it('getLoginUrl: should return provider oauth login url', () => {
     mockAuthService.buildLoginUrl.mockReturnValue('https://provider/login');
-    const res = controller.getLoginUrl('google');
-    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google');
+    const req: any = {};
+    const res = controller.getLoginUrl('google', req);
+    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', undefined);
     expect(res).toEqual({ url: 'https://provider/login' });
   });
 
@@ -55,14 +57,16 @@ describe('GenericAuthIdentityController', () => {
     mockAuthService.buildLoginUrl.mockReturnValue('https://provider/login?state=abc');
     const redirect = jest.fn();
     const res: any = { redirect };
-    await controller.startLogin(res, 'google' as any, 'user-123');
+    const req: any = { user: { sub: 'user-123' } };
+    await controller.startLogin(res, req, 'google');
     expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', { userId: 'user-123' });
     expect(redirect).toHaveBeenCalledWith('https://provider/login?state=abc');
   });
 
   it('getLoginUrl with userId: should return url with state', () => {
     mockAuthService.buildLoginUrl.mockReturnValue('https://provider/login?state=abc');
-    const res = controller.getLoginUrl('google' as any, 'user-123');
+    const req: any = { user: { sub: 'user-123' } };
+    const res = controller.getLoginUrl('google', req);
     expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', { userId: 'user-123' });
     expect(res).toEqual({ url: 'https://provider/login?state=abc' });
   });

@@ -131,13 +131,23 @@ describe('AuthService', () => {
                 .rejects.toThrow('Invalid credentials');
         });
 
-        it('should return user if password is valid and user is verified', async () => {
+        it('should return JWT token and user info if password is valid and user is verified', async () => {
             const hashedPassword = await bcrypt.hash('correct', 10);
             const user = { id: '1', email: 'a@a.com', password_hash: hashedPassword, is_verified: true };
             usersService.findByEmail.mockResolvedValue(user);
+            mockJwtService.signAsync.mockResolvedValue('jwt-token-123');
 
             const result = await service.validateUser('a@a.com', 'correct');
-            expect(result).toEqual(user);
+            expect(result).toEqual({
+                accessToken: 'jwt-token-123',
+                userId: '1',
+                email: 'a@a.com'
+            });
+            expect(mockJwtService.signAsync).toHaveBeenCalledWith({
+                sub: '1',
+                email: 'a@a.com',
+                provider: 'email'
+            });
         });
     });
 
