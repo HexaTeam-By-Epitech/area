@@ -1,222 +1,161 @@
 # AREA
 
-A multi-platform automation project (IFTTT-like) with:
+A multi-platform automation project (IFTTT-like) with backend API, web frontend, and mobile app.
 
-- Backend API using NestJS + Prisma + PostgreSQL + Redis
-- Web frontend using Vue 3 + Vite
-- Mobile app using React Native (Expo)
+## Project Overview
 
-This README explains the technology choices, project structure, environment setup, and how to run the project both with Docker and manually via npm.
-
-## Technologies
-
-- Backend
-  - NestJS 11 (`@nestjs/*`) for structured, modular Node.js server
-  - Prisma ORM (`@prisma/client`, `prisma`) with PostgreSQL
-  - Redis for caching/queues/session-like features (`redis`)
-  - Auth
-    - JWT (`@nestjs/jwt`)
-    - OAuth2 providers: Google and Spotify (Authorization Code Flow)
-  - Validation and DTOs: `class-validator`, `class-transformer`
-  - API Documentation with Swagger (`@nestjs/swagger`, `swagger-ui-express`) at `/api`
-- Web
-  - Vue 3 (`vue`) with Vite (`vite`, `@vitejs/plugin-vue`)
-  - HTTP via `axios`
-  - React Native (Expo) app using React 19, Expo 54
-  - Navigation via `@react-navigation/*`
-  - UI components via `react-native-paper`
-- DevOps
-  - Dockerfiles for backend and web images
-  - `toolbox/docker-compose.yml` to start PostgreSQL and Redis locally
-  - GitHub Actions workflows in `.github/workflows/`
+AREA is an automation platform that connects different services and allows users to create custom workflows (Actions and REActions).
 
 ## Repository Structure
 
 ```
 / (repo root)
-├─ area-backend/           # NestJS backend API (TypeScript)
-│  ├─ src/
-│  │  ├─ main.ts          # bootstrap, Swagger at /api, PORT defaults to 3000
-│  │  └─ prisma/          # Prisma schema/migrations (if present)
-│  ├─ package.json        # scripts: dev, build, prod, test, lint, etc.
-│  ├─ .env.example        # backend environment variables
-│  └─ Dockerfile          # multi-stage build, runs node dist/main.js
-│
-├─ area-web/              # Vue 3 + Vite frontend
-│  ├─ package.json        # scripts: dev, build, preview
-│  └─ Dockerfile          # builds static site and serves with NGINX
-│
-├─ area-mobile/           # React Native (Expo) mobile app
-│  ├─ App.js, index.js    # entry points
-│  └─ package.json        # scripts: expo start / android / ios / web
-│
-├─ toolbox/
-│  └─ docker-compose.yml  # postgres:16 and redis:7 for local dev
-│
-├─ .github/workflows/     # CI workflows
-└─ CONTRIBUTING.md
+├── backend/               # NestJS backend API
+├── frontend/              # Vue 3 + Vite web app
+├── mobile/                # React Native (Expo) mobile app
+├── toolbox/               # Docker Compose for databases
+└── .github/workflows/     # CI/CD pipelines
 ```
+
+## Technologies
+
+### Backend
+- NestJS 11 (Node.js framework)
+- Prisma ORM with PostgreSQL
+- Redis for caching/queues
+- JWT + OAuth2 (Google, Spotify)
+- Swagger API documentation
+
+### Frontend
+- Vue 3 with Composition API
+- Vite (build tool)
+- Vue Router, Pinia (state management)
+- Axios
+
+### Mobile
+- React Native (Expo)
+- React Navigation
+- React Native Paper
 
 ## Prerequisites
 
 - Node.js 20+
 - npm 10+
-- Docker and Docker Compose (for containerized setup)
+- Docker and Docker Compose (for databases)
 
-Backend requires running PostgreSQL and Redis. You can start them with Docker Compose (recommended) or run them locally if you prefer.
+## Quick Start
 
-## Environment Configuration (Backend)
+### 1. Start Databases
 
-Copy and configure environment variables for the backend:
+Start PostgreSQL and Redis using Docker Compose:
 
-```
-cp area-backend/.env.example area-backend/.env
-```
-
-Edit `area-backend/.env` accordingly:
-
-- Database (PostgreSQL)
-  - `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME`
-  - `DATABASE_URL` (Prisma connection string)
-- Redis
-  - `REDIS_URL`, `REDIS_PASSWORD`
-- App URLs
-  - `BACKEND_BASE_URL` (default http://localhost:3000)
-  - `FRONTEND_BASE_URL` (default http://localhost:5173)
-- Auth
-  - `JWT_SECRET`
-  - Google OAuth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
-  - Spotify OAuth: `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REDIRECT_URI`
-- Security
-  - `TOKENS_ENC_KEY` (encryption key for sensitive tokens)
-
-Swagger UI is exposed at: `http://localhost:3000/api`
-
-## Start Databases with Docker Compose
-
-Use the provided compose file to start PostgreSQL and Redis:
-
-```
+```bash
 docker compose -f toolbox/docker-compose.yml up -d
 ```
 
-- PostgreSQL: exposed on `localhost:4242` with default creds from the compose/env
-- Redis: exposed on `localhost:6379` with password `mypassword`
+This starts:
+- PostgreSQL on `localhost:4242`
+- Redis on `localhost:6379`
 
-Update your `area-backend/.env` to match these values (see `.env.example`).
+### 2. Backend Setup
 
-## Running the Project (npm)
+```bash
+cd backend
+cp .env.example .env
+# Edit .env with your configuration
+npm ci
+npx prisma generate
+npx prisma db push
+npm run dev
+```
 
-- Backend (NestJS)
-  1. Install dependencies:
-     ```
-     cd area-backend
-     npm ci
-     ```
-  2. Generate Prisma client (and run migrations if applicable):
-     ```
-     npx prisma generate
-     # If you have migrations and a dev DB:
-     # npx prisma migrate dev
-     ```
-  3. Start in watch mode:
-     ```
-     npm run dev
-     ```
-     The API will listen on `http://localhost:3000` and Swagger on `/api`.
+Backend API: `http://localhost:3000`
+Swagger docs: `http://localhost:3000/api`
 
-- Web (Vue + Vite)
-  1. Install dependencies:
-     ```
-     cd area-web
-     npm ci
-     ```
-  2. Start dev server:
-     ```
-     npm run dev
-     ```
-     The app will run on `http://localhost:5173` by default.
+**See [`backend/README.md`](backend/README.md) for detailed instructions.**
 
-- Mobile (Expo)
-  1. Install dependencies:
-     ```
-     cd area-mobile
-     npm ci
-     ```
-  2. Start Expo:
-     ```
-     npm run start
-     # or: npm run android / npm run ios / npm run web
-     ```
+### 3. Frontend Setup
 
-## Running the Project (Docker)
+```bash
+cd frontend
+cp .env.example .env
+npm ci
+npm run dev
+```
 
-Database layer (Postgres + Redis) still uses the compose file in `toolbox/`.
+Web app: `http://localhost:5173`
 
-- Start Postgres and Redis
-  ```
-  docker compose -f toolbox/docker-compose.yml up -d
-  ```
+**See [`frontend/README.md`](frontend/README.md) for detailed instructions.**
 
-- Backend Image
-  ```
-  cd area-backend
-  docker build -t area-backend:local .
-  # Run the container, mounting backend .env if needed
-  docker run --rm \
-    --name area-backend \
-    -p 3000:3000 \
-    --env-file .env \
-    area-backend:local
-  ```
-  The API is available at `http://localhost:3000` (Swagger at `/api`).
+### 4. Mobile Setup
 
-- Web Image
-  ```
-  cd area-web
-  docker build -t area-web:local .
-  docker run --rm \
-    --name area-web \
-    -p 8080:80 \
-    area-web:local
-  ```
-  The web app is available at `http://localhost:8080`.
+```bash
+cd mobile
+cp .env.example .env
+# Edit .env with your backend URL (use local IP for physical devices)
+npm ci
+npm run start
+```
 
-Notes:
-- Ensure `area-backend/.env` points to the Dockerized Postgres/Redis (`localhost:4242` and `localhost:6379`).
-- For production-like setups, consider creating a docker-compose that orchestrates backend, web, and databases together with proper networks.
+**See [`mobile/README.md`](mobile/README.md) for detailed instructions.**
 
-## Useful Scripts
+## Documentation
 
-- Backend (`area-backend/package.json`)
-  - `npm run dev` – start NestJS in watch mode
-  - `npm run build` – compile TypeScript
-  - `npm run prod` – run compiled app (`dist/main`)
-  - `npm run test` – run tests (Jest)
-  - `npm run lint` – lint and fix
+Each component has its own detailed documentation:
 
-- Web (`area-web/package.json`)
-  - `npm run dev` – start Vite dev server
-  - `npm run build` – build for production
-  - `npm run preview` – preview production build
+- **Backend:** [`backend/README.md`](backend/README.md)
+  - Environment configuration
+  - Database setup
+  - OAuth providers
+  - API documentation
+  - Testing
 
-- Mobile (`area-mobile/package.json`)
-  - `npm run start` – start Expo
-  - `npm run android` / `ios` / `web`
+- **Frontend:** [`frontend/README.md`](frontend/README.md)
+  - Environment setup
+  - Proxy configuration
+  - Development tips
+  - Building for production
 
-## API Documentation
+- **Mobile:** [`mobile/README.md`](mobile/README.md)
+  - Environment setup
+  - Running on physical devices
+  - Expo configuration
+  - Building APK/IPA
 
-Once the backend is running, visit:
+- **Database:** [`backend/db/README.md`](backend/db/README.md)
+  - Database initialization
+  - Migrations
+  - PostgreSQL troubleshooting
 
-- Swagger UI: `http://localhost:3000/api`
+## Docker
 
-## Troubleshooting
+### Backend
 
-- Port conflicts: change host ports in `docker run -p` or Vite/Expo configs.
-- Database connection errors: verify `DATABASE_URL` and that Postgres is up (`docker ps`, `docker logs postgres`).
-- Prisma client issues: re-run `npx prisma generate` after env/schema changes.
-- OAuth callbacks: ensure `GOOGLE_REDIRECT_URI` and `SPOTIFY_REDIRECT_URI` match your backend public URL.
+```bash
+cd backend
+docker build -t area-backend:local .
+docker run --rm --name area-backend -p 3000:3000 --env-file .env area-backend:local
+```
+
+### Frontend
+
+```bash
+cd frontend
+docker build -t area-web:local .
+docker run --rm --name area-web -p 8080:80 area-web:local
+```
+
+## CI/CD
+
+GitHub Actions workflows are configured in `.github/workflows/ci.yml`:
+- Backend: unit tests + build
+- Frontend: build
+- Mobile: unit tests + Expo build
+
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution guidelines.
 
 ## License
 
-This project is for educational purposes. See individual packages for licenses of dependencies.
+This project is for educational purposes.
