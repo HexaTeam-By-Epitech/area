@@ -9,7 +9,10 @@
 
 const Config = {
     // Backend API URL
-    API_URL: 'http://10.0.2.2:3000',
+    API_URL: 'https://hen-working-actually.ngrok-free.app',
+
+    // OAuth redirect URI (must match app.json scheme)
+    OAUTH_REDIRECT_URI: 'area://oauth',
 
     // Alternative URLs for different environments:
     // API_URL: 'http://localhost:3000', // iOS simulator

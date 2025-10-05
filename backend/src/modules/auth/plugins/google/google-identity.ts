@@ -70,10 +70,10 @@ export class GoogleIdentity implements IdentityProvider {
 
   /**
    * Build the Google OAuth login URL (authorization code flow).
-   * @param opts - Optional userId for linking identity to existing user
+   * @param opts - Optional userId for linking identity to existing user and mobile flag
    * @returns The URL to redirect the user to for login.
    */
-  buildLoginUrl(opts?: { userId?: string }): string {
+  buildLoginUrl(opts?: { userId?: string; mobile?: boolean }): string {
     const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
     const redirectUri = this.config.get<string>('GOOGLE_IDENTITY_REDIRECT_URI') || this.config.get<string>('GOOGLE_LOGIN_REDIRECT_URI') || this.config.get<string>('GOOGLE_REDIRECT_URI');
     if (!clientId || !redirectUri) {
@@ -82,8 +82,8 @@ export class GoogleIdentity implements IdentityProvider {
     }
 
     const scopes = ['openid', 'email', 'profile'].join(' ');
-    const state = opts?.userId
-      ? this.jwt.sign({ provider: 'google', mode: 'identity', userId: opts.userId }, { expiresIn: '10m' })
+    const state = (opts?.userId || opts?.mobile)
+      ? this.jwt.sign({ provider: 'google', mode: 'identity', userId: opts.userId, mobile: opts.mobile }, { expiresIn: '10m' })
       : undefined;
 
     const params = new URLSearchParams({

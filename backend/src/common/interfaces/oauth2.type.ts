@@ -19,8 +19,8 @@ export interface IdentityProvider {
   key: ProviderKey;
   /** Optional: One-tap / ID token login path. */
   signInWithIdToken?(idToken: string): Promise<{ userId: string; email: string }>; // Optional
-  /** Optional: Build an authorization URL to start a code login flow. Supports optional user linking via userId. */
-  buildLoginUrl?(opts?: { userId?: string }): string; // Optional
+  /** Optional: Build an authorization URL to start a code login flow. Supports optional user linking via userId and mobile flag. */
+  buildLoginUrl?(opts?: { userId?: string; mobile?: boolean }): string; // Optional
   /** Optional: Handle the code login callback and return user identity. */
   handleLoginCallback?(code: string, state?: string): Promise<{ userId: string; email: string }>; // Optional
 }
@@ -31,7 +31,7 @@ export interface IdentityProvider {
  */
 export interface LinkingProvider {
   key: ProviderKey;
-  buildLinkUrl(params: { userId: string; scopes?: string[] }): string;
+  buildLinkUrl(params: { userId: string; scopes?: string[]; mobile?: boolean }): string;
   handleLinkCallback(code: string, state?: string): Promise<{ userId: string }>;
   refreshAccessToken(userId: string): Promise<{ accessToken: string; expiresIn: number }>;
   getCurrentAccessToken(userId: string): Promise<string>;

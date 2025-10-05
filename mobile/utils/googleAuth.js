@@ -1,6 +1,7 @@
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { apiDirect } from './api';
+import Config from '../config';
 
 // Enable WebBrowser to dismiss after authentication
 WebBrowser.maybeCompleteAuthSession();
@@ -12,8 +13,8 @@ WebBrowser.maybeCompleteAuthSession();
  */
 export async function signInWithGoogle(onSuccess, onError) {
     try {
-        // Get OAuth URL from backend
-        const response = await apiDirect.get('/auth/google/login/url');
+        // Get OAuth URL from backend (with mobile=true to indicate mobile app)
+        const response = await apiDirect.get('/auth/google/login/url?mobile=true');
         const { url } = response.data;
 
         if (!url) {
@@ -21,29 +22,32 @@ export async function signInWithGoogle(onSuccess, onError) {
         }
 
         // Open browser for authentication
-        const result = await WebBrowser.openAuthSessionAsync(url, 'exp://');
+        const result = await WebBrowser.openAuthSessionAsync(url, Config.OAUTH_REDIRECT_URI);
 
         if (result.type === 'success' && result.url) {
-            // Extract code from callback URL
+            // Extract params from callback URL
             const params = new URL(result.url).searchParams;
-            const code = params.get('code');
-            const state = params.get('state');
+            const status = params.get('status');
+            const type = params.get('type');
 
-            if (!code) {
-                throw new Error('No authorization code received');
+            if (status === 'error') {
+                const message = params.get('message') || 'Authentication failed';
+                throw new Error(message);
             }
 
-            // Exchange code for tokens via backend callback
-            const callbackResponse = await apiDirect.get(`/auth/google/login/callback`, {
-                params: { code, state }
-            });
+            if (type === 'login') {
+                // Login flow - extract auth data from URL params
+                const accessToken = params.get('accessToken');
+                const userId = params.get('userId');
+                const email = params.get('email');
 
-            const authResult = callbackResponse.data;
-
-            if (authResult.accessToken && authResult.userId && authResult.email) {
-                onSuccess(authResult);
+                if (accessToken && userId && email) {
+                    onSuccess({ accessToken: decodeURIComponent(accessToken), userId: decodeURIComponent(userId), email: decodeURIComponent(email) });
+                } else {
+                    throw new Error('Invalid response from backend - missing auth data');
+                }
             } else {
-                throw new Error('Invalid response from backend');
+                throw new Error('Unexpected response type');
             }
         } else if (result.type === 'cancel') {
             onError(new Error('Authentication cancelled'));

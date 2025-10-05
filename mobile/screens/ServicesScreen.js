@@ -1,10 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+import { Ionicons } from '@expo/vector-icons';
 import styles from '../styles';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import { apiDirect } from '../utils/api';
+import Config from '../config';
+
+// Service icons and colors mapping
+const getServiceIcon = (serviceName) => {
+    const icons = {
+        google: { name: 'logo-google', color: '#DB4437' },
+        spotify: { name: 'musical-notes', color: '#1DB954' },
+        github: { name: 'logo-github', color: '#333' },
+        discord: { name: 'chatbubbles', color: '#5865F2' },
+    };
+    return icons[serviceName.toLowerCase()] || { name: 'apps', color: '#666' };
+};
 
 export default function ServicesScreen() {
     const [providers, setProviders] = useState([]);
@@ -53,8 +66,8 @@ export default function ServicesScreen() {
                 p.name === provider.name ? { ...p, loading: true } : p
             ));
 
-            // Get OAuth URL from backend
-            const res = await apiDirect.get(`/auth/${provider.name}/url`);
+            // Get OAuth URL from backend (with mobile=true to indicate mobile app)
+            const res = await apiDirect.get(`/auth/${provider.name}/url?mobile=true`);
             const { url } = res.data;
 
             if (!url) {
@@ -62,7 +75,7 @@ export default function ServicesScreen() {
             }
 
             // Open browser for authentication
-            const result = await WebBrowser.openAuthSessionAsync(url, 'exp://');
+            const result = await WebBrowser.openAuthSessionAsync(url, Config.OAUTH_REDIRECT_URI);
 
             if (result.type === 'success') {
                 // Reload providers to get updated linked status
@@ -119,30 +132,53 @@ export default function ServicesScreen() {
         );
     };
 
-    const renderProvider = ({ item }) => (
-        <Card style={{ marginBottom: 12, padding: 16 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <View style={{ flex: 1 }}>
-                    <Text style={[styles.title, { fontSize: 18, marginBottom: 4 }]}>{item.displayName}</Text>
-                    <Text style={[styles.text, { fontSize: 14 }]}>
-                        {item.linked ? '✓ Connected' : 'Not connected'}
-                    </Text>
+    const renderProvider = ({ item }) => {
+        const icon = getServiceIcon(item.name);
+
+        return (
+            <Card style={{ marginBottom: 12, padding: 16, width: '100%' }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12 }}>
+                        <View style={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: 24,
+                            backgroundColor: 'rgba(255,255,255,0.1)',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            marginRight: 12
+                        }}>
+                            <Ionicons name={icon.name} size={28} color={icon.color} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.title, { fontSize: 18, marginBottom: 4 }]} numberOfLines={1}>{item.displayName}</Text>
+                            <Text style={[styles.text, { fontSize: 14, color: item.linked ? '#4CAF50' : styles.text.color }]}>
+                                {item.linked ? '✓ Connected' : 'Not connected'}
+                            </Text>
+                        </View>
+                    </View>
+                    <View style={{ flexShrink: 0 }}>
+                        {item.loading ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                            <Button
+                                title={item.linked ? 'Disconnect' : 'Connect'}
+                                onPress={() => item.linked ? unlinkProvider(item) : linkProvider(item)}
+                                style={{
+                                    width: 'auto',
+                                    backgroundColor: item.linked ? '#d32f2f' : '#4CAF50',
+                                    paddingHorizontal: 16,
+                                    paddingVertical: 10,
+                                    minWidth: 100,
+                                    marginBottom: 0
+                                }}
+                            />
+                        )}
+                    </View>
                 </View>
-                {item.loading ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                    <Button
-                        title={item.linked ? 'Disconnect' : 'Connect'}
-                        onPress={() => item.linked ? unlinkProvider(item) : linkProvider(item)}
-                        style={{
-                            backgroundColor: item.linked ? '#d32f2f' : '#4CAF50',
-                            minWidth: 120
-                        }}
-                    />
-                )}
-            </View>
-        </Card>
-    );
+            </Card>
+        );
+    };
 
     if (loading) {
         return (
