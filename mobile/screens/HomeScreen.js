@@ -2,9 +2,10 @@ import React from 'react';
 import { View, Text, useWindowDimensions, FlatList } from 'react-native';
 import Card from '../components/Card';
 import Button from '../components/Button';
+import { useAuth } from '../context/AuthContext';
 
-export default function HomeScreen({ navigation, route }) {
-    const { email } = route.params || {};
+export default function HomeScreen({ navigation }) {
+    const { email } = useAuth();
     const { width } = useWindowDimensions();
 
     const gap = 16;
@@ -55,7 +56,7 @@ export default function HomeScreen({ navigation, route }) {
             </Text>
             <Button
                 title="My Account"
-                onPress={() => navigation.navigate('MyAccount', { token: route.params?.token, email })}
+                onPress={() => navigation.navigate('MyAccount')}
                 style={{ marginBottom: 24, width: '80%', alignSelf: 'center' }}
             />
             <FlatList

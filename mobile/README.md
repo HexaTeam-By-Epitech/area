@@ -25,29 +25,25 @@ React Native (Expo) mobile application for the AREA project.
 
 ## Environment Configuration
 
-1. Copy the example environment file:
+Edit `config.js` to configure the backend API URL:
 
-```bash
-cp .env.example .env
+```javascript
+const Config = {
+    API_URL: 'http://10.0.2.2:3000', // For Android emulator
+};
 ```
 
-2. Edit `.env` and configure:
+**Important:** Choose the right URL based on your environment:
 
-- `EXPO_PUBLIC_API_URL` - Backend API URL
-
-**Important:** For testing on a physical device, use your computer's local IP address instead of `localhost`:
-
-```bash
-# For emulator/simulator
-EXPO_PUBLIC_API_URL=http://localhost:3000
-
-# For physical device on same network
-EXPO_PUBLIC_API_URL=http://192.168.1.100:3000
-```
+- **Android Emulator:** `http://10.0.2.2:3000` (10.0.2.2 is the host machine from Android emulator)
+- **iOS Simulator:** `http://localhost:3000`
+- **Physical Device:** `http://YOUR_IP:3000` (e.g., `http://192.168.1.100:3000`)
 
 To find your local IP:
 - **macOS/Linux:** `ifconfig` or `ip addr`
 - **Windows:** `ipconfig`
+
+Make sure your phone and computer are on the same Wi-Fi network when testing on a physical device.
 
 ## Installation
 
@@ -100,25 +96,75 @@ npm test
 
 This project uses `jest-expo` preset for testing React Native components.
 
+## Features
+
+### Authentication
+- **Email/Password Authentication** - Login and registration with email
+- **Google Sign-In** - OAuth 2.0 authentication with Google
+- **Persistent Sessions** - Access tokens stored in AsyncStorage
+- **Auto-logout on 401** - Automatic session cleanup on unauthorized requests
+
+### Service Management
+- **Connect Services** - Link external services (Google, Spotify, etc.)
+- **OAuth Integration** - Seamless OAuth 2.0 flow for service linking
+- **View Linked Services** - See all connected services and their status
+- **Disconnect Services** - Unlink services with confirmation
+
+### AREA Management
+- **List AREAs** - View all your automation workflows
+- **Create AREAs** - Build new action-reaction pairs
+- **Dynamic Configuration** - Configure reactions with auto-generated forms
+- **Delete AREAs** - Remove workflows with confirmation
+- **Pull to Refresh** - Refresh your AREAs list
+- **Real-time Status** - See active/inactive status of each AREA
+
+### User Account
+- **View Profile** - See your email and token information
+- **Logout** - Secure logout with session cleanup
+
 ## Project Structure
 
 ```
 mobile/
+├── context/                 # React Context providers
+│   └── AuthContext.js       # Authentication state management
 ├── screens/                 # Screen components
-│   ├── LoginScreen.js       # Login/Register screen
-│   ├── HomeScreen.js        # Home screen
-│   ├── MyAccountScreen.js   # User account screen
-│   └── ...                  # Other screens
+│   ├── LoginScreen.js       # Login/Register with Google Sign-In
+│   ├── HomeScreen.js        # Home dashboard
+│   ├── DashboardScreen.js   # List and manage AREAs
+│   ├── CreateAreaScreen.js  # Create new AREA with action/reaction
+│   ├── ServicesScreen.js    # Connect/disconnect services
+│   ├── MyAccountScreen.js   # User account and logout
+│   ├── LandingScreen.js     # Landing page
+│   └── ProjectScreen.js     # Project details
+├── utils/                   # Utility functions
+│   ├── api.js               # Axios instances with interceptors
+│   └── googleAuth.js        # Google OAuth helper
+├── components/              # Reusable components
+│   ├── Button.js            # Button component
+│   └── Card.js              # Card component
 ├── assets/                  # Images, icons, fonts
-├── App.js                   # Application entry point
+├── config.js                # App configuration (API URL)
+├── App.js                   # Application entry point with navigation
 ├── index.js                 # Expo entry point
 ├── styles.js                # Global styles
 ├── app.json                 # Expo configuration
-├── .env.example             # Environment variables template
 └── package.json             # Dependencies and scripts
 ```
 
 ## Configuration
+
+### config.js
+
+The `config.js` file contains the backend API URL. Update this based on your environment:
+
+```javascript
+const Config = {
+    API_URL: 'http://10.0.2.2:3000', // Android emulator
+    // API_URL: 'http://localhost:3000', // iOS simulator
+    // API_URL: 'http://192.168.1.100:3000', // Physical device
+};
+```
 
 ### app.json
 
@@ -128,6 +174,32 @@ The `app.json` file contains Expo configuration:
 - Icons and splash screens
 - Platform-specific settings
 - Orientation and status bar
+
+## Backend Integration
+
+The mobile app integrates with the backend API through the following endpoints:
+
+### Authentication
+- `POST /auth/login` - Email/password login
+- `POST /auth/register` - User registration
+- `POST /auth/google/id-token` - Google ID token authentication
+- `GET /auth/google/login/url` - Get Google OAuth URL
+- `GET /auth/google/login/callback` - Handle OAuth callback
+
+### Services
+- `GET /auth/providers` - Get available OAuth providers
+- `GET /auth/linked-providers` - Get user's linked providers
+- `GET /auth/:provider/url` - Get OAuth URL for specific provider
+- `DELETE /auth/:provider/link` - Unlink a provider
+
+### AREA Management
+- `GET /manager/areas` - Get user's AREAs
+- `POST /manager/areas` - Create new AREA
+- `DELETE /manager/areas/:id` - Delete an AREA
+- `GET /manager/actions` - Get available actions
+- `GET /manager/reactions` - Get available reactions with config schemas
+
+All authenticated requests include the JWT token in the `Authorization` header via axios interceptors.
 
 ## Development Tips
 
