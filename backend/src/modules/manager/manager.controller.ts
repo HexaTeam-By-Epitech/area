@@ -42,14 +42,15 @@ export class ManagerController {
 
   /**
    * Get available reactions
-   * @returns List of registered reaction metadata (name and description only)
+   * @returns List of registered reaction metadata (name, description, and configSchema)
    */
   @Get('reactions')
   @ApiOperation({ summary: 'Get available reactions' })
   getAvailableReactions() {
     return this.managerService.getAvailableReactions().map(reaction => ({
       name: reaction.name,
-      description: reaction.description
+      description: reaction.description,
+      configSchema: reaction.configSchema || []
     }));
   }
 

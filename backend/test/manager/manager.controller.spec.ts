@@ -80,8 +80,8 @@ describe('ManagerController', () => {
       const result = controller.getAvailableReactions();
 
       expect(result).toEqual([
-        { name: 'reaction1', description: 'Reaction 1 description' },
-        { name: 'reaction2', description: 'Reaction 2 description' },
+        { name: 'reaction1', description: 'Reaction 1 description', configSchema: [] },
+        { name: 'reaction2', description: 'Reaction 2 description', configSchema: [] },
       ]);
       expect(service.getAvailableReactions).toHaveBeenCalled();
     });

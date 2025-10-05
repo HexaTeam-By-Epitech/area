@@ -10,14 +10,21 @@ const wid = route.params.id;
 type Action = {
   name: string;
   description: string;
-  provider: string;
+}
+
+type ConfigField = {
+  name: string;
+  type: 'string' | 'number' | 'boolean' | 'email';
+  required: boolean;
+  label?: string;
+  placeholder?: string;
+  defaultValue?: any;
 }
 
 type Reaction = {
   name: string;
   description: string;
-  provider: string;
-  config_schema?: any;
+  configSchema?: ConfigField[];
 }
 
 const actions = ref<Action[]>([]);
@@ -55,9 +62,16 @@ function selectAction(action: Action) {
 
 function selectReaction(reaction: Reaction) {
   selectedReaction.value = reaction;
-  // Initialize config based on schema if available
-  if (reaction.config_schema) {
-    reactionConfig.value = {};
+  // Initialize config based on schema with default values
+  reactionConfig.value = {};
+  if (reaction.configSchema && reaction.configSchema.length > 0) {
+    reaction.configSchema.forEach(field => {
+      if (field.defaultValue !== undefined) {
+        reactionConfig.value[field.name] = field.defaultValue;
+      } else {
+        reactionConfig.value[field.name] = '';
+      }
+    });
   }
 }
 
@@ -128,7 +142,6 @@ onMounted(() => {
           >
             <h3>{{ action.name }}</h3>
             <p>{{ action.description }}</p>
-            <small>Provider: {{ action.provider }}</small>
           </div>
         </div>
       </div>
@@ -148,23 +161,52 @@ onMounted(() => {
           >
             <h3>{{ reaction.name }}</h3>
             <p>{{ reaction.description }}</p>
-            <small>Provider: {{ reaction.provider }}</small>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Configuration Section -->
-    <div v-if="selectedReaction && selectedReaction.config_schema" class="config-section">
+    <div v-if="selectedReaction && selectedReaction.configSchema && selectedReaction.configSchema.length > 0" class="config-section">
       <h2>3. Configure Reaction</h2>
       <div class="config-form">
-        <p>Configuration options for {{ selectedReaction.name }}</p>
-        <!-- Add dynamic form fields based on config_schema -->
-        <textarea
-          v-model="reactionConfig"
-          placeholder='Enter JSON configuration, e.g., {"to": "user@example.com"}'
-          class="config-input"
-        ></textarea>
+        <div v-for="field in selectedReaction.configSchema" :key="field.name" class="form-field">
+          <label :for="field.name">
+            {{ field.label || field.name }}
+            <span v-if="field.required" class="required">*</span>
+          </label>
+
+          <!-- Text/Email input -->
+          <input
+            v-if="field.type === 'string' || field.type === 'email'"
+            :id="field.name"
+            :type="field.type === 'email' ? 'email' : 'text'"
+            v-model="reactionConfig[field.name]"
+            :placeholder="field.placeholder || ''"
+            :required="field.required"
+            class="config-input"
+          />
+
+          <!-- Number input -->
+          <input
+            v-else-if="field.type === 'number'"
+            :id="field.name"
+            type="number"
+            v-model.number="reactionConfig[field.name]"
+            :placeholder="field.placeholder || ''"
+            :required="field.required"
+            class="config-input"
+          />
+
+          <!-- Boolean checkbox -->
+          <input
+            v-else-if="field.type === 'boolean'"
+            :id="field.name"
+            type="checkbox"
+            v-model="reactionConfig[field.name]"
+            class="config-checkbox"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -321,19 +363,47 @@ onMounted(() => {
 .config-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.5rem;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-field label {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.form-field .required {
+  color: #f44336;
+  margin-left: 0.25rem;
 }
 
 .config-input {
   width: 100%;
-  min-height: 100px;
-  padding: 1rem;
+  padding: 0.75rem;
   border-radius: 0.5rem;
   border: 1px solid var(--text-secondary);
   background-color: rgba(0, 0, 0, 0.2);
   color: var(--text-primary);
-  font-family: monospace;
-  resize: vertical;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.config-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.config-checkbox {
+  width: 1.5rem;
+  height: 1.5rem;
+  cursor: pointer;
 }
 
 @media (max-width: 900px) {

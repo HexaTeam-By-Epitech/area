@@ -14,6 +14,16 @@ export interface ReactionCallback {
   name: string;
   callback: (userId: string, actionResult: any, config?: any) => Promise<any>;
   description?: string;
+  configSchema?: ConfigField[];
+}
+
+export interface ConfigField {
+  name: string;
+  type: 'string' | 'number' | 'boolean' | 'email';
+  required: boolean;
+  label?: string;
+  placeholder?: string;
+  defaultValue?: any;
 }
 
 /**
