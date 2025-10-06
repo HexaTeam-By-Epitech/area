@@ -83,13 +83,14 @@ export class GenericAuthIdentityController {
   async startLogin(
     @Res() res: express.Response,
     @Req() req: express.Request,
-    @Param('provider') provider: string
+    @Param('provider') provider: string,
+    @Query('mobile') mobile?: string
   ) {
     // Extract userId from JWT if present (optional authentication)
     const user = (req as any).user;
     const userId = user?.sub as string | undefined;
 
-    const url = this.auth.buildLoginUrl(provider, userId ? { userId } : undefined);
+    const url = this.auth.buildLoginUrl(provider, userId ? { userId, mobile: mobile === 'true' } : { mobile: mobile === 'true' });
     return res.redirect(url);
   }
 

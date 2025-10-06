@@ -45,8 +45,9 @@ export class GenericAuthLinkingController {
     @Res() res: express.Response,
     @Param('provider') provider: string,
     @GetUser('sub') userId: string,
+    @Query('mobile') mobile?: string,
   ) {
-    const url = this.auth.buildAuthUrl(provider, { userId });
+    const url = this.auth.buildAuthUrl(provider, { userId, mobile: mobile === 'true' });
     return res.redirect(url);
   }
 
