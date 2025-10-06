@@ -28,10 +28,7 @@ export default function LoginScreen({ navigation }) {
 
             if (accessToken && userId) {
                 await login(userEmail || email, accessToken, userId);
-                navigation.reset({
-                    index: 0,
-                    routes: [{ name: 'Protected' }],
-                });
+                // Navigation will be handled automatically by AppNavigator when isAuthenticated changes
             } else {
                 Alert.alert('Error', 'Invalid response from server');
             }
@@ -51,10 +48,7 @@ export default function LoginScreen({ navigation }) {
                     const { accessToken, userId, email: userEmail } = authResult;
                     await login(userEmail, accessToken, userId);
                     setGoogleLoading(false);
-                    navigation.reset({
-                        index: 0,
-                        routes: [{ name: 'Protected' }],
-                    });
+                    // Navigation will be handled automatically by AppNavigator when isAuthenticated changes
                 },
                 (error) => {
                     // Error callback

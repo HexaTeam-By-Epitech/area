@@ -54,8 +54,12 @@ describe('GenericAuthIdentityController', () => {
     const redirect = jest.fn();
     const json = jest.fn();
     const res: any = { redirect, json };
-    await controller.loginCallback(res, 'google', 'code123', 'state-abc');
-    expect(mockAuthService.handleLoginCallback).toHaveBeenCalledWith('google', 'code123', 'state-abc');
+    // Create a valid state JWT with userId to trigger identity linking flow
+    const stateWithUserId = Buffer.from(JSON.stringify({ header: 'test' })).toString('base64') + '.' +
+                            Buffer.from(JSON.stringify({ userId: 'user123', mobile: false })).toString('base64') + '.' +
+                            Buffer.from('signature').toString('base64');
+    await controller.loginCallback(res, 'google', 'code123', stateWithUserId);
+    expect(mockAuthService.handleLoginCallback).toHaveBeenCalledWith('google', 'code123', stateWithUserId);
     expect(redirect).toHaveBeenCalledWith(expect.stringContaining('/home/settings?provider=google&status=success'));
   });
 
@@ -76,8 +80,12 @@ describe('GenericAuthIdentityController', () => {
     const status = jest.fn().mockReturnThis();
     const json = jest.fn();
     const res: any = { redirect, status, json };
-    await controller.loginCallback(res, 'google', 'code123', 'state-abc');
-    expect(mockAuthService.handleLoginCallback).toHaveBeenCalledWith('google', 'code123', 'state-abc');
+    // Create a valid state JWT with userId to trigger identity linking flow
+    const stateWithUserId = Buffer.from(JSON.stringify({ header: 'test' })).toString('base64') + '.' +
+                            Buffer.from(JSON.stringify({ userId: 'user123', mobile: false })).toString('base64') + '.' +
+                            Buffer.from('signature').toString('base64');
+    await controller.loginCallback(res, 'google', 'code123', stateWithUserId);
+    expect(mockAuthService.handleLoginCallback).toHaveBeenCalledWith('google', 'code123', stateWithUserId);
     expect(redirect).toHaveBeenCalledWith(expect.stringContaining('/home/settings?provider=google&status=error'));
   });
 

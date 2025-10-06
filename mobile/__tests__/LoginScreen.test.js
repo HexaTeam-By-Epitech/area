@@ -89,7 +89,7 @@ describe('LoginScreen', () => {
                 password: 'password123',
             });
             expect(mockLogin).toHaveBeenCalledWith('test@test.com', 'fake-token', 'user-123');
-            expect(mockNavigation.reset).toHaveBeenCalled();
+            // Navigation is now handled automatically by AppNavigator, not by LoginScreen
         });
     });
 

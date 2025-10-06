@@ -14,8 +14,14 @@ WebBrowser.maybeCompleteAuthSession();
 export async function signInWithGoogle(onSuccess, onError) {
     try {
         // Get OAuth URL from backend (with mobile=true to indicate mobile app)
-        const response = await apiDirect.get('/auth/google/login/url?mobile=true');
+        const apiUrl = '/auth/google/login/url?mobile=true';
+        console.log('🔍 DEBUG - Axios request URL:', `${apiDirect.defaults.baseURL}${apiUrl}`);
+
+        const response = await apiDirect.get(apiUrl);
+        console.log('🔍 DEBUG - Response data:', response.data);
+
         const { url } = response.data;
+        console.log('🔍 DEBUG - OAuth URL received:', url);
 
         if (!url) {
             throw new Error('No OAuth URL received from backend');
@@ -56,6 +62,15 @@ export async function signInWithGoogle(onSuccess, onError) {
         }
     } catch (error) {
         console.error('Google sign-in error:', error);
+        console.error('🔍 DEBUG - Error details:', {
+            message: error.message,
+            config: error.config,
+            request: error.request,
+            response: error.response,
+            status: error.response?.status,
+            data: error.response?.data,
+            headers: error.response?.headers,
+        });
         onError(error);
     }
 }

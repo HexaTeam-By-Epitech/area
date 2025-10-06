@@ -101,13 +101,7 @@ export default function MyAccountScreen({ navigation }) {
                         try {
                             setLoggingOut(true);
                             await logout();
-                            // Reset navigation to Landing screen
-                            navigation.dispatch(
-                                CommonActions.reset({
-                                    index: 0,
-                                    routes: [{ name: 'Landing' }],
-                                })
-                            );
+                            // Navigation will be handled automatically by AppNavigator when isAuthenticated changes
                         } catch (error) {
                             Alert.alert('Error', 'Failed to logout. Please try again.');
                             setLoggingOut(false);
