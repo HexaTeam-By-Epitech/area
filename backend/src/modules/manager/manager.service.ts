@@ -86,7 +86,30 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
             callback: async (userId: string, actionResult: any, config: { subject: string; body: string; to: string }) => {
                 return await this.gmailSendService.run(userId, config);
             },
-            description: 'Send email notification'
+            description: 'Send email notification',
+            configSchema: [
+                {
+                    name: 'to',
+                    type: 'email',
+                    required: true,
+                    label: 'Recipient email',
+                    placeholder: 'recipient@example.com'
+                },
+                {
+                    name: 'subject',
+                    type: 'string',
+                    required: true,
+                    label: 'Email subject',
+                    placeholder: 'Notification from AREA'
+                },
+                {
+                    name: 'body',
+                    type: 'string',
+                    required: true,
+                    label: 'Email body',
+                    placeholder: 'Your message here...'
+                }
+            ]
         });
 
         // Log event reaction
@@ -127,6 +150,12 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         }
         if (!this.reactionCallbacks.has(reactionName)) {
             throw new BadRequestException(`Reaction '${reactionName}' not found`);
+        }
+
+        // Validate reaction config against schema
+        const reactionCallback = this.reactionCallbacks.get(reactionName);
+        if (reactionCallback?.configSchema && reactionCallback.configSchema.length > 0) {
+            this.validateConfig(config, reactionCallback.configSchema, reactionName);
         }
 
         // Verify user exists
@@ -269,7 +298,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
      * @param userId - Target user ID
      */
     async getUserAreas(userId: string) {
-        return await this.prisma.areas.findMany({
+        const areas = await this.prisma.areas.findMany({
             where: {
                 user_id: userId,
                 is_active: true,
@@ -280,6 +309,17 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                 reactions: true
             }
         });
+
+        // Transform to include action and reaction names as strings
+        return areas.map(area => ({
+            id: area.id,
+            action: area.actions.name,
+            reaction: area.reactions.name,
+            config: area.config,
+            is_active: area.is_active,
+            created_at: area.created_at,
+            updated_at: area.updated_at,
+        }));
     }
 
     /**
@@ -378,5 +418,63 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
      */
     getAvailableReactions(): ReactionCallback[] {
         return Array.from(this.reactionCallbacks.values());
+    }
+
+    /**
+     * Validate config against schema
+     */
+    private validateConfig(config: any, schema: any[], reactionName: string): void {
+        if (!config) {
+            const requiredFields = schema.filter(f => f.required);
+            if (requiredFields.length > 0) {
+                throw new BadRequestException(
+                    `Reaction '${reactionName}' requires configuration: ${requiredFields.map(f => f.name).join(', ')}`
+                );
+            }
+            return;
+        }
+
+        // Check required fields
+        for (const field of schema) {
+            if (field.required && !config[field.name]) {
+                throw new BadRequestException(
+                    `Missing required field '${field.name}' for reaction '${reactionName}'`
+                );
+            }
+
+            // Type validation
+            if (config[field.name] !== undefined) {
+                const value = config[field.name];
+                switch (field.type) {
+                    case 'string':
+                    case 'email':
+                        if (typeof value !== 'string') {
+                            throw new BadRequestException(
+                                `Field '${field.name}' must be a string`
+                            );
+                        }
+                        if (field.type === 'email' && !value.includes('@')) {
+                            throw new BadRequestException(
+                                `Field '${field.name}' must be a valid email address`
+                            );
+                        }
+                        break;
+                    case 'number':
+                        if (typeof value !== 'number') {
+                            throw new BadRequestException(
+                                `Field '${field.name}' must be a number`
+                            );
+                        }
+                        break;
+                    case 'boolean':
+                        if (typeof value !== 'boolean') {
+                            throw new BadRequestException(
+                                `Field '${field.name}' must be a boolean`
+                            );
+                        }
+                        break;
+                }
+            }
+        }
     }
 }

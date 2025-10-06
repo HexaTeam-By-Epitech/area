@@ -319,10 +319,39 @@ export class AuthService {
         if (!userId) throw new BadRequestException('Missing userId');
         const user = await this.usersService.findById(userId);
         if (!user) throw new NotFoundException('User not found');
-        
+
         await this.usersService.unlinkLinkedAccount(userId, provider as any);
         this.logger.log(`Unlinked provider ${String(provider)} for user ${userId}`);
         return { provider: String(provider), userId };
+    }
+
+    /** Get list of available OAuth providers */
+    listProviders(): string[] {
+        return this.providers.listProviders();
+    }
+
+    /** Get list of linked providers for a user */
+    async getLinkedProviders(userId: string): Promise<{ providers: string[] }> {
+        if (!userId) throw new BadRequestException('Missing userId');
+        const user = await this.usersService.findById(userId);
+        if (!user) throw new NotFoundException('User not found');
+
+        const linkedAccounts = await this.usersService.getLinkedAccounts(userId);
+        const linkedProviderNames = linkedAccounts.map(acc => acc.oauth_providers.name);
+
+        return { providers: linkedProviderNames };
+    }
+
+    /** Get list of linked identity providers for a user */
+    async getLinkedIdentities(userId: string): Promise<{ providers: string[] }> {
+        if (!userId) throw new BadRequestException('Missing userId');
+        const user = await this.usersService.findById(userId);
+        if (!user) throw new NotFoundException('User not found');
+
+        const linkedIdentities = await this.usersService.getLinkedIdentities(userId);
+        const linkedProviderNames = linkedIdentities.map(identity => identity.oauth_providers.name);
+
+        return { providers: linkedProviderNames };
     }
 
     /**

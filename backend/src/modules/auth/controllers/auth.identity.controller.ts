@@ -101,9 +101,55 @@ export class GenericAuthIdentityController {
   @Public()
   @Get(':provider/login/callback')
   @ApiOperation({ summary: 'Provider login callback (code flow)' })
-  @ApiResponse({ status: 200, description: 'Login successful' })
-  async loginCallback(@Param('provider') provider: string, @Query('code') code: string, @Query('state') state?: string) {
-    return this.auth.handleLoginCallback(provider, code, state);
+  @ApiResponse({ status: 302, description: 'Redirects to frontend with result' })
+  async loginCallback(
+    @Res() res: express.Response,
+    @Param('provider') provider: string,
+    @Query('code') code: string,
+    @Query('state') state?: string
+  ) {
+    try {
+      const result = await this.auth.handleLoginCallback(provider, code, state);
+      const frontendUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+
+      // Check if this was an identity linking flow (state contains userId)
+      // If yes, redirect to settings, otherwise return JSON for login
+      if (state) {
+        // Identity linking flow - redirect to settings
+        return res.redirect(`${frontendUrl}/home/settings?provider=${provider}&status=success`);
+      } else {
+        // Regular login flow - return JSON
+        return res.json(result);
+      }
+    } catch (error) {
+      const frontendUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+      const errorMessage = error instanceof Error ? error.message : 'OAuth login failed';
+
+      if (state) {
+        // Was trying to link identity - redirect to settings with error
+        return res.redirect(`${frontendUrl}/home/settings?provider=${provider}&status=error&message=${encodeURIComponent(errorMessage)}`);
+      } else {
+        // Was trying to login - return error JSON
+        return res.status(401).json({ message: errorMessage });
+      }
+    }
+  }
+
+  /**
+   * Get linked identity providers for the authenticated user.
+   * Returns a list of identity providers (e.g., 'google') that are linked for sign-in.
+   *
+   * @param req - Express request containing user from JWT
+   * @returns Object containing array of linked provider names
+   */
+  @Get('linked-identities')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get linked identity providers for the current user' })
+  @ApiResponse({ status: 200, description: 'Returns linked identity providers', schema: { properties: { providers: { type: 'array', items: { type: 'string' } } } } })
+  async getLinkedIdentities(@Req() req: express.Request) {
+    const user = (req as any).user;
+    const userId = user?.sub as string;
+    return this.auth.getLinkedIdentities(userId);
   }
 
   /**

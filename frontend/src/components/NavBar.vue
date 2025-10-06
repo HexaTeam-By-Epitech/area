@@ -1,8 +1,15 @@
 <script setup>
 import NavCard from "./NavCard.vue";
 import useAuthStore from "@/stores/webauth.js";
+import { useRouter } from "vue-router";
 
 const authStore = useAuthStore();
+const router = useRouter();
+
+function logout() {
+  authStore.logout();
+  router.push('/');
+}
 </script>
 
 <template>
@@ -10,10 +17,12 @@ const authStore = useAuthStore();
     <div style="width: 25vw" />
     <nav>
       <NavCard :link="'/'" :msg="'Home'" />
-      <NavCard :link="'/webauth'" :msg="'Login'" />
+      <NavCard v-if="!authStore.isAuth()" :link="'/webauth'" :msg="'Login'" />
       <NavCard v-if="authStore.isAuth()" :link="'/home'" :msg="'Dashboard'" />
       <NavCard v-if="authStore.isAuth()" :link="'/home/services'" :msg="'Services'" />
-      <NavCard v-if="authStore.isAuth()" :link="'/home/workflows'" :msg="'Workflows'" />
+      <NavCard v-if="authStore.isAuth()" :link="'/home/workflows/new'" :msg="'Create AREA'" />
+      <NavCard v-if="authStore.isAuth()" :link="'/home/settings'" :msg="'Settings'" />
+      <button v-if="authStore.isAuth()" @click="logout" class="logout-btn">Logout</button>
     </nav>
   </div>
 </template>
@@ -37,6 +46,22 @@ const authStore = useAuthStore();
 #navbar nav {
   display: flex;
   align-items: center;
+  gap: 0.5rem;
 }
 
+.logout-btn {
+  padding: 0.5rem 1rem;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s;
+  margin-left: 1rem;
+}
+
+.logout-btn:hover {
+  background-color: #da190b;
+}
 </style>

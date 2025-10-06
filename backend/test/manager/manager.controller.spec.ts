@@ -10,13 +10,13 @@ describe('ManagerController', () => {
   let prisma: PrismaService;
 
   const mockActions = [
-    { id: 'action-1', name: 'action1', callback: jest.fn(), type: 'polling' },
-    { id: 'action-2', name: 'action2', callback: jest.fn(), type: 'webhook' },
+    { name: 'action1', callback: jest.fn(), description: 'Action 1 description' },
+    { name: 'action2', callback: jest.fn(), description: 'Action 2 description' },
   ];
 
   const mockReactions = [
-    { id: 'reaction-1', name: 'reaction1', callback: jest.fn() },
-    { id: 'reaction-2', name: 'reaction2', callback: jest.fn() },
+    { name: 'reaction1', callback: jest.fn(), description: 'Reaction 1 description' },
+    { name: 'reaction2', callback: jest.fn(), description: 'Reaction 2 description' },
   ];
 
   const mockArea = {
@@ -65,7 +65,10 @@ describe('ManagerController', () => {
 
       const result = controller.getAvailableActions();
 
-      expect(result).toEqual(mockActions);
+      expect(result).toEqual([
+        { name: 'action1', description: 'Action 1 description' },
+        { name: 'action2', description: 'Action 2 description' },
+      ]);
       expect(service.getAvailableActions).toHaveBeenCalled();
     });
   });
@@ -76,7 +79,10 @@ describe('ManagerController', () => {
 
       const result = controller.getAvailableReactions();
 
-      expect(result).toEqual(mockReactions);
+      expect(result).toEqual([
+        { name: 'reaction1', description: 'Reaction 1 description', configSchema: [] },
+        { name: 'reaction2', description: 'Reaction 2 description', configSchema: [] },
+      ]);
       expect(service.getAvailableReactions).toHaveBeenCalled();
     });
   });

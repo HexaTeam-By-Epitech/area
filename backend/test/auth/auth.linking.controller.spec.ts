@@ -37,11 +37,22 @@ describe('GenericAuthLinkingController', () => {
     expect(redirect).toHaveBeenCalledWith('https://provider/link');
   });
 
-  it('callback: should delegate to service', async () => {
+  it('callback: should delegate to service and redirect on success', async () => {
     mockAuthService.handleOAuthCallback.mockResolvedValue({ accessToken: 'jwt', userId: 'u1', email: 'e' });
-    const out = await controller.callback('spotify', 'code', 'state');
+    const redirect = jest.fn();
+    const res: any = { redirect };
+    await controller.callback(res, 'spotify', 'code', 'state');
     expect(mockAuthService.handleOAuthCallback).toHaveBeenCalledWith('spotify', 'code', 'state');
-    expect(out).toEqual({ accessToken: 'jwt', userId: 'u1', email: 'e' });
+    expect(redirect).toHaveBeenCalledWith(expect.stringContaining('/home/services?provider=spotify&status=success'));
+  });
+
+  it('callback: should redirect with error on failure', async () => {
+    mockAuthService.handleOAuthCallback.mockRejectedValue(new Error('Link failed'));
+    const redirect = jest.fn();
+    const res: any = { redirect };
+    await controller.callback(res, 'spotify', 'code', 'state');
+    expect(mockAuthService.handleOAuthCallback).toHaveBeenCalledWith('spotify', 'code', 'state');
+    expect(redirect).toHaveBeenCalledWith(expect.stringContaining('/home/services?provider=spotify&status=error'));
   });
 
   it('unlink: should call service and return payload', async () => {

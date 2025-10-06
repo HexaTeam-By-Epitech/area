@@ -29,6 +29,8 @@ export class GoogleIdentity implements IdentityProvider {
     const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
     if (!clientId) throw new InternalServerErrorException('Google client not configured');
 
+    this.logger.log(`Attempting to verify Google ID token with client ID: ${clientId.substring(0, 20)}...`);
+
     const oauth2 = new google.auth.OAuth2();
     try {
       const ticket = await oauth2.verifyIdToken({ idToken, audience: clientId });
@@ -55,6 +57,13 @@ export class GoogleIdentity implements IdentityProvider {
       return { userId: user.id, email: user.email };
     } catch (e: any) {
       this.logger.error(`Google token verification error: ${e?.message ?? e}`, e?.stack);
+
+      // Re-throw business logic errors (ConflictException, NotFoundException, etc.)
+      if (e.constructor.name === 'ConflictException' || e.constructor.name === 'NotFoundException' || e.constructor.name === 'BadRequestException') {
+        throw e;
+      }
+
+      // Only Google token validation errors should be wrapped
       throw new UnauthorizedException('Invalid Google token');
     }
   }
