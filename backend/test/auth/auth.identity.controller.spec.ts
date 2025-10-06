@@ -36,7 +36,7 @@ describe('GenericAuthIdentityController', () => {
     const res: any = { redirect };
     const req: any = {};
     await controller.startLogin(res, req, 'google');
-    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', undefined);
+    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', { mobile: false });
     expect(redirect).toHaveBeenCalledWith('https://provider/login');
   });
 
@@ -82,7 +82,7 @@ describe('GenericAuthIdentityController', () => {
     mockAuthService.buildLoginUrl.mockReturnValue('https://provider/login');
     const req: any = {};
     const res = controller.getLoginUrl('google', req);
-    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', undefined);
+    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', { mobile: false });
     expect(res).toEqual({ url: 'https://provider/login' });
   });
 
@@ -92,7 +92,7 @@ describe('GenericAuthIdentityController', () => {
     const res: any = { redirect };
     const req: any = { user: { sub: 'user-123' } };
     await controller.startLogin(res, req, 'google');
-    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', { userId: 'user-123' });
+    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', { userId: 'user-123', mobile: false });
     expect(redirect).toHaveBeenCalledWith('https://provider/login?state=abc');
   });
 
@@ -100,7 +100,7 @@ describe('GenericAuthIdentityController', () => {
     mockAuthService.buildLoginUrl.mockReturnValue('https://provider/login?state=abc');
     const req: any = { user: { sub: 'user-123' } };
     const res = controller.getLoginUrl('google', req);
-    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', { userId: 'user-123' });
+    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', { userId: 'user-123', mobile: false });
     expect(res).toEqual({ url: 'https://provider/login?state=abc' });
   });
 });
