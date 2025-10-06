@@ -82,7 +82,7 @@ describe('ServicesScreen', () => {
         fireEvent.press(connectButtons[0]);
 
         await waitFor(() => {
-            expect(apiDirect.get).toHaveBeenCalledWith('/auth/google/url');
+            expect(apiDirect.get).toHaveBeenCalledWith('/auth/google/url?mobile=true');
             expect(WebBrowser.openAuthSessionAsync).toHaveBeenCalled();
         });
     });
