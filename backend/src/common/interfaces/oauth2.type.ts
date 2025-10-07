@@ -2,13 +2,14 @@ import type { AxiosRequestConfig } from 'axios';
 
 /**
  * Canonical provider identifier used across identity and linking flows.
- * Known built-ins: 'google', 'spotify'. Custom strings are allowed for extensibility.
+ * Known built-ins: 'google', 'spotify', 'discord'. Custom strings are allowed for extensibility.
  */
-export type ProviderKey = 'google' | 'spotify' | (string & {});
+export type ProviderKey = 'google' | 'spotify' | 'discord' | (string & {});
 
 export enum ProviderKeyEnum {
     Google = 'google',
     Spotify = 'spotify',
+    Discord = 'discord',
 }
 
 /**
