@@ -20,7 +20,6 @@ function logout() {
       <NavCard v-if="!authStore.isAuth()" :link="'/webauth'" :msg="'Login'" />
       <NavCard v-if="authStore.isAuth()" :link="'/home'" :msg="'Dashboard'" />
       <NavCard v-if="authStore.isAuth()" :link="'/home/services'" :msg="'Services'" />
-      <NavCard v-if="authStore.isAuth()" :link="'/home/workflows/new'" :msg="'Create AREA'" />
       <NavCard v-if="authStore.isAuth()" :link="'/home/settings'" :msg="'Settings'" />
       <button v-if="authStore.isAuth()" @click="logout" class="logout-btn">Logout</button>
     </nav>
