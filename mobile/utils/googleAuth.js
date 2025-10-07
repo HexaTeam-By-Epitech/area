@@ -1,5 +1,6 @@
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
+import { Platform } from 'react-native';
 import { apiDirect } from './api';
 import Config from '../config';
 
@@ -28,7 +29,20 @@ export async function signInWithGoogle(onSuccess, onError) {
         }
 
         // Open browser for authentication
-        const result = await WebBrowser.openAuthSessionAsync(url, Config.OAUTH_REDIRECT_URI);
+        // On Android, use different browser options to avoid redirect issues
+        const browserOptions = Platform.OS === 'android'
+            ? {
+                showInRecents: true,
+                // Try to use external browser on Android if Custom Tabs fail
+                browserPackage: undefined,
+            }
+            : {};
+
+        const result = await WebBrowser.openAuthSessionAsync(
+            url,
+            Config.OAUTH_REDIRECT_URI,
+            browserOptions
+        );
 
         if (result.type === 'success' && result.url) {
             // Extract params from callback URL

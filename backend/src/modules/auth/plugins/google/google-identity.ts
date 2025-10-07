@@ -81,6 +81,8 @@ export class GoogleIdentity implements IdentityProvider {
       throw new InternalServerErrorException('Google identity OAuth not configured');
     }
 
+    this.logger.debug(`Building Google login URL with redirect_uri: ${redirectUri}`);
+
     const scopes = ['openid', 'email', 'profile'].join(' ');
     const state = (opts?.userId || opts?.mobile)
       ? this.jwt.sign({ provider: 'google', mode: 'identity', userId: opts.userId, mobile: opts.mobile }, { expiresIn: '10m' })
@@ -139,10 +141,15 @@ export class GoogleIdentity implements IdentityProvider {
     // Exchange code for tokens
     let tokens;
     try {
+      this.logger.debug(`Attempting token exchange with redirect_uri: ${redirectUri}`);
+      this.logger.debug(`Authorization code (first 20 chars): ${code.substring(0, 20)}...`);
       const result = await oauth2.getToken({ code, redirect_uri: redirectUri });
       tokens = result.tokens;
     } catch (e: any) {
-      this.logger.error(`Google token exchange failed: ${e?.message ?? e}`, e?.stack);
+      this.logger.error(`Google token exchange failed: ${e?.message ?? e}`);
+      this.logger.error(`redirect_uri used: ${redirectUri}`);
+      this.logger.error(`code length: ${code.length}`);
+      this.logger.error('Full error:', e?.stack);
       throw new UnauthorizedException('Token exchange failed');
     }
 
