@@ -191,6 +191,27 @@ export class UsersService {
     }
 
     /**
+     * Update the active status of a linked account
+     * @param userId - The user ID
+     * @param provider - Provider enum key
+     * @param isActive - New active status
+     */
+    async updateLinkedAccountStatus(userId: string, provider: ProviderKeyEnum, isActive: boolean): Promise<void> {
+        const providerId = await this.getOrCreateProviderIdByName(provider);
+
+        await this.prisma.linked_accounts.updateMany({
+            where: {
+                user_id: userId,
+                provider_id: providerId
+            },
+            data: {
+                is_active: isActive,
+                updated_at: new Date(),
+            },
+        });
+    }
+
+    /**
      * Get all linked identity providers for a user
      * @param userId - The user ID
      * @returns Array of linked identity providers with provider details
@@ -218,7 +239,7 @@ export class UsersService {
      * Ensure the oauth provider row exists (by fixed numeric id) to satisfy FK constraints.
      */
     private async ensureProviderByName(name: ProviderKeyEnum): Promise<{ id: number }> {
-        // Avoid raw SQL: try find by name, else create. Also set active if found.
+        // Avoid raw SQL: try to find by name, else create. Also set active if found.
         const existing = await this.prisma.oauth_providers.findFirst({ where: { name } });
         if (existing) {
             if (!existing.is_active) {
@@ -449,8 +470,9 @@ export class UsersService {
         refreshToken?: string | null;
         accessTokenExpiresAt?: Date | null;
         scopes?: string | null;
+        metadata?: any;
     }) {
-        const { userId, provider, providerUserId, accessToken = null, refreshToken = null, accessTokenExpiresAt = null, scopes = null } = input;
+        const { userId, provider, providerUserId, accessToken = null, refreshToken = null, accessTokenExpiresAt = null, scopes = null, metadata = null } = input;
 
         const user = await this.prisma.users.findUnique({
             where: { id: userId },
@@ -482,6 +504,7 @@ export class UsersService {
                 refresh_token: refreshToken ?? undefined,
                 access_token_expires_at: accessTokenExpiresAt ?? undefined,
                 scopes: scopes ?? undefined,
+                metadata: metadata ?? undefined,
                 is_active: true,
                 updated_at: new Date(),
             },
@@ -494,6 +517,7 @@ export class UsersService {
                 refresh_token: refreshToken,
                 access_token_expires_at: accessTokenExpiresAt,
                 scopes,
+                metadata,
                 is_active: true,
             },
         });

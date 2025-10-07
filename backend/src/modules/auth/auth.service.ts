@@ -16,12 +16,14 @@ import {ConfigService} from '@nestjs/config';
 import axios, { AxiosRequestConfig } from 'axios';
 import { ProviderRegistryImpl } from './core/provider-registry-impl';
 import type { ProviderKey } from '../../common/interfaces/oauth2.type';
+import { ProviderKeyEnum } from '../../common/interfaces/oauth2.type';
 import { PrismaTokenStore } from './core/token-store';
 import { AesGcmTokenCrypto } from './core/token-crypto';
 import { OAuth2Client } from './core/oauth2-client';
 import { GoogleIdentity } from './plugins/google/google-identity';
 import { GoogleLinking } from './plugins/google/google-linking';
 import { SpotifyLinking } from './plugins/spotify/spotify-linking';
+import { DiscordLinking } from './plugins/discord/discord-linking';
 
 /**
  * Authentication service handling email/password flows, verification,
@@ -56,6 +58,7 @@ export class AuthService {
             reg.addIdentity(new GoogleIdentity(this.config, this.jwtService, this.tokenStore));
             reg.addLinking(new GoogleLinking(this.config, this.jwtService, this.tokenStore, this.cryptoSvc, this.http));
             reg.addLinking(new SpotifyLinking(this.config, this.jwtService, this.tokenStore, this.cryptoSvc, this.http));
+            reg.addLinking(new DiscordLinking(this.config, this.jwtService, this.tokenStore, this.cryptoSvc, this.http));
             (this as any)._providers = reg;
         }
         return (this as any)._providers as ProviderRegistryImpl;
@@ -337,9 +340,46 @@ export class AuthService {
         if (!user) throw new NotFoundException('User not found');
 
         const linkedAccounts = await this.usersService.getLinkedAccounts(userId);
-        const linkedProviderNames = linkedAccounts.map(acc => acc.oauth_providers.name);
+
+        // Verify Discord bot presence if Discord is linked
+        for (const account of linkedAccounts) {
+            if (account.oauth_providers.name === 'discord' && account.is_active) {
+                await this.verifyAndUpdateDiscordStatus(userId);
+                break;
+            }
+        }
+
+        // Re-fetch accounts after potential status update
+        const updatedAccounts = await this.usersService.getLinkedAccounts(userId);
+        const linkedProviderNames = updatedAccounts.map(acc => acc.oauth_providers.name);
 
         return { providers: linkedProviderNames };
+    }
+
+    /**
+     * Verify if Discord bot is still active and update the connection status.
+     * This checks if the bot still has access to Discord servers.
+     */
+    async verifyAndUpdateDiscordStatus(userId: string): Promise<void> {
+        try {
+            const discordPlugin = this.providers.getLinking('discord');
+            if (!discordPlugin) return;
+
+            // Cast to access Discord-specific methods
+            const discord = discordPlugin as any;
+            if (typeof discord.verifyBotPresence !== 'function') return;
+
+            const { isActive } = await discord.verifyBotPresence(userId);
+
+            // Update the linked account status if bot is no longer active
+            if (!isActive) {
+                this.logger.warn(`Discord bot no longer active for user ${userId}, updating status`);
+                await this.usersService.updateLinkedAccountStatus(userId, ProviderKeyEnum.Discord, false);
+            }
+        } catch (error) {
+            // Log error but don't fail the request
+            this.logger.error(`Failed to verify Discord bot presence for user ${userId}:`, error);
+        }
     }
 
     /** Get list of linked identity providers for a user */

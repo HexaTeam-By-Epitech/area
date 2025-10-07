@@ -92,6 +92,7 @@ export class PrismaTokenStore implements TokenStore {
     refreshToken?: string | null;
     accessTokenExpiresAt?: Date | null;
     scopes?: string | null;
+    metadata?: any;
   }): Promise<{ id: string; email: string }> {
     const user = await (this.users as any).linkExternalAccount({
       userId: input.userId,
@@ -101,6 +102,7 @@ export class PrismaTokenStore implements TokenStore {
       refreshToken: input.refreshToken ?? null,
       accessTokenExpiresAt: input.accessTokenExpiresAt ?? null,
       scopes: input.scopes ?? null,
+      metadata: input.metadata ?? null,
     });
     return { id: user.id, email: user.email };
   }

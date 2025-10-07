@@ -49,5 +49,6 @@ export interface TokenStore {
     refreshToken?: string | null;
     accessTokenExpiresAt?: Date | null;
     scopes?: string | null;
+    metadata?: any;
   }): Promise<{ id: string; email: string }>;
 }
