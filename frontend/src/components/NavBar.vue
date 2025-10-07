@@ -49,18 +49,23 @@ function logout() {
 }
 
 .logout-btn {
-  padding: 0.5rem 1rem;
-  background-color: #f44336;
-  color: white;
+  padding-left: 1.2rem;
+  padding-right: 1.2rem;
   border: none;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background-color 0.2s;
-  margin-left: 1rem;
-}
+  font-weight: 500;
+  font-size: 0.8rem !important;
+  height: 4vh;
+  width: auto;
 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary) !important;
+  transition: border-bottom-color 400ms ease;
+}
+/*
 .logout-btn:hover {
   background-color: #da190b;
-}
+}*/
+
 </style>
