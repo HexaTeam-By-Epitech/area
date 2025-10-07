@@ -51,9 +51,10 @@ THEN: Poste dans #incidents (User Token écrit au nom du user)
 
 Dans la section **"Basic Information"** > **"App Credentials"**:
 
-- Notez le **Client ID**
-- Notez le **Client Secret** (cliquez sur "Show" pour le révéler)
-- Notez le **Signing Secret** (optionnel, pour la vérification des webhooks)
+- Notez le **Client ID** → Utilisez-le pour `SLACK_CLIENT_ID`
+- Notez le **Client Secret** (cliquez sur "Show" pour le révéler) → Utilisez-le pour `SLACK_CLIENT_SECRET`
+
+Ces deux credentials suffisent pour l'intégration OAuth.
 
 ---
 
@@ -79,15 +80,30 @@ Dans la section **"OAuth & Permissions"**:
 
 1. Scrollez jusqu'à **"Redirect URLs"**
 2. Cliquez sur **"Add New Redirect URL"**
-3. Ajoutez votre URL de callback:
+3. Ajoutez votre URL de callback selon votre environnement:
+
+   **Pour le développement local**:
    ```
-   http://localhost:8080/auth/slack/callback
+   http://localhost:3000/auth/slack/callback
    ```
-   Pour la production:
+
+   **Pour le développement avec ngrok** (recommandé pour tester):
+   ```
+   https://your-subdomain.ngrok-free.app/auth/slack/callback
+   ```
+
+   **Pour la production**:
    ```
    https://votre-domaine.com/auth/slack/callback
    ```
+
 4. Cliquez sur **"Add"** puis **"Save URLs"**
+
+💡 **Astuce ngrok**: Pour tester OAuth en développement, utilisez ngrok pour exposer votre backend local :
+```bash
+ngrok http 3000
+```
+Puis utilisez l'URL HTTPS fournie comme redirect URI.
 
 ### 3. Configurer les Scopes (Bot ET User)
 
@@ -133,22 +149,30 @@ Si vous souhaitez recevoir des événements en temps réel:
 Ajoutez les variables suivantes à votre fichier `.env`:
 
 ```env
-# Slack OAuth Configuration
+# Slack OAuth Configuration (Hybrid: Bot + User Tokens)
 SLACK_CLIENT_ID=your_client_id_here
 SLACK_CLIENT_SECRET=your_client_secret_here
-SLACK_REDIRECT_URI=http://localhost:8080/auth/slack/callback
-
-# Optionnel: Pour la vérification des webhooks
-SLACK_SIGNING_SECRET=your_signing_secret_here
+SLACK_REDIRECT_URI=http://localhost:3000/auth/slack/callback
 ```
 
-### Configuration de production
+### Configuration selon l'environnement
 
-Pour la production, modifiez `SLACK_REDIRECT_URI`:
+**Développement local** (port par défaut 3000):
+```env
+SLACK_REDIRECT_URI=http://localhost:3000/auth/slack/callback
+```
 
+**Développement avec ngrok** (pour tester avec Slack):
+```env
+SLACK_REDIRECT_URI=https://your-subdomain.ngrok-free.app/auth/slack/callback
+```
+
+**Production**:
 ```env
 SLACK_REDIRECT_URI=https://votre-domaine.com/auth/slack/callback
 ```
+
+⚠️ **Important**: La `SLACK_REDIRECT_URI` doit **exactement** correspondre à celle configurée dans votre Slack App (section "OAuth & Permissions" > "Redirect URLs").
 
 ---
 
