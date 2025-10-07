@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { apiDirect as api } from "@/utils/api";
 
@@ -85,6 +85,7 @@ async function loadProviders() {
   } finally {
     loading.value = false;
   }
+
 }
 
 async function linkProvider(provider: Provider) {
@@ -136,6 +137,11 @@ async function unlinkProvider(provider: Provider) {
   }
 }
 
+const gridTemplateColumns = computed(() => {
+  const count = Math.min(Math.max(providers.value.length || 1, 1), 3);
+  return `repeat(${count}, minmax(220px, 1fr))`;
+});
+
 onMounted(() => {
   // Check for OAuth callback status in query params
   const status = route.query.status as string;
@@ -166,7 +172,7 @@ onMounted(() => {
 
     <div class="services-grid">
       <div />
-      <div class="services-layout">
+      <div class="services-layout" :style="{ gridTemplateColumns: gridTemplateColumns }">
         <div
           v-for="provider in providers"
           :key="provider.name"
@@ -212,17 +218,15 @@ onMounted(() => {
   grid-template-columns: 10% 80% 10%;
 }
 
-
 .services-layout {
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
-  justify-content: center;
+  justify-items: center;
 }
 
 .service-box {
   border-radius: 1rem;
-  margin: 1.5vh 1.5vw;
+  margin: 1.5vh 2vw;
   padding: 1.5rem;
   min-height: 180px;
   min-width: 220px;
