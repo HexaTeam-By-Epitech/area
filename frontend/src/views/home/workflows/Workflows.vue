@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { apiDirect as api } from "@/utils/api";
+import PlaceholderInput from "@/components/PlaceholderInput.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -27,14 +28,28 @@ type Reaction = {
   configSchema?: ConfigField[];
 }
 
-const actions = ref<Action[]>([]);
-const reactions = ref<Reaction[]>([]);
+type ProviderData = {
+  isLinked: boolean;
+  items: Action[] | Reaction[];
+}
+
+type ProvidersMap = Record<string, ProviderData>;
+
+type Placeholder = {
+  key: string;
+  description: string;
+  example: string;
+}
+
+const actionProviders = ref<ProvidersMap>({});
+const reactionProviders = ref<ProvidersMap>({});
 const selectedAction = ref<Action | null>(null);
 const selectedReaction = ref<Reaction | null>(null);
 const reactionConfig = ref<any>({});
 const loading = ref(true);
 const creating = ref(false);
 const error = ref('');
+const actionPlaceholders = ref<Placeholder[]>([]);
 
 async function loadAvailableActionsReactions() {
   try {
@@ -46,8 +61,8 @@ async function loadAvailableActionsReactions() {
       api.get('/manager/reactions'),
     ]);
 
-    actions.value = actionsRes.data || [];
-    reactions.value = reactionsRes.data || [];
+    actionProviders.value = actionsRes.data || {};
+    reactionProviders.value = reactionsRes.data || {};
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load actions/reactions';
     console.error('Failed to load actions/reactions:', err);
@@ -56,11 +71,32 @@ async function loadAvailableActionsReactions() {
   }
 }
 
-function selectAction(action: Action) {
+async function loadActionPlaceholders(actionName: string) {
+  try {
+    const response = await api.get(`/manager/actions/${actionName}/placeholders`);
+    actionPlaceholders.value = response.data || [];
+  } catch (err) {
+    console.error('Failed to load placeholders for action:', actionName, err);
+    actionPlaceholders.value = [];
+  }
+}
+
+function selectAction(action: Action, isLinked: boolean) {
+  if (!isLinked) return;
   selectedAction.value = action;
 }
 
-function selectReaction(reaction: Reaction) {
+// Watch for action selection changes to load placeholders
+watch(selectedAction, async (newAction) => {
+  if (newAction) {
+    await loadActionPlaceholders(newAction.name);
+  } else {
+    actionPlaceholders.value = [];
+  }
+});
+
+function selectReaction(reaction: Reaction, isLinked: boolean) {
+  if (!isLinked) return;
   selectedReaction.value = reaction;
   // Initialize config based on schema with default values
   reactionConfig.value = {};
@@ -134,14 +170,24 @@ onMounted(() => {
       <div class="workflow-column">
         <h2>1. Choose an Action (Trigger)</h2>
         <div class="items-list">
-          <div
-            v-for="action in actions"
-            :key="action.name"
-            :class="['item-card', { selected: selectedAction?.name === action.name }]"
-            @click="selectAction(action)"
-          >
-            <h3>{{ action.name }}</h3>
-            <p>{{ action.description }}</p>
+          <div v-for="(providerData, providerName) in actionProviders" :key="providerName" class="provider-group">
+            <div class="provider-header">
+              <h3>{{ providerName.charAt(0).toUpperCase() + providerName.slice(1) }}</h3>
+              <span v-if="!providerData.isLinked" class="unlinked-badge">Not linked</span>
+            </div>
+            <div
+              v-for="action in providerData.items"
+              :key="action.name"
+              :class="[
+                'item-card',
+                { selected: selectedAction?.name === action.name },
+                { disabled: !providerData.isLinked }
+              ]"
+              @click="selectAction(action, providerData.isLinked)"
+            >
+              <h4>{{ action.name }}</h4>
+              <p>{{ action.description }}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -153,14 +199,24 @@ onMounted(() => {
       <div class="workflow-column">
         <h2>2. Choose a Reaction</h2>
         <div class="items-list">
-          <div
-            v-for="reaction in reactions"
-            :key="reaction.name"
-            :class="['item-card', { selected: selectedReaction?.name === reaction.name }]"
-            @click="selectReaction(reaction)"
-          >
-            <h3>{{ reaction.name }}</h3>
-            <p>{{ reaction.description }}</p>
+          <div v-for="(providerData, providerName) in reactionProviders" :key="providerName" class="provider-group">
+            <div class="provider-header">
+              <h3>{{ providerName.charAt(0).toUpperCase() + providerName.slice(1) }}</h3>
+              <span v-if="!providerData.isLinked" class="unlinked-badge">Not linked</span>
+            </div>
+            <div
+              v-for="reaction in providerData.items"
+              :key="reaction.name"
+              :class="[
+                'item-card',
+                { selected: selectedReaction?.name === reaction.name },
+                { disabled: !providerData.isLinked }
+              ]"
+              @click="selectReaction(reaction, providerData.isLinked)"
+            >
+              <h4>{{ reaction.name }}</h4>
+              <p>{{ reaction.description }}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -169,6 +225,9 @@ onMounted(() => {
     <!-- Configuration Section -->
     <div v-if="selectedReaction && selectedReaction.configSchema && selectedReaction.configSchema.length > 0" class="config-section">
       <h2>3. Configure Reaction</h2>
+      <div v-if="selectedAction && actionPlaceholders.length > 0" class="placeholder-hint">
+        💡 Type <code v-text="'{{'"></code> to insert placeholders from the selected action
+      </div>
       <div class="config-form">
         <div v-for="field in selectedReaction.configSchema" :key="field.name" class="form-field">
           <label :for="field.name">
@@ -176,15 +235,15 @@ onMounted(() => {
             <span v-if="field.required" class="required">*</span>
           </label>
 
-          <!-- Text/Email input -->
-          <input
+          <!-- Text/Email input with placeholder autocomplete -->
+          <PlaceholderInput
             v-if="field.type === 'string' || field.type === 'email'"
             :id="field.name"
             :type="field.type === 'email' ? 'email' : 'text'"
             v-model="reactionConfig[field.name]"
             :placeholder="field.placeholder || ''"
             :required="field.required"
-            class="config-input"
+            :placeholders="actionPlaceholders"
           />
 
           <!-- Number input -->
@@ -337,6 +396,11 @@ onMounted(() => {
   font-size: 1.1rem;
 }
 
+.item-card h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+}
+
 .item-card p {
   margin: 0 0 0.5rem 0;
   color: var(--text-secondary);
@@ -348,8 +412,50 @@ onMounted(() => {
   font-size: 0.8rem;
 }
 
-.config-section {
+.item-card.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
   background-color: var(--button-color);
+}
+
+.item-card.disabled:hover {
+  transform: none;
+  background-color: var(--button-color);
+}
+
+.provider-group {
+  margin-bottom: 1.5rem;
+}
+
+.provider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.provider-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.unlinked-badge {
+  background-color: #f44336;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.config-section {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 1rem;
   padding: 2rem;
   margin-top: 2rem;
@@ -358,6 +464,25 @@ onMounted(() => {
 .config-section h2 {
   margin: 0 0 1rem 0;
   font-size: 1.25rem;
+}
+
+.placeholder-hint {
+  background-color: rgba(76, 175, 80, 0.1);
+  border-left: 3px solid #4CAF50;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.placeholder-hint code {
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  color: #4CAF50;
+  font-weight: 600;
 }
 
 .config-form {
