@@ -22,6 +22,7 @@ import { OAuth2Client } from './core/oauth2-client';
 import { GoogleIdentity } from './plugins/google/google-identity';
 import { GoogleLinking } from './plugins/google/google-linking';
 import { SpotifyLinking } from './plugins/spotify/spotify-linking';
+import { DiscordLinking } from './plugins/discord/discord-linking';
 import { SlackLinking } from './plugins/slack/slack-linking';
 
 /**
@@ -57,6 +58,7 @@ export class AuthService {
             reg.addIdentity(new GoogleIdentity(this.config, this.jwtService, this.tokenStore));
             reg.addLinking(new GoogleLinking(this.config, this.jwtService, this.tokenStore, this.cryptoSvc, this.http));
             reg.addLinking(new SpotifyLinking(this.config, this.jwtService, this.tokenStore, this.cryptoSvc, this.http));
+            reg.addLinking(new DiscordLinking(this.config, this.jwtService, this.tokenStore, this.cryptoSvc, this.http));
             reg.addLinking(new SlackLinking(this.config, this.jwtService, this.tokenStore, this.cryptoSvc, this.http));
             (this as any)._providers = reg;
         }
