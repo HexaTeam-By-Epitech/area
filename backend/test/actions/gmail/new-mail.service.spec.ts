@@ -187,6 +187,47 @@ describe('GmailNewMailService', () => {
       });
       expect(mockRedisService.setValue).toHaveBeenCalledWith(`gmail:last_email_internal_date:${userId}`, '1731000000000');
     });
+
+    it('should retry with INBOX filter when first list returns empty but profile shows messages exist', async () => {
+      mockUsersService.findLinkedAccount.mockResolvedValue({ id: 'acc' });
+      mockRedisService.getValue.mockResolvedValue('1730388000000');
+
+      // First call: list with INBOX returns empty
+      mockAuthService.oAuth2ApiRequest
+        .mockResolvedValueOnce({ data: { messages: [] }, status: 200 })
+        // Profile check shows messages exist
+        .mockResolvedValueOnce({ data: { messagesTotal: 100 }, status: 200 })
+        // Retry with INBOX filter (not all messages)
+        .mockResolvedValueOnce({ data: { messages: [{ id: 'mRetry', threadId: 'tRetry' }] }, status: 200 })
+        // Get message details
+        .mockResolvedValueOnce({
+          data: {
+            internalDate: '1730388200000',
+            payload: {
+              headers: [
+                { name: 'From', value: 'retry-sender@example.com' },
+                { name: 'To', value: 'me@example.com' },
+                { name: 'Subject', value: 'Retry test' },
+              ],
+              body: { data: Buffer.from('Retry body').toString('base64') },
+            },
+            snippet: 'Retry body',
+          },
+          status: 200,
+        });
+
+      const result = await service.hasNewGmailEmail(userId);
+      expect(result.code).toBe(0);
+
+      // Verify retry was called with INBOX labelIds to avoid sent emails
+      expect(mockAuthService.oAuth2ApiRequest).toHaveBeenCalledWith(
+        ProviderKeyEnum.Google,
+        userId,
+        expect.objectContaining({
+          params: { maxResults: 1, labelIds: 'INBOX' }
+        })
+      );
+    });
   });
 
   describe('getPlaceholders', () => {
