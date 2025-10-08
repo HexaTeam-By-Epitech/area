@@ -26,8 +26,9 @@ export class GoogleLinking implements LinkingProvider {
    * Build the Google consent URL for linking a provider account to a user.
    * @param params.userId - Target application user id (signed into state)
    * @param params.scopes - Optional list of scopes, defaults to basic + Gmail/Calendar read.
+   * @param params.mobile - Optional flag to indicate mobile app flow
    */
-  buildLinkUrl(params: { userId: string; scopes?: string[] }): string {
+  buildLinkUrl(params: { userId: string; scopes?: string[]; mobile?: boolean }): string {
     const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
     const redirectUri = this.config.get<string>('GOOGLE_REDIRECT_URI');
     if (!clientId || !redirectUri) {
@@ -46,7 +47,7 @@ export class GoogleLinking implements LinkingProvider {
           'https://www.googleapis.com/auth/calendar.readonly',
         ]).join(' ');
 
-    const state = this.jwt.sign({ provider: 'google', mode: 'link', userId: params.userId }, { expiresIn: '10m' });
+    const state = this.jwt.sign({ provider: 'google', mode: 'link', userId: params.userId, mobile: params.mobile }, { expiresIn: '10m' });
 
     const q = new URLSearchParams({
       client_id: clientId,

@@ -2,6 +2,7 @@
   "expo": {
     "name": "area-mobile",
     "slug": "area-mobile",
+    "scheme": "area",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

@@ -36,7 +36,7 @@ describe('GenericAuthIdentityController', () => {
     const res: any = { redirect };
     const req: any = {};
     await controller.startLogin(res, req, 'google');
-    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', undefined);
+    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', { mobile: false });
     expect(redirect).toHaveBeenCalledWith('https://provider/login');
   });
 
@@ -52,9 +52,14 @@ describe('GenericAuthIdentityController', () => {
   it('loginCallback: should redirect to settings when state present (identity linking)', async () => {
     mockAuthService.handleLoginCallback.mockResolvedValue({ accessToken: 'app.jwt', userId: 'u1', email: 'a@a.com' });
     const redirect = jest.fn();
-    const res: any = { redirect };
-    await controller.loginCallback(res, 'google', 'code123', 'state-abc');
-    expect(mockAuthService.handleLoginCallback).toHaveBeenCalledWith('google', 'code123', 'state-abc');
+    const json = jest.fn();
+    const res: any = { redirect, json };
+    // Create a valid state JWT with userId to trigger identity linking flow
+    const stateWithUserId = Buffer.from(JSON.stringify({ header: 'test' })).toString('base64') + '.' +
+                            Buffer.from(JSON.stringify({ userId: 'user123', mobile: false })).toString('base64') + '.' +
+                            Buffer.from('signature').toString('base64');
+    await controller.loginCallback(res, 'google', 'code123', stateWithUserId);
+    expect(mockAuthService.handleLoginCallback).toHaveBeenCalledWith('google', 'code123', stateWithUserId);
     expect(redirect).toHaveBeenCalledWith(expect.stringContaining('/home/settings?provider=google&status=success'));
   });
 
@@ -72,9 +77,15 @@ describe('GenericAuthIdentityController', () => {
   it('loginCallback: should handle error with redirect when state present', async () => {
     mockAuthService.handleLoginCallback.mockRejectedValue(new Error('Link failed'));
     const redirect = jest.fn();
-    const res: any = { redirect };
-    await controller.loginCallback(res, 'google', 'code123', 'state-abc');
-    expect(mockAuthService.handleLoginCallback).toHaveBeenCalledWith('google', 'code123', 'state-abc');
+    const status = jest.fn().mockReturnThis();
+    const json = jest.fn();
+    const res: any = { redirect, status, json };
+    // Create a valid state JWT with userId to trigger identity linking flow
+    const stateWithUserId = Buffer.from(JSON.stringify({ header: 'test' })).toString('base64') + '.' +
+                            Buffer.from(JSON.stringify({ userId: 'user123', mobile: false })).toString('base64') + '.' +
+                            Buffer.from('signature').toString('base64');
+    await controller.loginCallback(res, 'google', 'code123', stateWithUserId);
+    expect(mockAuthService.handleLoginCallback).toHaveBeenCalledWith('google', 'code123', stateWithUserId);
     expect(redirect).toHaveBeenCalledWith(expect.stringContaining('/home/settings?provider=google&status=error'));
   });
 
@@ -82,7 +93,7 @@ describe('GenericAuthIdentityController', () => {
     mockAuthService.buildLoginUrl.mockReturnValue('https://provider/login');
     const req: any = {};
     const res = controller.getLoginUrl('google', req);
-    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', undefined);
+    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', { mobile: false });
     expect(res).toEqual({ url: 'https://provider/login' });
   });
 
@@ -92,7 +103,7 @@ describe('GenericAuthIdentityController', () => {
     const res: any = { redirect };
     const req: any = { user: { sub: 'user-123' } };
     await controller.startLogin(res, req, 'google');
-    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', { userId: 'user-123' });
+    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', { userId: 'user-123', mobile: false });
     expect(redirect).toHaveBeenCalledWith('https://provider/login?state=abc');
   });
 
@@ -100,7 +111,7 @@ describe('GenericAuthIdentityController', () => {
     mockAuthService.buildLoginUrl.mockReturnValue('https://provider/login?state=abc');
     const req: any = { user: { sub: 'user-123' } };
     const res = controller.getLoginUrl('google', req);
-    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', { userId: 'user-123' });
+    expect(mockAuthService.buildLoginUrl).toHaveBeenCalledWith('google', { userId: 'user-123', mobile: false });
     expect(res).toEqual({ url: 'https://provider/login?state=abc' });
   });
 });

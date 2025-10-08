@@ -16,6 +16,21 @@ async function bootstrap() {
     // Create the NestJS application instance
     const app = await NestFactory.create(AppModule);
 
+    // Enable CORS for mobile apps
+    app.enableCors({
+        origin: true,
+        credentials: true,
+    });
+
+    // Add middleware to handle ngrok browser warning
+    app.use((req, res, next) => {
+        // Skip ngrok browser warning by adding ngrok-skip-browser-warning header
+        if (req.headers['ngrok-skip-browser-warning']) {
+            delete req.headers['ngrok-skip-browser-warning'];
+        }
+        next();
+    });
+
     // Apply global JWT authentication guard
     const reflector = app.get(Reflector);
     const jwtService = app.get(JwtService);

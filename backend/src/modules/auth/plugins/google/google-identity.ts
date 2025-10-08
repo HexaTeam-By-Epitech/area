@@ -70,10 +70,10 @@ export class GoogleIdentity implements IdentityProvider {
 
   /**
    * Build the Google OAuth login URL (authorization code flow).
-   * @param opts - Optional userId for linking identity to existing user
+   * @param opts - Optional userId for linking identity to existing user and mobile flag
    * @returns The URL to redirect the user to for login.
    */
-  buildLoginUrl(opts?: { userId?: string }): string {
+  buildLoginUrl(opts?: { userId?: string; mobile?: boolean }): string {
     const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
     const redirectUri = this.config.get<string>('GOOGLE_IDENTITY_REDIRECT_URI') || this.config.get<string>('GOOGLE_LOGIN_REDIRECT_URI') || this.config.get<string>('GOOGLE_REDIRECT_URI');
     if (!clientId || !redirectUri) {
@@ -81,9 +81,11 @@ export class GoogleIdentity implements IdentityProvider {
       throw new InternalServerErrorException('Google identity OAuth not configured');
     }
 
+    this.logger.debug(`Building Google login URL with redirect_uri: ${redirectUri}`);
+
     const scopes = ['openid', 'email', 'profile'].join(' ');
-    const state = opts?.userId
-      ? this.jwt.sign({ provider: 'google', mode: 'identity', userId: opts.userId }, { expiresIn: '10m' })
+    const state = (opts?.userId || opts?.mobile)
+      ? this.jwt.sign({ provider: 'google', mode: 'identity', userId: opts.userId, mobile: opts.mobile }, { expiresIn: '10m' })
       : undefined;
 
     const params = new URLSearchParams({
@@ -139,10 +141,15 @@ export class GoogleIdentity implements IdentityProvider {
     // Exchange code for tokens
     let tokens;
     try {
+      this.logger.debug(`Attempting token exchange with redirect_uri: ${redirectUri}`);
+      this.logger.debug(`Authorization code (first 20 chars): ${code.substring(0, 20)}...`);
       const result = await oauth2.getToken({ code, redirect_uri: redirectUri });
       tokens = result.tokens;
     } catch (e: any) {
-      this.logger.error(`Google token exchange failed: ${e?.message ?? e}`, e?.stack);
+      this.logger.error(`Google token exchange failed: ${e?.message ?? e}`);
+      this.logger.error(`redirect_uri used: ${redirectUri}`);
+      this.logger.error(`code length: ${code.length}`);
+      this.logger.error('Full error:', e?.stack);
       throw new UnauthorizedException('Token exchange failed');
     }
 
