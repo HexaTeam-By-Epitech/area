@@ -41,6 +41,7 @@ describe('ManagerController', () => {
             bindAction: jest.fn(),
             getUserAreas: jest.fn(),
             deactivateArea: jest.fn(),
+            getActionPlaceholders: jest.fn(),
           },
         },
         {
@@ -191,6 +192,49 @@ describe('ManagerController', () => {
       );
       await expect(controller.deactivateArea('area-123', 'user-123')).rejects.toThrow(
         'You do not own this area',
+      );
+    });
+  });
+
+  describe('getActionPlaceholders', () => {
+    const mockPlaceholders = [
+      {
+        key: 'SPOTIFY_LIKED_SONG_NAME',
+        description: 'The name of the liked song',
+        example: 'Bohemian Rhapsody',
+      },
+      {
+        key: 'SPOTIFY_LIKED_SONG_ARTIST',
+        description: 'The artist(s) of the liked song',
+        example: 'Queen',
+      },
+    ];
+
+    it('should return placeholders for a valid action', () => {
+      (service.getActionPlaceholders as jest.Mock).mockReturnValue(mockPlaceholders);
+
+      const result = controller.getActionPlaceholders('spotify_has_likes');
+
+      expect(result).toEqual(mockPlaceholders);
+      expect(service.getActionPlaceholders).toHaveBeenCalledWith('spotify_has_likes');
+    });
+
+    it('should throw BadRequestException when action has no placeholders', () => {
+      (service.getActionPlaceholders as jest.Mock).mockReturnValue([]);
+
+      expect(() => controller.getActionPlaceholders('unknown_action')).toThrow(
+        BadRequestException,
+      );
+      expect(() => controller.getActionPlaceholders('unknown_action')).toThrow(
+        "No placeholders available for action 'unknown_action'",
+      );
+    });
+
+    it('should throw BadRequestException when action returns null', () => {
+      (service.getActionPlaceholders as jest.Mock).mockReturnValue(null);
+
+      expect(() => controller.getActionPlaceholders('invalid_action')).toThrow(
+        BadRequestException,
       );
     });
   });
