@@ -23,6 +23,8 @@ const mockUsersService = {
     updateUser: jest.fn(),
     findById: jest.fn(),
     unlinkLinkedAccount: jest.fn(),
+    getLinkedAccounts: jest.fn(),
+    getLinkedIdentities: jest.fn(),
 };
 
 const mockRedisService = {
@@ -260,6 +262,50 @@ describe('AuthService', () => {
             const res = await service.unlinkProvider('spotify' as any, 'u1');
             expect(mockUsersService.unlinkLinkedAccount).toHaveBeenCalledWith('u1', 'spotify');
             expect(res).toEqual({ provider: 'spotify', userId: 'u1' });
+        });
+    });
+
+    describe('getLinkedProviders', () => {
+        it('should return linked providers excluding _bot providers', async () => {
+            mockUsersService.findById.mockResolvedValue({ id: 'u1', email: 'e' });
+            mockUsersService.getLinkedAccounts.mockResolvedValue([
+                { oauth_providers: { name: 'google' } },
+                { oauth_providers: { name: 'slack' } },
+                { oauth_providers: { name: 'slack_bot' } },
+                { oauth_providers: { name: 'spotify' } },
+            ]);
+
+            const res = await service.getLinkedProviders('u1');
+
+            expect(mockUsersService.getLinkedAccounts).toHaveBeenCalledWith('u1');
+            expect(res).toEqual({ providers: ['google', 'slack', 'spotify'] });
+            expect(res.providers).not.toContain('slack_bot');
+        });
+
+        it('should return empty array if no linked providers', async () => {
+            mockUsersService.findById.mockResolvedValue({ id: 'u1', email: 'e' });
+            mockUsersService.getLinkedAccounts.mockResolvedValue([]);
+
+            const res = await service.getLinkedProviders('u1');
+
+            expect(res).toEqual({ providers: [] });
+        });
+
+        it('should handle all _bot providers being filtered', async () => {
+            mockUsersService.findById.mockResolvedValue({ id: 'u1', email: 'e' });
+            mockUsersService.getLinkedAccounts.mockResolvedValue([
+                { oauth_providers: { name: 'slack_bot' } },
+                { oauth_providers: { name: 'another_bot' } },
+            ]);
+
+            const res = await service.getLinkedProviders('u1');
+
+            expect(res).toEqual({ providers: [] });
+        });
+
+        it('should throw if user not found', async () => {
+            mockUsersService.findById.mockResolvedValue(null);
+            await expect(service.getLinkedProviders('u1')).rejects.toThrow('User not found');
         });
     });
 
