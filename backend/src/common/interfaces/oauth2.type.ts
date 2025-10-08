@@ -31,7 +31,7 @@ export interface IdentityProvider {
  */
 export interface LinkingProvider {
   key: ProviderKey;
-  buildLinkUrl(params: { userId: string; scopes?: string[] }): string;
+  buildLinkUrl(params: { userId: string; scopes?: string[]; mobile?: boolean }): string;
   handleLinkCallback(code: string, state?: string): Promise<{ userId: string }>;
   refreshAccessToken(userId: string): Promise<{ accessToken: string; expiresIn: number }>;
   getCurrentAccessToken(userId: string): Promise<string>;
