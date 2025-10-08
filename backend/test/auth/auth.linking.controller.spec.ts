@@ -26,7 +26,7 @@ describe('GenericAuthLinkingController', () => {
   it('getAuthUrl: should return url from service', () => {
     mockAuthService.buildAuthUrl.mockReturnValue('https://provider/link?x=y');
     const res = controller.getAuthUrl('spotify', 'u1');
-    expect(mockAuthService.buildAuthUrl).toHaveBeenCalledWith('spotify', { userId: 'u1' });
+    expect(mockAuthService.buildAuthUrl).toHaveBeenCalledWith('spotify', { userId: 'u1', mobile: false });
     expect(res).toEqual({ url: 'https://provider/link?x=y' });
   });
 
@@ -35,7 +35,7 @@ describe('GenericAuthLinkingController', () => {
     const redirect = jest.fn();
     const res: any = { redirect };
     await controller.startOAuth(res, 'spotify', 'u1');
-    expect(mockAuthService.buildAuthUrl).toHaveBeenCalledWith('spotify', { userId: 'u1' });
+    expect(mockAuthService.buildAuthUrl).toHaveBeenCalledWith('spotify', { userId: 'u1', mobile: false });
     expect(redirect).toHaveBeenCalledWith('https://provider/link');
   });
 

@@ -37,8 +37,9 @@ export class SlackLinking implements LinkingProvider {
    * Build the Slack OAuth URL requesting BOTH bot and user tokens.
    * @param params.userId - Target application user id (signed into state)
    * @param params.scopes - Optional list of scopes (not used, uses defaults)
+   * @param params.mobile - Optional flag to indicate mobile app flow
    */
-  buildLinkUrl(params: { userId: string; scopes?: string[] }): string {
+  buildLinkUrl(params: { userId: string; scopes?: string[]; mobile?: boolean }): string {
     const clientId = this.config.get<string>('SLACK_CLIENT_ID');
     const redirectUri = this.config.get<string>('SLACK_REDIRECT_URI');
     if (!clientId || !redirectUri) {
@@ -63,7 +64,7 @@ export class SlackLinking implements LinkingProvider {
       'users:read',
     ].join(',');
 
-    const state = this.jwt.sign({ provider: 'slack', mode: 'link', userId: params.userId }, { expiresIn: '10m' });
+    const state = this.jwt.sign({ provider: 'slack', mode: 'link', userId: params.userId, mobile: params.mobile }, { expiresIn: '10m' });
 
     const q = new URLSearchParams({
       client_id: clientId,

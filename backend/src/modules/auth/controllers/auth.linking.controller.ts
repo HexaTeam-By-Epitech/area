@@ -35,8 +35,9 @@ export class GenericAuthLinkingController {
   getAuthUrl(
     @Param('provider') provider: string,
     @GetUser('sub') userId: string,
+    @Query('mobile') mobile?: string,
   ) {
-    const url = this.auth.buildAuthUrl(provider, { userId });
+    const url = this.auth.buildAuthUrl(provider, { userId, mobile: mobile === 'true' });
     return { url };
   }
 
@@ -47,8 +48,9 @@ export class GenericAuthLinkingController {
     @Res() res: express.Response,
     @Param('provider') provider: string,
     @GetUser('sub') userId: string,
+    @Query('mobile') mobile?: string,
   ) {
-    const url = this.auth.buildAuthUrl(provider, { userId });
+    const url = this.auth.buildAuthUrl(provider, { userId, mobile: mobile === 'true' });
     return res.redirect(url);
   }
 
@@ -62,15 +64,51 @@ export class GenericAuthLinkingController {
     @Query('code') code: string,
     @Query('state') state?: string,
   ) {
+    // Helper to decode state and check if mobile
+    const getStateData = (stateStr?: string): { isMobile: boolean } => {
+      try {
+        // State is a JWT token, so we need to decode it
+        if (!stateStr) return { isMobile: false };
+
+        // JWT tokens are in format: header.payload.signature
+        // We need to decode the payload (middle part)
+        const parts = stateStr.split('.');
+        if (parts.length !== 3) return { isMobile: false };
+
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+        return { isMobile: payload.mobile === true };
+      } catch {
+        return { isMobile: false };
+      }
+    };
+
     try {
       const result = await this.auth.handleOAuthCallback(provider, code, state);
-      // Redirect to frontend with success message
-      const frontendUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
-      return res.redirect(`${frontendUrl}/home/services?provider=${provider}&status=success`);
+
+      // Check if request is from mobile app (stored in state)
+      const { isMobile } = getStateData(state);
+
+      if (isMobile) {
+        // Redirect to mobile app using custom scheme
+        const mobileRedirectUri = process.env.MOBILE_REDIRECT_URI || 'area://oauth';
+        return res.redirect(`${mobileRedirectUri}?provider=${provider}&status=success`);
+      } else {
+        // Redirect to web frontend
+        const frontendUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+        return res.redirect(`${frontendUrl}/home/services?provider=${provider}&status=success`);
+      }
     } catch (error) {
-      const frontendUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+      // Check if request is from mobile app
+      const { isMobile } = getStateData(state);
       const errorMessage = error instanceof Error ? error.message : 'OAuth linking failed';
-      return res.redirect(`${frontendUrl}/home/services?provider=${provider}&status=error&message=${encodeURIComponent(errorMessage)}`);
+
+      if (isMobile) {
+        const mobileRedirectUri = process.env.MOBILE_REDIRECT_URI || 'area://oauth';
+        return res.redirect(`${mobileRedirectUri}?provider=${provider}&status=error&message=${encodeURIComponent(errorMessage)}`);
+      } else {
+        const frontendUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+        return res.redirect(`${frontendUrl}/home/services?provider=${provider}&status=error&message=${encodeURIComponent(errorMessage)}`);
+      }
     }
   }
 

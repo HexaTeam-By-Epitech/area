@@ -237,14 +237,14 @@ export class AuthService {
     }
 
     // Generic URL builders
-    buildAuthUrl(provider: ProviderKey, opts: { userId: string; scopes?: string[] }): string {
+    buildAuthUrl(provider: ProviderKey, opts: { userId: string; scopes?: string[]; mobile?: boolean }): string {
         const p = this.providers.getLinking(provider);
         if (!p) throw new BadRequestException(`Linking not supported for provider ${provider}`);
-        return p.buildLinkUrl({ userId: opts.userId, scopes: opts.scopes });
+        return p.buildLinkUrl({ userId: opts.userId, scopes: opts.scopes, mobile: opts.mobile });
     }
 
     /** Build an OAuth login URL for the provider (code flow). */
-    buildLoginUrl(provider: ProviderKey, opts?: { userId?: string }): string {
+    buildLoginUrl(provider: ProviderKey, opts?: { userId?: string; mobile?: boolean }): string {
         const p = this.providers.getIdentity(provider);
         if (!p || !p.buildLoginUrl) throw new BadRequestException(`Login URL not supported for provider ${provider}`);
         return p.buildLoginUrl(opts);
