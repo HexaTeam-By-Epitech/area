@@ -9,15 +9,35 @@ describe('ManagerController', () => {
   let service: ManagerService;
   let prisma: PrismaService;
 
-  const mockActions = [
-    { name: 'action1', callback: jest.fn(), description: 'Action 1 description' },
-    { name: 'action2', callback: jest.fn(), description: 'Action 2 description' },
-  ];
+  const mockActionsGrouped = {
+    spotify: {
+      isLinked: true,
+      items: [
+        { name: 'spotify_has_likes', description: 'Check if user has liked songs on Spotify' },
+      ],
+    },
+    google: {
+      isLinked: false,
+      items: [
+        { name: 'gmail_new_email', description: 'Detect new incoming email in Gmail inbox' },
+      ],
+    },
+  };
 
-  const mockReactions = [
-    { name: 'reaction1', callback: jest.fn(), description: 'Reaction 1 description' },
-    { name: 'reaction2', callback: jest.fn(), description: 'Reaction 2 description' },
-  ];
+  const mockReactionsGrouped = {
+    google: {
+      isLinked: true,
+      items: [
+        { name: 'send_email', description: 'Send email notification', configSchema: [] },
+      ],
+    },
+    default: {
+      isLinked: true,
+      items: [
+        { name: 'log_event', description: 'Log event to database', configSchema: [] },
+      ],
+    },
+  };
 
   const mockArea = {
     id: 'area-123',
@@ -36,8 +56,8 @@ describe('ManagerController', () => {
         {
           provide: ManagerService,
           useValue: {
-            getAvailableActions: jest.fn(),
-            getAvailableReactions: jest.fn(),
+            getAvailableActionsGrouped: jest.fn(),
+            getAvailableReactionsGrouped: jest.fn(),
             bindAction: jest.fn(),
             getUserAreas: jest.fn(),
             deactivateArea: jest.fn(),
@@ -61,30 +81,24 @@ describe('ManagerController', () => {
   });
 
   describe('getAvailableActions', () => {
-    it('should return list of available actions', () => {
-      (service.getAvailableActions as jest.Mock).mockReturnValue(mockActions);
+    it('should return actions grouped by provider with link status', async () => {
+      (service.getAvailableActionsGrouped as jest.Mock).mockResolvedValue(mockActionsGrouped);
 
-      const result = controller.getAvailableActions();
+      const result = await controller.getAvailableActions('user-123');
 
-      expect(result).toEqual([
-        { name: 'action1', description: 'Action 1 description' },
-        { name: 'action2', description: 'Action 2 description' },
-      ]);
-      expect(service.getAvailableActions).toHaveBeenCalled();
+      expect(result).toEqual(mockActionsGrouped);
+      expect(service.getAvailableActionsGrouped).toHaveBeenCalledWith('user-123');
     });
   });
 
   describe('getAvailableReactions', () => {
-    it('should return list of available reactions', () => {
-      (service.getAvailableReactions as jest.Mock).mockReturnValue(mockReactions);
+    it('should return reactions grouped by provider with link status', async () => {
+      (service.getAvailableReactionsGrouped as jest.Mock).mockResolvedValue(mockReactionsGrouped);
 
-      const result = controller.getAvailableReactions();
+      const result = await controller.getAvailableReactions('user-123');
 
-      expect(result).toEqual([
-        { name: 'reaction1', description: 'Reaction 1 description', configSchema: [] },
-        { name: 'reaction2', description: 'Reaction 2 description', configSchema: [] },
-      ]);
-      expect(service.getAvailableReactions).toHaveBeenCalled();
+      expect(result).toEqual(mockReactionsGrouped);
+      expect(service.getAvailableReactionsGrouped).toHaveBeenCalledWith('user-123');
     });
   });
 

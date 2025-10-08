@@ -20,6 +20,17 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
     private reactionCallbacks: Map<string, ReactionCallback> = new Map();
     private intervalId: NodeJS.Timeout;
 
+    // Mapping of actions/reactions to their providers
+    private readonly actionProviders: Record<string, string> = {
+        [ActionNamesEnum.SPOTIFY_HAS_LIKES]: 'spotify',
+        [ActionNamesEnum.GMAIL_NEW_EMAIL]: 'google',
+    };
+
+    private readonly reactionProviders: Record<string, string> = {
+        [ReactionNamesEnum.SEND_EMAIL]: 'google',
+        [ReactionNamesEnum.LOG_EVENT]: 'default',
+    };
+
     constructor(
         private readonly spotifyLikeService: SpotifyLikeService,
         private readonly prisma: PrismaService,
@@ -159,6 +170,9 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         if (reactionCallback?.configSchema && reactionCallback.configSchema.length > 0) {
             this.validateConfig(config, reactionCallback.configSchema, reactionName);
         }
+
+        // Validate that user has linked the required providers
+        await this.validateUserHasRequiredProviders(userId, actionName, reactionName);
 
         // Verify user exists
         const user = await this.prisma.users.findUnique({ where: { id: userId } });
@@ -501,5 +515,131 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                 }
             }
         }
+    }
+
+    /**
+     * Validate that user has linked the required providers for an action and reaction
+     */
+    private async validateUserHasRequiredProviders(userId: string, actionName: string, reactionName: string): Promise<void> {
+        const servicesToCheck = new Set<string>();
+
+        // Get provider for action
+        const actionProvider = this.actionProviders[actionName];
+        if (actionProvider && actionProvider !== 'default') {
+            servicesToCheck.add(actionProvider);
+        }
+
+        // Get provider for reaction
+        const reactionProvider = this.reactionProviders[reactionName];
+        if (reactionProvider && reactionProvider !== 'default') {
+            servicesToCheck.add(reactionProvider);
+        }
+
+        // Check if user has linked all required services
+        for (const serviceName of servicesToCheck) {
+            const provider = await this.prisma.oauth_providers.findFirst({
+                where: { name: serviceName }
+            });
+
+            if (!provider) {
+                continue; // Skip if provider doesn't exist in oauth_providers
+            }
+
+            const linkedAccount = await this.prisma.linked_accounts.findFirst({
+                where: {
+                    user_id: userId,
+                    provider_id: provider.id,
+                    is_active: true,
+                    deleted_at: null
+                }
+            });
+
+            if (!linkedAccount) {
+                throw new BadRequestException(
+                    `You must link your ${serviceName} account before using this action or reaction`
+                );
+            }
+        }
+    }
+
+    /**
+     * Get available actions grouped by provider with user's link status
+     */
+    async getAvailableActionsGrouped(userId: string) {
+        const actionCallbacks = Array.from(this.actionCallbacks.values());
+        const grouped: Record<string, any> = {};
+
+        // Get user's linked accounts
+        const linkedAccounts = await this.prisma.linked_accounts.findMany({
+            where: {
+                user_id: userId,
+                is_active: true,
+                deleted_at: null
+            },
+            include: {
+                oauth_providers: true
+            }
+        });
+
+        const linkedProviders = new Set(linkedAccounts.map(la => la.oauth_providers.name));
+
+        for (const actionCallback of actionCallbacks) {
+            const providerName = this.actionProviders[actionCallback.name] || 'default';
+
+            if (!grouped[providerName]) {
+                grouped[providerName] = {
+                    isLinked: linkedProviders.has(providerName) || providerName === 'default',
+                    items: []
+                };
+            }
+
+            grouped[providerName].items.push({
+                name: actionCallback.name,
+                description: actionCallback.description
+            });
+        }
+
+        return grouped;
+    }
+
+    /**
+     * Get available reactions grouped by provider with user's link status
+     */
+    async getAvailableReactionsGrouped(userId: string) {
+        const reactionCallbacks = Array.from(this.reactionCallbacks.values());
+        const grouped: Record<string, any> = {};
+
+        // Get user's linked accounts
+        const linkedAccounts = await this.prisma.linked_accounts.findMany({
+            where: {
+                user_id: userId,
+                is_active: true,
+                deleted_at: null
+            },
+            include: {
+                oauth_providers: true
+            }
+        });
+
+        const linkedProviders = new Set(linkedAccounts.map(la => la.oauth_providers.name));
+
+        for (const reactionCallback of reactionCallbacks) {
+            const providerName = this.reactionProviders[reactionCallback.name] || 'default';
+
+            if (!grouped[providerName]) {
+                grouped[providerName] = {
+                    isLinked: linkedProviders.has(providerName) || providerName === 'default',
+                    items: []
+                };
+            }
+
+            grouped[providerName].items.push({
+                name: reactionCallback.name,
+                description: reactionCallback.description,
+                configSchema: reactionCallback.configSchema || []
+            });
+        }
+
+        return grouped;
     }
 }

@@ -97,7 +97,7 @@ export class GmailNewMailService implements PollingAction {
     let messages = listRes.data.messages || [];
     this.logger.debug(`[Gmail] Messages fetched count=${messages.length} user=${userId}`);
 
-    // Fallback only if INBOX mode
+    // Fallback only if INBOX mode - still keep INBOX filter to avoid sent emails
     if (messages.length === 0 && scopeMode !== 'ALL') {
       try {
         const profile = await this.authService.oAuth2ApiRequest<{ emailAddress?: string; messagesTotal?: number; threadsTotal?: number }>(
@@ -112,10 +112,10 @@ export class GmailNewMailService implements PollingAction {
           }>(ProviderKeyEnum.Google, userId, {
             method: 'GET',
             url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages',
-            params: { maxResults: 1 },
+            params: { maxResults: 1, labelIds: 'INBOX' },
           });
           messages = retry.data.messages || [];
-          this.logger.debug(`[Gmail] Retry list without labelIds count=${messages.length} user=${userId}`);
+          this.logger.debug(`[Gmail] Retry list with INBOX labelId count=${messages.length} user=${userId}`);
         }
       } catch (e: any) {
         this.logger.warn(`[Gmail] Profile or retry failed user=${userId} msg=${e?.message}`);
