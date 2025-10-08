@@ -141,8 +141,11 @@ describe('GmailSendService', () => {
             expect(rawEmail).toContain(`To: ${params.to}`);
             expect(rawEmail).toContain(`Subject: ${params.subject}`);
             expect(rawEmail).toContain('Content-Type: text/plain; charset="UTF-8"');
+            expect(rawEmail).toContain('Content-Transfer-Encoding: base64');
             expect(rawEmail).toContain('MIME-Version: 1.0');
-            expect(rawEmail).toContain(params.body);
+            // Body is now base64 encoded
+            const encodedBody = Buffer.from(params.body, 'utf-8').toString('base64');
+            expect(rawEmail).toContain(encodedBody);
         });
 
         it('should encode email properly for Gmail API', async () => {
@@ -190,8 +193,12 @@ describe('GmailSendService', () => {
             const oAuthSendCall = authService.oAuth2ApiRequest.mock.calls[1][2];
             const rawEmail = Buffer.from(oAuthSendCall.data.raw, 'base64').toString();
             expect(rawEmail).toContain(specialParams.to);
-            expect(rawEmail).toContain(specialParams.subject);
-            expect(rawEmail).toContain(specialParams.body);
+            // Subject is now RFC 2047 encoded
+            const encodedSubject = Buffer.from(specialParams.subject, 'utf-8').toString('base64');
+            expect(rawEmail).toContain(`=?UTF-8?B?${encodedSubject}?=`);
+            // Body is now base64 encoded
+            const encodedBody = Buffer.from(specialParams.body, 'utf-8').toString('base64');
+            expect(rawEmail).toContain(encodedBody);
         });
 
         it('should propagate oAuth2ApiRequest errors', async () => {

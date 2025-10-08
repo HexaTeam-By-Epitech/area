@@ -55,6 +55,24 @@ export class ManagerController {
   }
 
   /**
+   * Get available placeholders for a specific action
+   * @param actionName - Name of the action
+   * @returns List of placeholders available for the action
+   */
+  @Get('actions/:actionName/placeholders')
+  @ApiParam({ name: 'actionName', description: 'Name of the action' })
+  @ApiOperation({ summary: 'Get available placeholders for an action' })
+  @ApiResponse({ status: 200, description: 'List of placeholders' })
+  @ApiResponse({ status: 404, description: 'Action not found' })
+  getActionPlaceholders(@Param('actionName') actionName: string) {
+    const placeholders = this.managerService.getActionPlaceholders(actionName);
+    if (!placeholders || placeholders.length === 0) {
+      throw new BadRequestException(`No placeholders available for action '${actionName}'`);
+    }
+    return placeholders;
+  }
+
+  /**
    * Bind an action to a reaction for authenticated user
    * @param authenticatedUserId - Authenticated user from JWT
    * @param bindActionDto - Pair of action/reaction names with potential configuration

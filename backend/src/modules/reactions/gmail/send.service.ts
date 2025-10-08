@@ -76,14 +76,19 @@ export class GmailSendService implements Reactions {
             throw new Error('Failed to verify Gmail account');
         }
 
+        // Encode subject in RFC 2047 format for non-ASCII characters
+        const encodedSubject = this.encodeRfc2047(params.subject);
+
         // Construct the email in RFC 2822 format
         const emailLines = [
             `To: ${params.to}`,
-            `Subject: ${params.subject}`,
+            `Subject: ${encodedSubject}`,
             'Content-Type: text/plain; charset="UTF-8"',
+            'Content-Transfer-Encoding: base64',
             'MIME-Version: 1.0',
             '',
-            params.body,
+            // Encode body in base64 as well since we declared Content-Transfer-Encoding: base64
+            Buffer.from(params.body, 'utf-8').toString('base64'),
         ];
         const email = emailLines.join('\r\n');
         const encodedEmail = Buffer.from(email)
@@ -115,5 +120,20 @@ export class GmailSendService implements Reactions {
             { name: 'body', type: 'string', required: true },
         ];
         return fields;
+    }
+
+    /**
+     * Encode a string in RFC 2047 format for email headers (like Subject)
+     * This is needed for non-ASCII characters (accents, emojis, etc.)
+     */
+    private encodeRfc2047(text: string): string {
+        // Check if the text contains non-ASCII characters
+        if (!/[^\x00-\x7F]/.test(text)) {
+            // Pure ASCII, no encoding needed
+            return text;
+        }
+        // Encode as base64 with RFC 2047 format: =?UTF-8?B?base64?=
+        const encoded = Buffer.from(text, 'utf-8').toString('base64');
+        return `=?UTF-8?B?${encoded}?=`;
     }
 }

@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { GmailSendService } from '../reactions/gmail/send.service';
 import { GmailNewMailService } from '../actions/gmail/new-mail.service';
+import { PlaceholderReplacementService } from '../../common/services/placeholder-replacement.service';
 import type { ActionCallback, ReactionCallback, AreaExecution } from '../../common/interfaces/area.type';
 import { ActionNamesEnum, ReactionNamesEnum } from '../../common/interfaces/action-names.enum';
 
@@ -26,6 +27,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         private readonly polling: ActionPollingService,
         private readonly gmailSendService: GmailSendService,
         private readonly gmailNewMailService: GmailNewMailService,
+        private readonly placeholderService: PlaceholderReplacementService,
     ) {}
 
     /**
@@ -266,14 +268,18 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         if (this.polling.supports(actionName)) {
             this.polling.start(actionName, userId, async (result) => {
                 try {
-                    if (result === 0) {
+                    if (result.code === 0) {
                         this.logger.log(`Polling detected event for user ${userId}, triggering reaction '${reactionName}'`);
                         const reactionCallback = this.reactionCallbacks.get(reactionName);
                         if (!reactionCallback) {
                             this.logger.error(`Reaction callback '${reactionName}' not found`);
                             return;
                         }
-                        const reactionResult = await reactionCallback.callback(userId, result, config);
+
+                        // Replace placeholders in the config with action data
+                        const processedConfig = this.placeholderService.replaceInConfig(config, result.data);
+
+                        const reactionResult = await reactionCallback.callback(userId, result.code, processedConfig);
                         await this.prisma.event_logs.create({
                             data: {
                                 id: crypto.randomUUID(),
@@ -281,7 +287,11 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                                 area_id: area.id,
                                 event_type: 'AREA_EXECUTED',
                                 description: `${actionName} triggered ${reactionName} (polling)`,
-                                metadata: { actionResult: result, reactionResult }
+                                metadata: {
+                                    actionResult: { code: result.code, data: result.data || {} } as any,
+                                    reactionResult,
+                                    processedConfig
+                                }
                             }
                         });
                     }
@@ -374,14 +384,18 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                     const reactionName = area.reactions.name;
                     this.polling.start(actionName, userId, async (result) => {
                         try {
-                            if (result === 0) {
+                            if (result.code === 0) {
                                 this.logger.log(`Polling detected event for user ${userId}, triggering reaction '${reactionName}'`);
                                 const reactionCallback = this.reactionCallbacks.get(reactionName);
                                 if (!reactionCallback) {
                                     this.logger.error(`Reaction callback '${reactionName}' not found`);
                                     return;
                                 }
-                                const reactionResult = await reactionCallback.callback(userId, result, area.reactions.config);
+
+                                // Replace placeholders in the config with action data
+                                const processedConfig = this.placeholderService.replaceInConfig(area.reactions.config, result.data);
+
+                                const reactionResult = await reactionCallback.callback(userId, result.code, processedConfig);
                                 await this.prisma.event_logs.create({
                                     data: {
                                         id: crypto.randomUUID(),
@@ -389,10 +403,14 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                                         area_id: area.id,
                                         event_type: 'AREA_EXECUTED',
                                         description: `${actionName} triggered ${reactionName} (polling)`,
-                                        metadata: { actionResult: result, reactionResult }
+                                        metadata: {
+                                            actionResult: { code: result.code, data: result.data || {} } as any,
+                                            reactionResult,
+                                            processedConfig
+                                        }
                                     }
                                 });
-                            } else if (result === -1) {
+                            } else if (result.code === -1) {
                                 this.logger.warn(`Polling action '${actionName}' reported provider not linked for user ${userId}`);
                             }
                         } catch (err: any) {
@@ -418,6 +436,13 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
      */
     getAvailableReactions(): ReactionCallback[] {
         return Array.from(this.reactionCallbacks.values());
+    }
+
+    /**
+     * Get placeholders for a given action
+     */
+    getActionPlaceholders(actionName: string) {
+        return this.polling.getPlaceholders(actionName);
     }
 
     /**
