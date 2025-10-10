@@ -10,7 +10,6 @@ import HomeScreen from './screens/HomeScreen';
 import MyAccountScreen from './screens/MyAccountScreen';
 import ServicesScreen from './screens/ServicesScreen';
 import DashboardScreen from './screens/DashboardScreen';
-import ProjectScreen from './screens/ProjectScreen';
 import CreateAreaScreen from './screens/CreateAreaScreen';
 import LandingScreen from './screens/LandingScreen';
 import './screens/mockBackend';
@@ -21,7 +20,6 @@ const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
 
 function ProtectedDrawer() {
-    const { email, logout } = useAuth();
 
     return (
         <Drawer.Navigator
@@ -99,16 +97,6 @@ function AppNavigator() {
                         options={{
                             headerShown: true,
                             headerTitle: 'Create AREA',
-                            headerStyle: { backgroundColor: colors.bgPrimary },
-                            headerTintColor: colors.textPrimary,
-                        }}
-                    />
-                    <Stack.Screen
-                        name="Project"
-                        component={ProjectScreen}
-                        options={{
-                            headerShown: true,
-                            headerTitle: 'Project',
                             headerStyle: { backgroundColor: colors.bgPrimary },
                             headerTintColor: colors.textPrimary,
                         }}

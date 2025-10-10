@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Alert, ActivityIndicator } from 'react-native';
-import { CommonActions } from '@react-navigation/native';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import styles from '../styles';
@@ -10,8 +9,8 @@ import { useAuth } from '../context/AuthContext';
 import { apiDirect } from '../utils/api';
 import Config from '../config';
 
-export default function MyAccountScreen({ navigation }) {
-    const { email, accessToken, logout } = useAuth();
+export default function MyAccountScreen({}) {
+    const { email, logout } = useAuth();
     const [loggingOut, setLoggingOut] = useState(false);
     const [linkedIdentities, setLinkedIdentities] = useState([]);
     const [loadingIdentities, setLoadingIdentities] = useState(true);
@@ -116,23 +115,10 @@ export default function MyAccountScreen({ navigation }) {
         <View style={[styles.container, { paddingTop: 32 }]}>
             <Text style={styles.title}>My Account</Text>
 
-            <Card style={{ marginTop: 20, padding: 20, width: '90%' }}>
-                <View style={{ marginBottom: 16 }}>
-                    <Text style={[styles.text, { fontSize: 14, color: '#c3c9d5', marginBottom: 4 }]}>
-                        Email
-                    </Text>
-                    <Text style={[styles.title, { fontSize: 18 }]}>
-                        {email || 'Not available'}
-                    </Text>
-                </View>
-
-                <View style={{ marginBottom: 16 }}>
-                    <Text style={[styles.text, { fontSize: 14, color: '#c3c9d5', marginBottom: 4 }]}>
-                        Access Token
-                    </Text>
-                    <Text style={[styles.text, { fontSize: 12, fontFamily: 'monospace' }]}>
-                        {accessToken ? accessToken.slice(0, 20) + '...' : 'Not available'}
-                    </Text>
+            <Card style={{ marginTop: 20, paddingVertical: 12, paddingHorizontal: 20, width: '92%', minHeight: 60, justifyContent: 'center', alignItems: 'center' }}>
+                <View style={{ marginBottom: 0, width: '100%', alignItems: 'center' }}>
+                    <Text style={[styles.text, { fontSize: 14, color: '#c3c9d5', marginBottom: 2 }]}>Email</Text>
+                    <Text style={[styles.title, { fontSize: 18, textAlign: 'center' }]}>{email || 'Not available'}</Text>
                 </View>
             </Card>
 

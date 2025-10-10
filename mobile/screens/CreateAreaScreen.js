@@ -5,8 +5,7 @@ import {
     ScrollView,
     ActivityIndicator,
     Alert,
-    TextInput,
-    TouchableOpacity
+    TextInput
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import styles from '../styles';
@@ -15,8 +14,8 @@ import Card from '../components/Card';
 import { apiDirect } from '../utils/api';
 
 export default function CreateAreaScreen({ navigation }) {
-    const [actions, setActions] = useState([]);
-    const [reactions, setReactions] = useState([]);
+    const [actionProviders, setActionProviders] = useState({});
+    const [reactionProviders, setReactionProviders] = useState({});
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState('');
@@ -39,8 +38,8 @@ export default function CreateAreaScreen({ navigation }) {
                 apiDirect.get('/manager/reactions')
             ]);
 
-            setActions(actionsRes.data || []);
-            setReactions(reactionsRes.data || []);
+            setActionProviders(actionsRes.data || {});
+            setReactionProviders(reactionsRes.data || {});
         } catch (err) {
             console.error('Failed to load actions/reactions:', err);
             setError(err.response?.data?.message || 'Failed to load available actions and reactions');
@@ -49,8 +48,18 @@ export default function CreateAreaScreen({ navigation }) {
         }
     };
 
+    // Flatten actions from providers for the picker
+    const flattenedActions = Object.entries(actionProviders).flatMap(([provider, data]) =>
+        data.isLinked ? data.items || [] : []
+    );
+
+    // Flatten reactions from providers for the picker
+    const flattenedReactions = Object.entries(reactionProviders).flatMap(([provider, data]) =>
+        data.isLinked ? data.items || [] : []
+    );
+
     const getSelectedReactionSchema = () => {
-        const reaction = reactions.find(r => r.name === selectedReaction);
+        const reaction = flattenedReactions.find(r => r.name === selectedReaction);
         return reaction?.configSchema || [];
     };
 
@@ -103,6 +112,9 @@ export default function CreateAreaScreen({ navigation }) {
         }
     };
 
+    const isActionsArray = Array.isArray(flattenedActions);
+    const isReactionsArray = Array.isArray(flattenedReactions);
+
     if (loading) {
         return (
             <View style={[styles.container, { justifyContent: 'center' }]}>
@@ -141,13 +153,13 @@ export default function CreateAreaScreen({ navigation }) {
                             dropdownIconColor="#fff"
                         >
                             <Picker.Item label="Select an action..." value="" />
-                            {actions.map((action) => (
+                            {isActionsArray ? flattenedActions.map((action) => (
                                 <Picker.Item
                                     key={action.name}
                                     label={`${action.name} - ${action.description}`}
                                     value={action.name}
                                 />
-                            ))}
+                            )) : <Picker.Item label="No actions available" value="" />}
                         </Picker>
                     </View>
                 </Card>
@@ -155,14 +167,8 @@ export default function CreateAreaScreen({ navigation }) {
                 {/* Reaction Selection */}
                 <Card style={{ marginBottom: 20, padding: 16 }}>
                     <Text style={[styles.title, { fontSize: 18, marginBottom: 12 }]}>Select Reaction</Text>
-                    <Text style={[styles.text, { fontSize: 14, marginBottom: 8 }]}>
-                        The action that will be performed when triggered
-                    </Text>
-                    <View style={{
-                        backgroundColor: '#2a2a2a',
-                        borderRadius: 8,
-                        overflow: 'hidden'
-                    }}>
+                    <Text style={[styles.text, { fontSize: 14, marginBottom: 8 }]}>The action that will be performed when triggered</Text>
+                    <View style={{ backgroundColor: '#2a2a2a', borderRadius: 8, overflow: 'hidden' }}>
                         <Picker
                             selectedValue={selectedReaction}
                             onValueChange={(value) => {
@@ -173,13 +179,13 @@ export default function CreateAreaScreen({ navigation }) {
                             dropdownIconColor="#fff"
                         >
                             <Picker.Item label="Select a reaction..." value="" />
-                            {reactions.map((reaction) => (
+                            {isReactionsArray ? flattenedReactions.map((reaction) => (
                                 <Picker.Item
                                     key={reaction.name}
                                     label={`${reaction.name} - ${reaction.description}`}
                                     value={reaction.name}
                                 />
-                            ))}
+                            )) : <Picker.Item label="No reactions available" value="" />}
                         </Picker>
                     </View>
                 </Card>
