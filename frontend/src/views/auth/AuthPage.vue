@@ -13,8 +13,6 @@ const authStore = useAuthStore();
     <Register v-else-if="(authStore.page === 'register') || (authStore.page === 'waitingcode')" />
     <Login v-else />
   </div>
-  <label for="mock-auth-token">Mock auth: </label>
-  <input type="text" id="mock-auth-token" v-model="authStore.token" />
 </template>
 
 <style scoped>

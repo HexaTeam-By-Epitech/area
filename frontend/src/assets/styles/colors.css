@@ -17,3 +17,10 @@
 
   --logo-color: #ea4b71;
 }
+
+:root {
+  /* Green palette for connect buttons */
+  --green-1: #A5D6A7; /* light */
+  --green-2: #4CAF50; /* base */
+  --green-3: #2E7D32; /* dark */
+}

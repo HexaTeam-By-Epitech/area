@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { apiDirect as api } from "@/utils/api";
 
@@ -96,6 +96,7 @@ async function loadProviders() {
   } finally {
     loading.value = false;
   }
+  
 }
 
 async function linkProvider(provider: Provider) {
@@ -147,6 +148,10 @@ async function unlinkProvider(provider: Provider) {
   }
 }
 
+const gridTemplateColumns = computed(() => {
+  return `repeat(3, minmax(220px, 1fr))`;
+});
+
 onMounted(() => {
   // Check for OAuth callback status in query params
   const status = route.query.status as string;
@@ -177,7 +182,7 @@ onMounted(() => {
 
     <div class="services-grid">
       <div />
-      <div class="services-layout">
+      <div class="services-layout" :style="{ gridTemplateColumns: gridTemplateColumns }">
         <div
           v-for="provider in providers"
           :key="provider.name"
@@ -192,24 +197,27 @@ onMounted(() => {
           <i :class="['status-text', provider.linked ? 'connected' : 'disconnected']">
             {{ provider.linked ? '✓ Connected' : 'Not connected' }}
           </i>
+          <div style="flex-grow: 1;" />
+          <div>
+            <button
+                v-if="!provider.linked"
+                @click="linkProvider(provider)"
+                :disabled="provider.loading"
+                class="service-btn connect-btn"
+            >
+              {{ provider.loading ? 'Connecting...' : 'Connect' }}
+            </button>
 
-          <button
-            v-if="!provider.linked"
-            @click="linkProvider(provider)"
-            :disabled="provider.loading"
-            class="service-btn connect-btn"
-          >
-            {{ provider.loading ? 'Connecting...' : 'Connect' }}
-          </button>
+            <button
+                v-else
+                @click="unlinkProvider(provider)"
+                :disabled="provider.loading"
+                class="service-btn disconnect-btn"
+            >
+              {{ provider.loading ? 'Disconnecting...' : 'Disconnect' }}
+            </button>
 
-          <button
-            v-else
-            @click="unlinkProvider(provider)"
-            :disabled="provider.loading"
-            class="service-btn disconnect-btn"
-          >
-            {{ provider.loading ? 'Disconnecting...' : 'Disconnect' }}
-          </button>
+          </div>
         </div>
       </div>
       <div />
@@ -223,24 +231,25 @@ onMounted(() => {
   grid-template-columns: 10% 80% 10%;
 }
 
-
 .services-layout {
   display: flex;
-  flex-direction: row;
+  grid-auto-rows: 1fr;
   flex-wrap: wrap;
+  flex-direction: row;
+  gap: 2rem;
   justify-content: center;
+  justify-items: stretch;
+  align-items: stretch;
 }
 
 .service-box {
-  border-radius: 1rem;
-  margin: 1.5vh 1.5vw;
-  padding: 1.5rem;
-  min-height: 180px;
-  min-width: 220px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 0.75rem;
+  height: 10rem;
+  width: 20vw;
+  border-radius: 1rem;
+  margin: 0;
+  padding: 1.5rem;
   transition: transform 0.2s, box-shadow 0.2s;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
@@ -294,29 +303,36 @@ onMounted(() => {
   font-weight: 600;
   font-size: 0.95rem;
   transition: all 0.2s;
+  width: 100%;
 }
 
 .connect-btn {
-  background-color: rgba(255, 255, 255, 0.95);
-  color: #1a1a1a;
-  border-color: rgba(255, 255, 255, 0.2);
+  background-color: var(--green-2) !important;
+  color: #1a1a1a !important;
+  border-color: var(--green-3) !important;
 }
 
-.connect-btn:hover:not(:disabled) {
-  background-color: #ffffff;
+.connect-btn:hover:not(:disabled), .connec-btn:hover:not(:disabled) {
+  background-color: var(--green-3) !important;
+  color: #ffffff !important;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+.connect-btn:active:not(:disabled), .connec-btn:active:not(:disabled) {
+  background-color: var(--green-1) !important;
+  color: #1a1a1a !important;
+}
+
 .disconnect-btn {
-  background-color: rgba(244, 67, 54, 0.1);
-  color: #f44336;
-  border-color: #f44336;
+  background-color: rgba(244, 67, 54, 0.1) !important;
+  color: #f44336 !important;
+  border-color: #f44336 !important;
 }
 
 .disconnect-btn:hover:not(:disabled) {
-  background-color: #f44336;
-  color: white;
+  background-color: #f44336 !important;
+  color: white !important;
   transform: translateY(-2px);
 }
 
