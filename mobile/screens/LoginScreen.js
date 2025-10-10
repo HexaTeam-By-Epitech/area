@@ -24,15 +24,40 @@ export default function LoginScreen({ navigation }) {
         try {
             setLoading(true);
             const response = await apiDirect.post(`/auth/${type}`, { email, password });
-            const { accessToken, userId, email: userEmail } = response.data;
 
-            if (accessToken && userId) {
-                await login(userEmail || email, accessToken, userId);
-                // Navigation will be handled automatically by AppNavigator when isAuthenticated changes
+            console.log('Response status:', response.status);
+            console.log('Response data:', response.data);
+
+            if (type === 'register') {
+                console.log('Checking registration success...');
+                console.log('Status >= 200 && < 300:', response.status >= 200 && response.status < 300);
+                console.log('Has message:', !!response.data.message);
+                console.log('Has userId:', !!response.data.userId);
+
+                if (response.status >= 200 && response.status < 300) {
+                    console.log('Registration successful, navigating to verification...');
+                    Alert.alert('Registration Successful', 'A verification code has been sent to your email.', [
+                        {
+                            text: 'OK',
+                            onPress: () => navigation.navigate('Verification', { email, password })
+                        }
+                    ]);
+                } else {
+                    console.log('Registration failed - unexpected status:', response.status);
+                    Alert.alert('Error', 'Registration failed');
+                }
             } else {
-                Alert.alert('Error', 'Invalid response from server');
+                const { accessToken, userId, email: userEmail } = response.data;
+                if (accessToken && userId) {
+                    await login(userEmail || email, accessToken, userId);
+                } else {
+                    Alert.alert('Error', 'Invalid response from server');
+                }
             }
         } catch (err) {
+            console.error('Auth error details:', err);
+            console.error('Error response:', err.response?.data);
+            console.error('Error status:', err.response?.status);
             Alert.alert('Error', err.response?.data?.message || 'Authentication failed');
         } finally {
             setLoading(false);

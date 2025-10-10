@@ -9,7 +9,7 @@
 
 const Config = {
     // Backend API URL
-    API_URL: 'https://hen-working-actually.ngrok-free.app',
+    API_URL: 'https://necrologically-dimensionless-charlena.ngrok-free.app',
 
     // OAuth redirect URI (must match app.json scheme)
     OAUTH_REDIRECT_URI: 'area://oauth',

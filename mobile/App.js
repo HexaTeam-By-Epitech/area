@@ -6,6 +6,7 @@ import { View, ActivityIndicator, Text } from 'react-native';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginScreen from './screens/LoginScreen';
+import VerificationScreen from './screens/VerificationScreen';
 import HomeScreen from './screens/HomeScreen';
 import MyAccountScreen from './screens/MyAccountScreen';
 import ServicesScreen from './screens/ServicesScreen';
@@ -89,6 +90,16 @@ function AppNavigator() {
                 <>
                     <Stack.Screen name="Landing" component={LandingScreen} />
                     <Stack.Screen name="Login" component={LoginScreen} />
+                    <Stack.Screen
+                        name="Verification"
+                        component={VerificationScreen}
+                        options={{
+                            headerShown: true,
+                            headerTitle: 'Email Verification',
+                            headerStyle: { backgroundColor: colors.bgPrimary },
+                            headerTintColor: colors.textPrimary,
+                        }}
+                    />
                 </>
             ) : (
                 <>
