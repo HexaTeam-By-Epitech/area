@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { PollingAction } from 'src/common/interfaces/area.type';
+import type { PollingAction, ActionResult, ActionPlaceholder } from 'src/common/interfaces/area.type';
 /**
  * Registry and coordinator for `PollingAction` implementations.
  *
@@ -25,7 +25,7 @@ export class ActionPollingService {
    * Starts polling for the first poller that supports the `actionName`.
    * Logs a warning if none is found.
    */
-  start(actionName: string, userId: string, emit: (result: number) => void): void {
+  start(actionName: string, userId: string, emit: (result: ActionResult) => void): void {
     const poller = this.pollers.find((p) => p.supports(actionName));
     if (!poller) {
       this.logger.warn(`No poller registered for action '${actionName}'`);
@@ -39,5 +39,18 @@ export class ActionPollingService {
     const poller = this.pollers.find((p) => p.supports(actionName));
     if (!poller) return;
     poller.stop(userId);
+  }
+
+  /**
+   * Returns the list of placeholders for a given action.
+   * Returns empty array if the action is not found.
+   */
+  getPlaceholders(actionName: string): ActionPlaceholder[] {
+    const poller = this.pollers.find((p) => p.supports(actionName));
+    if (!poller) {
+      this.logger.warn(`No poller registered for action '${actionName}'`);
+      return [];
+    }
+    return poller.getPlaceholders();
   }
 }

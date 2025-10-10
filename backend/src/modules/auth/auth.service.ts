@@ -22,6 +22,8 @@ import { OAuth2Client } from './core/oauth2-client';
 import { GoogleIdentity } from './plugins/google/google-identity';
 import { GoogleLinking } from './plugins/google/google-linking';
 import { SpotifyLinking } from './plugins/spotify/spotify-linking';
+import { DiscordLinking } from './plugins/discord/discord-linking';
+import { SlackLinking } from './plugins/slack/slack-linking';
 
 /**
  * Authentication service handling email/password flows, verification,
@@ -56,6 +58,8 @@ export class AuthService {
             reg.addIdentity(new GoogleIdentity(this.config, this.jwtService, this.tokenStore));
             reg.addLinking(new GoogleLinking(this.config, this.jwtService, this.tokenStore, this.cryptoSvc, this.http));
             reg.addLinking(new SpotifyLinking(this.config, this.jwtService, this.tokenStore, this.cryptoSvc, this.http));
+            reg.addLinking(new DiscordLinking(this.config, this.jwtService, this.tokenStore, this.cryptoSvc, this.http));
+            reg.addLinking(new SlackLinking(this.config, this.jwtService, this.tokenStore, this.cryptoSvc, this.http));
             (this as any)._providers = reg;
         }
         return (this as any)._providers as ProviderRegistryImpl;
@@ -235,14 +239,14 @@ export class AuthService {
     }
 
     // Generic URL builders
-    buildAuthUrl(provider: ProviderKey, opts: { userId: string; scopes?: string[] }): string {
+    buildAuthUrl(provider: ProviderKey, opts: { userId: string; scopes?: string[]; mobile?: boolean }): string {
         const p = this.providers.getLinking(provider);
         if (!p) throw new BadRequestException(`Linking not supported for provider ${provider}`);
-        return p.buildLinkUrl({ userId: opts.userId, scopes: opts.scopes });
+        return p.buildLinkUrl({ userId: opts.userId, scopes: opts.scopes, mobile: opts.mobile });
     }
 
     /** Build an OAuth login URL for the provider (code flow). */
-    buildLoginUrl(provider: ProviderKey, opts?: { userId?: string }): string {
+    buildLoginUrl(provider: ProviderKey, opts?: { userId?: string; mobile?: boolean }): string {
         const p = this.providers.getIdentity(provider);
         if (!p || !p.buildLoginUrl) throw new BadRequestException(`Login URL not supported for provider ${provider}`);
         return p.buildLoginUrl(opts);
@@ -337,7 +341,9 @@ export class AuthService {
         if (!user) throw new NotFoundException('User not found');
 
         const linkedAccounts = await this.usersService.getLinkedAccounts(userId);
-        const linkedProviderNames = linkedAccounts.map(acc => acc.oauth_providers.name);
+        const linkedProviderNames = linkedAccounts
+            .map(acc => acc.oauth_providers.name)
+            .filter(name => !name.endsWith('_bot')); // Filter out internal providers
 
         return { providers: linkedProviderNames };
     }

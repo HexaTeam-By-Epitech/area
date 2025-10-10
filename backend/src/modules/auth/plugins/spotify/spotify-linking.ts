@@ -26,14 +26,15 @@ export class SpotifyLinking implements LinkingProvider {
    * Build the Spotify consent URL for linking a provider account to a user.
    * @param params.userId - Target application user id (signed into state)
    * @param params.scopes - Optional list of scopes; defaults cover common Spotify permissions.
+   * @param params.mobile - Optional flag to indicate mobile app flow
    */
-  buildLinkUrl(params: { userId: string; scopes?: string[] }): string {
+  buildLinkUrl(params: { userId: string; scopes?: string[]; mobile?: boolean }): string {
     const clientId = this.config.get<string>('SPOTIFY_CLIENT_ID');
     const redirectUri = this.config.get<string>('SPOTIFY_REDIRECT_URI');
     if (!clientId || !redirectUri) throw new InternalServerErrorException('Spotify OAuth not configured');
     if (!params.userId) throw new BadRequestException('userId is required for linking');
 
-    const state = this.jwt.sign({ provider: 'spotify', mode: 'link', userId: params.userId }, { expiresIn: '10m' });
+    const state = this.jwt.sign({ provider: 'spotify', mode: 'link', userId: params.userId, mobile: params.mobile }, { expiresIn: '10m' });
     const scopes = (params.scopes && params.scopes.length ? params.scopes : [
       'user-read-private','user-read-email',
       'playlist-read-private','playlist-read-collaborative','playlist-modify-public','playlist-modify-private',

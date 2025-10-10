@@ -50,12 +50,16 @@ export class GenericAuthIdentityController {
   @Get(':provider/login/url')
   @ApiOperation({ summary: 'Get provider OAuth login URL. If authenticated, returns URL for identity linking.' })
   @ApiResponse({ status: 200, description: 'Returns the OAuth URL', schema: { properties: { url: { type: 'string' } } } })
-  getLoginUrl(@Param('provider') provider: string, @Req() req: express.Request) {
+  getLoginUrl(
+    @Param('provider') provider: string,
+    @Req() req: express.Request,
+    @Query('mobile') mobile?: string
+  ) {
     // Extract userId from JWT if present (optional authentication)
     const user = (req as any).user;
     const userId = user?.sub as string | undefined;
 
-    const url = this.auth.buildLoginUrl(provider, userId ? { userId } : undefined);
+    const url = this.auth.buildLoginUrl(provider, userId ? { userId, mobile: mobile === 'true' } : { mobile: mobile === 'true' });
     return { url };
   }
 
@@ -79,13 +83,14 @@ export class GenericAuthIdentityController {
   async startLogin(
     @Res() res: express.Response,
     @Req() req: express.Request,
-    @Param('provider') provider: string
+    @Param('provider') provider: string,
+    @Query('mobile') mobile?: string
   ) {
     // Extract userId from JWT if present (optional authentication)
     const user = (req as any).user;
     const userId = user?.sub as string | undefined;
 
-    const url = this.auth.buildLoginUrl(provider, userId ? { userId } : undefined);
+    const url = this.auth.buildLoginUrl(provider, userId ? { userId, mobile: mobile === 'true' } : { mobile: mobile === 'true' });
     return res.redirect(url);
   }
 
@@ -108,29 +113,65 @@ export class GenericAuthIdentityController {
     @Query('code') code: string,
     @Query('state') state?: string
   ) {
+    // Helper to decode state and check if mobile
+    const getStateData = (stateStr?: string): { isMobile: boolean; hasUserId: boolean } => {
+      try {
+        if (!stateStr) return { isMobile: false, hasUserId: false };
+
+        const parts = stateStr.split('.');
+        if (parts.length !== 3) return { isMobile: false, hasUserId: false };
+
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+        return { isMobile: payload.mobile === true, hasUserId: !!payload.userId };
+      } catch {
+        return { isMobile: false, hasUserId: false };
+      }
+    };
+
     try {
       const result = await this.auth.handleLoginCallback(provider, code, state);
-      const frontendUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+      const { isMobile, hasUserId } = getStateData(state);
 
-      // Check if this was an identity linking flow (state contains userId)
-      // If yes, redirect to settings, otherwise return JSON for login
-      if (state) {
-        // Identity linking flow - redirect to settings
-        return res.redirect(`${frontendUrl}/home/settings?provider=${provider}&status=success`);
+      if (isMobile) {
+        // Mobile flow - redirect to mobile app
+        const mobileRedirectUri = process.env.MOBILE_REDIRECT_URI || 'area://oauth';
+
+        if (hasUserId) {
+          // Identity linking on mobile
+          return res.redirect(`${mobileRedirectUri}?provider=${provider}&status=success&type=identity`);
+        } else {
+          // Login on mobile - redirect with auth data in URL
+          return res.redirect(`${mobileRedirectUri}?provider=${provider}&status=success&type=login&accessToken=${encodeURIComponent(result.accessToken)}&userId=${encodeURIComponent(result.userId)}&email=${encodeURIComponent(result.email)}`);
+        }
       } else {
-        // Regular login flow - return JSON
-        return res.json(result);
+        // Web flow
+        const frontendUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+
+        if (hasUserId) {
+          // Identity linking flow - redirect to settings
+          return res.redirect(`${frontendUrl}/home/settings?provider=${provider}&status=success`);
+        } else {
+          // Regular login flow - return JSON
+          return res.json(result);
+        }
       }
     } catch (error) {
-      const frontendUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+      const { isMobile, hasUserId } = getStateData(state);
       const errorMessage = error instanceof Error ? error.message : 'OAuth login failed';
 
-      if (state) {
-        // Was trying to link identity - redirect to settings with error
-        return res.redirect(`${frontendUrl}/home/settings?provider=${provider}&status=error&message=${encodeURIComponent(errorMessage)}`);
+      if (isMobile) {
+        const mobileRedirectUri = process.env.MOBILE_REDIRECT_URI || 'area://oauth';
+        return res.redirect(`${mobileRedirectUri}?provider=${provider}&status=error&message=${encodeURIComponent(errorMessage)}`);
       } else {
-        // Was trying to login - return error JSON
-        return res.status(401).json({ message: errorMessage });
+        const frontendUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+
+        if (hasUserId) {
+          // Was trying to link identity - redirect to settings with error
+          return res.redirect(`${frontendUrl}/home/settings?provider=${provider}&status=error&message=${encodeURIComponent(errorMessage)}`);
+        } else {
+          // Was trying to login - return error JSON
+          return res.status(401).json({ message: errorMessage });
+        }
       }
     }
   }

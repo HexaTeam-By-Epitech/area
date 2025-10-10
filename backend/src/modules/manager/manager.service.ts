@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { GmailSendService } from '../reactions/gmail/send.service';
 import { GmailNewMailService } from '../actions/gmail/new-mail.service';
+import { PlaceholderReplacementService } from '../../common/services/placeholder-replacement.service';
 import type { ActionCallback, ReactionCallback, AreaExecution } from '../../common/interfaces/area.type';
 import { ActionNamesEnum, ReactionNamesEnum } from '../../common/interfaces/action-names.enum';
 
@@ -19,6 +20,17 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
     private reactionCallbacks: Map<string, ReactionCallback> = new Map();
     private intervalId: NodeJS.Timeout;
 
+    // Mapping of actions/reactions to their providers
+    private readonly actionProviders: Record<string, string> = {
+        [ActionNamesEnum.SPOTIFY_HAS_LIKES]: 'spotify',
+        [ActionNamesEnum.GMAIL_NEW_EMAIL]: 'google',
+    };
+
+    private readonly reactionProviders: Record<string, string> = {
+        [ReactionNamesEnum.SEND_EMAIL]: 'google',
+        [ReactionNamesEnum.LOG_EVENT]: 'default',
+    };
+
     constructor(
         private readonly spotifyLikeService: SpotifyLikeService,
         private readonly prisma: PrismaService,
@@ -26,6 +38,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         private readonly polling: ActionPollingService,
         private readonly gmailSendService: GmailSendService,
         private readonly gmailNewMailService: GmailNewMailService,
+        private readonly placeholderService: PlaceholderReplacementService,
     ) {}
 
     /**
@@ -158,6 +171,9 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
             this.validateConfig(config, reactionCallback.configSchema, reactionName);
         }
 
+        // Validate that user has linked the required providers
+        await this.validateUserHasRequiredProviders(userId, actionName, reactionName);
+
         // Verify user exists
         const user = await this.prisma.users.findUnique({ where: { id: userId } });
         if (!user) {
@@ -266,14 +282,18 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         if (this.polling.supports(actionName)) {
             this.polling.start(actionName, userId, async (result) => {
                 try {
-                    if (result === 0) {
+                    if (result.code === 0) {
                         this.logger.log(`Polling detected event for user ${userId}, triggering reaction '${reactionName}'`);
                         const reactionCallback = this.reactionCallbacks.get(reactionName);
                         if (!reactionCallback) {
                             this.logger.error(`Reaction callback '${reactionName}' not found`);
                             return;
                         }
-                        const reactionResult = await reactionCallback.callback(userId, result, config);
+
+                        // Replace placeholders in the config with action data
+                        const processedConfig = this.placeholderService.replaceInConfig(config, result.data);
+
+                        const reactionResult = await reactionCallback.callback(userId, result.code, processedConfig);
                         await this.prisma.event_logs.create({
                             data: {
                                 id: crypto.randomUUID(),
@@ -281,7 +301,11 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                                 area_id: area.id,
                                 event_type: 'AREA_EXECUTED',
                                 description: `${actionName} triggered ${reactionName} (polling)`,
-                                metadata: { actionResult: result, reactionResult }
+                                metadata: {
+                                    actionResult: { code: result.code, data: result.data || {} } as any,
+                                    reactionResult,
+                                    processedConfig
+                                }
                             }
                         });
                     }
@@ -374,14 +398,18 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                     const reactionName = area.reactions.name;
                     this.polling.start(actionName, userId, async (result) => {
                         try {
-                            if (result === 0) {
+                            if (result.code === 0) {
                                 this.logger.log(`Polling detected event for user ${userId}, triggering reaction '${reactionName}'`);
                                 const reactionCallback = this.reactionCallbacks.get(reactionName);
                                 if (!reactionCallback) {
                                     this.logger.error(`Reaction callback '${reactionName}' not found`);
                                     return;
                                 }
-                                const reactionResult = await reactionCallback.callback(userId, result, area.reactions.config);
+
+                                // Replace placeholders in the config with action data
+                                const processedConfig = this.placeholderService.replaceInConfig(area.reactions.config, result.data);
+
+                                const reactionResult = await reactionCallback.callback(userId, result.code, processedConfig);
                                 await this.prisma.event_logs.create({
                                     data: {
                                         id: crypto.randomUUID(),
@@ -389,10 +417,14 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                                         area_id: area.id,
                                         event_type: 'AREA_EXECUTED',
                                         description: `${actionName} triggered ${reactionName} (polling)`,
-                                        metadata: { actionResult: result, reactionResult }
+                                        metadata: {
+                                            actionResult: { code: result.code, data: result.data || {} } as any,
+                                            reactionResult,
+                                            processedConfig
+                                        }
                                     }
                                 });
-                            } else if (result === -1) {
+                            } else if (result.code === -1) {
                                 this.logger.warn(`Polling action '${actionName}' reported provider not linked for user ${userId}`);
                             }
                         } catch (err: any) {
@@ -418,6 +450,13 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
      */
     getAvailableReactions(): ReactionCallback[] {
         return Array.from(this.reactionCallbacks.values());
+    }
+
+    /**
+     * Get placeholders for a given action
+     */
+    getActionPlaceholders(actionName: string) {
+        return this.polling.getPlaceholders(actionName);
     }
 
     /**
@@ -476,5 +515,131 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                 }
             }
         }
+    }
+
+    /**
+     * Validate that user has linked the required providers for an action and reaction
+     */
+    private async validateUserHasRequiredProviders(userId: string, actionName: string, reactionName: string): Promise<void> {
+        const servicesToCheck = new Set<string>();
+
+        // Get provider for action
+        const actionProvider = this.actionProviders[actionName];
+        if (actionProvider && actionProvider !== 'default') {
+            servicesToCheck.add(actionProvider);
+        }
+
+        // Get provider for reaction
+        const reactionProvider = this.reactionProviders[reactionName];
+        if (reactionProvider && reactionProvider !== 'default') {
+            servicesToCheck.add(reactionProvider);
+        }
+
+        // Check if user has linked all required services
+        for (const serviceName of servicesToCheck) {
+            const provider = await this.prisma.oauth_providers.findFirst({
+                where: { name: serviceName }
+            });
+
+            if (!provider) {
+                continue; // Skip if provider doesn't exist in oauth_providers
+            }
+
+            const linkedAccount = await this.prisma.linked_accounts.findFirst({
+                where: {
+                    user_id: userId,
+                    provider_id: provider.id,
+                    is_active: true,
+                    deleted_at: null
+                }
+            });
+
+            if (!linkedAccount) {
+                throw new BadRequestException(
+                    `You must link your ${serviceName} account before using this action or reaction`
+                );
+            }
+        }
+    }
+
+    /**
+     * Get available actions grouped by provider with user's link status
+     */
+    async getAvailableActionsGrouped(userId: string) {
+        const actionCallbacks = Array.from(this.actionCallbacks.values());
+        const grouped: Record<string, any> = {};
+
+        // Get user's linked accounts
+        const linkedAccounts = await this.prisma.linked_accounts.findMany({
+            where: {
+                user_id: userId,
+                is_active: true,
+                deleted_at: null
+            },
+            include: {
+                oauth_providers: true
+            }
+        });
+
+        const linkedProviders = new Set(linkedAccounts.map(la => la.oauth_providers.name));
+
+        for (const actionCallback of actionCallbacks) {
+            const providerName = this.actionProviders[actionCallback.name] || 'default';
+
+            if (!grouped[providerName]) {
+                grouped[providerName] = {
+                    isLinked: linkedProviders.has(providerName) || providerName === 'default',
+                    items: []
+                };
+            }
+
+            grouped[providerName].items.push({
+                name: actionCallback.name,
+                description: actionCallback.description
+            });
+        }
+
+        return grouped;
+    }
+
+    /**
+     * Get available reactions grouped by provider with user's link status
+     */
+    async getAvailableReactionsGrouped(userId: string) {
+        const reactionCallbacks = Array.from(this.reactionCallbacks.values());
+        const grouped: Record<string, any> = {};
+
+        // Get user's linked accounts
+        const linkedAccounts = await this.prisma.linked_accounts.findMany({
+            where: {
+                user_id: userId,
+                is_active: true,
+                deleted_at: null
+            },
+            include: {
+                oauth_providers: true
+            }
+        });
+
+        const linkedProviders = new Set(linkedAccounts.map(la => la.oauth_providers.name));
+
+        for (const reactionCallback of reactionCallbacks) {
+            const providerName = this.reactionProviders[reactionCallback.name] || 'default';
+
+            if (!grouped[providerName]) {
+                grouped[providerName] = {
+                    isLinked: linkedProviders.has(providerName) || providerName === 'default',
+                    items: []
+                };
+            }
+
+            grouped[providerName].items.push({
+                name: reactionCallback.name,
+                description: reactionCallback.description,
+                configSchema: reactionCallback.configSchema || []
+            });
+        }
+
+        return grouped;
     }
 }

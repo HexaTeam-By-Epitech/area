@@ -3,7 +3,7 @@ import { UsersService } from '../../users/users.service';
 import { AuthService } from '../../auth/auth.service';
 import { RedisService } from '../../redis/redis.service';
 import { ProviderKeyEnum } from '../../../common/interfaces/oauth2.type';
-import type { PollingAction } from '../../../common/interfaces/area.type';
+import type { PollingAction, ActionResult, ActionPlaceholder } from '../../../common/interfaces/area.type';
 import { ActionNamesEnum } from '../../../common/interfaces/action-names.enum';
 
 /**
@@ -42,7 +42,7 @@ export class GmailNewMailService implements PollingAction {
   }
 
   /** Start polling loop for a user. */
-  start(userId: string, emit: (result: number) => void): void {
+  start(userId: string, emit: (result: ActionResult) => void): void {
     this.startPolling(userId, emit);
   }
 
@@ -53,12 +53,10 @@ export class GmailNewMailService implements PollingAction {
 
   /**
    * Core check to determine if a newer email has arrived.
-   * Result codes:
-   *  - 0: New email detected (internalDate strictly greater than cached)
-   *  - 1: No change (includes first baseline population & empty mailbox)
-   *  - -1: Gmail provider not linked
+   * @param userId - The user identifier.
+   * @returns A promise resolving to an ActionResult with code and email data.
    */
-  async hasNewGmailEmail(userId: string): Promise<number> {
+  async hasNewGmailEmail(userId: string): Promise<ActionResult> {
     const cacheKey = `gmail:last_email_internal_date:${userId}`;
     const cacheIdKey = `gmail:last_email_id:${userId}`;
     const scopeMode = (process.env.GMAIL_SCOPE_MODE || 'INBOX').toUpperCase(); // INBOX | ALL
@@ -67,7 +65,7 @@ export class GmailNewMailService implements PollingAction {
     const linked = await this.usersService.findLinkedAccount(userId, ProviderKeyEnum.Google);
     if (!linked) {
       this.logger.debug(`[Gmail] Provider not linked for user=${userId}`);
-      return -1;
+      return { code: -1 };
     }
 
     // List most recent message (INBOX by default). We rely on recency order.
@@ -93,13 +91,13 @@ export class GmailNewMailService implements PollingAction {
     } catch (err: any) {
       const status = err?.response?.status;
       this.logger.error(`[Gmail] List API error user=${userId} status=${status} msg=${err?.message}`);
-      return 1; // treat as no change to avoid spamming reaction on transient error
+      return { code: 1 }; // treat as no change to avoid spamming reaction on transient error
     }
 
     let messages = listRes.data.messages || [];
     this.logger.debug(`[Gmail] Messages fetched count=${messages.length} user=${userId}`);
 
-    // Fallback only if INBOX mode
+    // Fallback only if INBOX mode - still keep INBOX filter to avoid sent emails
     if (messages.length === 0 && scopeMode !== 'ALL') {
       try {
         const profile = await this.authService.oAuth2ApiRequest<{ emailAddress?: string; messagesTotal?: number; threadsTotal?: number }>(
@@ -114,10 +112,10 @@ export class GmailNewMailService implements PollingAction {
           }>(ProviderKeyEnum.Google, userId, {
             method: 'GET',
             url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages',
-            params: { maxResults: 1 },
+            params: { maxResults: 1, labelIds: 'INBOX' },
           });
           messages = retry.data.messages || [];
-          this.logger.debug(`[Gmail] Retry list without labelIds count=${messages.length} user=${userId}`);
+          this.logger.debug(`[Gmail] Retry list with INBOX labelId count=${messages.length} user=${userId}`);
         }
       } catch (e: any) {
         this.logger.warn(`[Gmail] Profile or retry failed user=${userId} msg=${e?.message}`);
@@ -133,37 +131,46 @@ export class GmailNewMailService implements PollingAction {
       } else {
         this.logger.debug(`[Gmail] Inbox empty baseline set (was=${cachedBefore ?? 'none'}) user=${userId}`);
       }
-      return 1;
+      return { code: 1 };
     }
 
     const latestId = messages[0].id;
     if (!latestId) {
       this.logger.debug(`[Gmail] Latest item missing id user=${userId}`);
-      return 1;
+      return { code: 1 };
     }
 
-    // Fetch metadata to get internalDate (millisecond epoch as string)
+    // Fetch full message to get internalDate, headers, snippet, and body
     let msgRes;
     try {
-      msgRes = await this.authService.oAuth2ApiRequest<{ internalDate?: string }>(
+      msgRes = await this.authService.oAuth2ApiRequest<{
+        internalDate?: string;
+        payload?: {
+          headers?: Array<{ name: string; value: string }>;
+          mimeType?: string;
+          body?: { data?: string; size?: number };
+          parts?: Array<{ mimeType?: string; body?: { data?: string; size?: number } }>;
+        };
+        snippet?: string;
+      }>(
         ProviderKeyEnum.Google,
         userId,
         {
           method: 'GET',
           url: `https://gmail.googleapis.com/gmail/v1/users/me/messages/${latestId}`,
-          params: { format: 'metadata' },
+          params: { format: 'full' },
         },
       );
     } catch (err: any) {
       const status = err?.response?.status;
-      this.logger.error(`[Gmail] Message metadata error user=${userId} id=${latestId} status=${status} msg=${err?.message}`);
-      return 1;
+      this.logger.error(`[Gmail] Message fetch error user=${userId} id=${latestId} status=${status} msg=${err?.message}`);
+      return { code: 1 };
     }
 
     const internalDate = msgRes.data.internalDate; // e.g. '1730388012345'
     if (!internalDate) {
       this.logger.debug(`[Gmail] Missing internalDate for messageId=${latestId} user=${userId}`);
-      return 1;
+      return { code: 1 };
     }
 
     const cached = cachedBefore; // already fetched earlier
@@ -174,7 +181,7 @@ export class GmailNewMailService implements PollingAction {
       await this.redisService.setValue(cacheKey, internalDate);
       await this.redisService.setValue(cacheIdKey, latestId);
       this.logger.debug(`[Gmail] Baseline initialized id=${latestId} internalDate=${internalDate} user=${userId}`);
-      return 1;
+      return { code: 1 };
     }
 
     // Determine if we should trigger:
@@ -187,7 +194,56 @@ export class GmailNewMailService implements PollingAction {
       await this.redisService.setValue(cacheKey, internalDate);
       await this.redisService.setValue(cacheIdKey, latestId);
       this.logger.log(`[Gmail] New email detected user=${userId} messageId=${latestId} internalDate=${internalDate} prevDate=${cached} prevId=${cachedId}`);
-      return 0;
+
+      // Extract headers
+      const headers = msgRes.data.payload?.headers || [];
+      const getHeader = (name: string): string => {
+        const header = headers.find(h => h.name.toLowerCase() === name.toLowerCase());
+        return header?.value || '';
+      };
+
+      // Extract body content
+      const extractBody = (): string => {
+        const payload = msgRes.data.payload;
+        if (!payload) return '';
+
+        // Try direct body first (for simple text messages)
+        if (payload.body?.data) {
+          try {
+            return Buffer.from(payload.body.data, 'base64').toString('utf-8');
+          } catch (e) {
+            this.logger.warn(`[Gmail] Failed to decode body data for messageId=${latestId}`);
+          }
+        }
+
+        // Try parts (for multipart messages)
+        if (payload.parts && payload.parts.length > 0) {
+          // Look for text/plain first, then text/html
+          const textPart = payload.parts.find(p => p.mimeType === 'text/plain') ||
+                          payload.parts.find(p => p.mimeType === 'text/html');
+          if (textPart?.body?.data) {
+            try {
+              return Buffer.from(textPart.body.data, 'base64').toString('utf-8');
+            } catch (e) {
+              this.logger.warn(`[Gmail] Failed to decode part body data for messageId=${latestId}`);
+            }
+          }
+        }
+
+        return '';
+      };
+
+      const emailData = {
+        GMAIL_NEW_EMAIL_ID: latestId,
+        GMAIL_NEW_EMAIL_INTERNAL_DATE: internalDate,
+        GMAIL_NEW_EMAIL_FROM: getHeader('From'),
+        GMAIL_NEW_EMAIL_TO: getHeader('To'),
+        GMAIL_NEW_EMAIL_SUBJECT: getHeader('Subject'),
+        GMAIL_NEW_EMAIL_SNIPPET: msgRes.data.snippet || '',
+        GMAIL_NEW_EMAIL_BODY: extractBody(),
+      };
+
+      return { code: 0, data: emailData };
     }
 
     // Only store id if missing (do not treat id-only change with same timestamp as new mail)
@@ -196,17 +252,17 @@ export class GmailNewMailService implements PollingAction {
     }
 
     this.logger.debug(`[Gmail] No newer email (timestamp unchanged) user=${userId}`);
-    return 1;
+    return { code: 1 };
   }
 
   /** Internal: start interval polling. */
-  private startPolling(userId: string, callback: (result: number) => void): void {
+  private startPolling(userId: string, callback: (result: ActionResult) => void): void {
     if (this.pollIntervals.has(userId)) return;
 
     const interval = setInterval(async () => {
       try {
         const result = await this.hasNewGmailEmail(userId);
-        this.logger.debug(`[Gmail] Poll result user=${userId} code=${result}`);
+        this.logger.debug(`[Gmail] Poll result user=${userId} code=${result.code}`);
         callback(result);
       } catch (err: any) {
         this.logger.error(`[Gmail] Poll error for user=${userId}: ${err?.message ?? err}`);
@@ -223,5 +279,48 @@ export class GmailNewMailService implements PollingAction {
       clearInterval(interval);
       this.pollIntervals.delete(userId);
     }
+  }
+
+  /**
+   * Returns the list of placeholders available for this action.
+   */
+  getPlaceholders(): ActionPlaceholder[] {
+    return [
+      {
+        key: 'GMAIL_NEW_EMAIL_ID',
+        description: 'The ID of the new email',
+        example: '18d4f2b1a2c3d4e5',
+      },
+      {
+        key: 'GMAIL_NEW_EMAIL_INTERNAL_DATE',
+        description: 'The internal date of the email (milliseconds since epoch)',
+        example: '1730388012345',
+      },
+      {
+        key: 'GMAIL_NEW_EMAIL_FROM',
+        description: 'The sender email address (From header)',
+        example: 'sender@example.com',
+      },
+      {
+        key: 'GMAIL_NEW_EMAIL_TO',
+        description: 'The recipient email address (To header)',
+        example: 'recipient@example.com',
+      },
+      {
+        key: 'GMAIL_NEW_EMAIL_SUBJECT',
+        description: 'The subject of the email',
+        example: 'Important notification',
+      },
+      {
+        key: 'GMAIL_NEW_EMAIL_SNIPPET',
+        description: 'A short snippet/preview of the email content',
+        example: 'This is a preview of the email content...',
+      },
+      {
+        key: 'GMAIL_NEW_EMAIL_BODY',
+        description: 'The full body content of the email (text/plain or text/html)',
+        example: 'Full email body content here...',
+      },
+    ];
   }
 }

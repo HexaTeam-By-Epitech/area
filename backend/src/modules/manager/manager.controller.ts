@@ -28,30 +28,43 @@ export class ManagerController {
   ) { }
 
   /**
-   * Get available actions
-   * @returns List of registered action metadata (name and description only)
+   * Get available actions grouped by provider
+   * @param authenticatedUserId - Authenticated user from JWT
+   * @returns List of providers with their actions and link status
    */
   @Get('actions')
-  @ApiOperation({ summary: 'Get available actions' })
-  getAvailableActions() {
-    return this.managerService.getAvailableActions().map(action => ({
-      name: action.name,
-      description: action.description
-    }));
+  @ApiOperation({ summary: 'Get available actions grouped by provider' })
+  async getAvailableActions(@GetUser('sub') authenticatedUserId: string) {
+    return await this.managerService.getAvailableActionsGrouped(authenticatedUserId);
   }
 
   /**
-   * Get available reactions
-   * @returns List of registered reaction metadata (name, description, and configSchema)
+   * Get available reactions grouped by provider
+   * @param authenticatedUserId - Authenticated user from JWT
+   * @returns List of providers with their reactions and link status
    */
   @Get('reactions')
-  @ApiOperation({ summary: 'Get available reactions' })
-  getAvailableReactions() {
-    return this.managerService.getAvailableReactions().map(reaction => ({
-      name: reaction.name,
-      description: reaction.description,
-      configSchema: reaction.configSchema || []
-    }));
+  @ApiOperation({ summary: 'Get available reactions grouped by provider' })
+  async getAvailableReactions(@GetUser('sub') authenticatedUserId: string) {
+    return await this.managerService.getAvailableReactionsGrouped(authenticatedUserId);
+  }
+
+  /**
+   * Get available placeholders for a specific action
+   * @param actionName - Name of the action
+   * @returns List of placeholders available for the action
+   */
+  @Get('actions/:actionName/placeholders')
+  @ApiParam({ name: 'actionName', description: 'Name of the action' })
+  @ApiOperation({ summary: 'Get available placeholders for an action' })
+  @ApiResponse({ status: 200, description: 'List of placeholders' })
+  @ApiResponse({ status: 404, description: 'Action not found' })
+  getActionPlaceholders(@Param('actionName') actionName: string) {
+    const placeholders = this.managerService.getActionPlaceholders(actionName);
+    if (!placeholders || placeholders.length === 0) {
+      throw new BadRequestException(`No placeholders available for action '${actionName}'`);
+    }
+    return placeholders;
   }
 
   /**
