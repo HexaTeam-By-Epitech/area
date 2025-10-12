@@ -5,6 +5,7 @@ import { ActionPollingService } from './polling/action-polling.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { GmailSendService } from '../reactions/gmail/send.service';
+import { DiscordSendService } from '../reactions/discord/send.service';
 import { GmailNewMailService } from '../actions/gmail/new-mail.service';
 import { PlaceholderReplacementService } from '../../common/services/placeholder-replacement.service';
 import type { ActionCallback, ReactionCallback, AreaExecution } from '../../common/interfaces/area.type';
@@ -31,6 +32,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
     private readonly reactionProviders: Record<string, string> = {
         [ReactionNamesEnum.SEND_EMAIL]: 'google',
         [ReactionNamesEnum.LOG_EVENT]: 'default',
+        [ReactionNamesEnum.DISCORD_SEND_MESSAGE]: 'discord',
     };
 
     constructor(
@@ -40,6 +42,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         private readonly redisService: RedisService,
         private readonly polling: ActionPollingService,
         private readonly gmailSendService: GmailSendService,
+        private readonly discordSendService: DiscordSendService,
         private readonly gmailNewMailService: GmailNewMailService,
         private readonly placeholderService: PlaceholderReplacementService,
     ) {}
@@ -163,6 +166,31 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                 return { logged: true };
             },
             description: 'Log event to database'
+        });
+
+        // Discord send message reaction
+        this.reactionCallbacks.set(ReactionNamesEnum.DISCORD_SEND_MESSAGE, {
+            name: ReactionNamesEnum.DISCORD_SEND_MESSAGE,
+            callback: async (userId: string, actionResult: any, config: { channelId: string; message: string }) => {
+                return await this.discordSendService.run(userId, config);
+            },
+            description: 'Send a message to a Discord channel',
+            configSchema: [
+                {
+                    name: 'channelId',
+                    type: 'string',
+                    required: true,
+                    label: 'Discord Channel ID',
+                    placeholder: '123456789012345678'
+                },
+                {
+                    name: 'message',
+                    type: 'string',
+                    required: true,
+                    label: 'Message content',
+                    placeholder: 'Hello, this is a test message!'
+                }
+            ]
         });
 
         this.logger.log(`Registered ${this.reactionCallbacks.size} reaction callbacks`);
