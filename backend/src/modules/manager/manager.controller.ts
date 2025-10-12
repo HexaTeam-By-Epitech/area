@@ -7,12 +7,22 @@ import { GetUser } from '../../common/decorators/get-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 
 class BindActionDto {
-  @ApiProperty({ description: 'Name of the action to bind', example: 'new_email' })
+  @ApiProperty({ description: 'Name of the action to bind', example: 'discord_new_message' })
   actionName: string;
   @ApiProperty({ description: 'Name of the reaction to bind', example: 'send_email' })
   reactionName: string;
-  @ApiProperty({ description: 'Configuration for the reaction', example: { to: 'user@example.com', subject: 'New Email', body: 'You have a new email!' } })
-  config: {};
+  @ApiProperty({
+    description: 'Configuration for the action',
+    example: { channelId: '123456789012345678' },
+    required: false
+  })
+  actionConfig?: {};
+  @ApiProperty({
+    description: 'Configuration for the reaction',
+    example: { to: 'user@example.com', subject: 'New Email', body: 'You have a new email!' },
+    required: false
+  })
+  reactionConfig?: {};
 }
 
 /**
@@ -84,7 +94,8 @@ export class ManagerController {
       authenticatedUserId,
       bindActionDto.actionName,
       bindActionDto.reactionName,
-      bindActionDto.config
+      bindActionDto.actionConfig,
+      bindActionDto.reactionConfig
     );
     return {
       message: 'Area created successfully',
@@ -92,7 +103,10 @@ export class ManagerController {
       userId: authenticatedUserId,
       action: bindActionDto.actionName,
       reaction: bindActionDto.reactionName,
-      config: bindActionDto.config
+      config: {
+        actionConfig: bindActionDto.actionConfig,
+        reactionConfig: bindActionDto.reactionConfig
+      }
     };
   }
 

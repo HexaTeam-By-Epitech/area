@@ -8,6 +8,9 @@ export enum ActionNamesEnum {
 
   /** Gmail action: Detects new incoming emails in inbox */
   GMAIL_NEW_EMAIL = 'gmail_new_email',
+
+  /** Discord action: Detects new messages in associated servers */
+  DISCORD_NEW_MESSAGE = 'discord_new_message',
 }
 
 /**

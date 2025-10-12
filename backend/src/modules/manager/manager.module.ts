@@ -5,6 +5,7 @@ import { ManagerService } from './manager.service';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { RedisModule } from '../redis/redis.module';
 import { SpotifyLikeService } from '../actions/spotify/like.service';
+import { DiscordMessageService } from '../actions/discord/message.service';
 import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
 import { ActionPollingService } from './polling/action-polling.service';
@@ -28,7 +29,7 @@ import { PlaceholderReplacementService } from '../../common/services/placeholder
     AuthModule,
   ],
   controllers: [ManagerController],
-  providers: [ManagerService, SpotifyLikeService, ActionPollingService, GmailSendService, GmailNewMailService, PlaceholderReplacementService],
+  providers: [ManagerService, SpotifyLikeService, DiscordMessageService, ActionPollingService, GmailSendService, GmailNewMailService, PlaceholderReplacementService],
   exports: [ManagerService],
 })
 export class ManagerModule {}

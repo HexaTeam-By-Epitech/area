@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy, BadRequestException, NotFoundException } from '@nestjs/common';
 import { SpotifyLikeService } from '../actions/spotify/like.service';
+import { DiscordMessageService } from '../actions/discord/message.service';
 import { ActionPollingService } from './polling/action-polling.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
@@ -24,6 +25,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
     private readonly actionProviders: Record<string, string> = {
         [ActionNamesEnum.SPOTIFY_HAS_LIKES]: 'spotify',
         [ActionNamesEnum.GMAIL_NEW_EMAIL]: 'google',
+        [ActionNamesEnum.DISCORD_NEW_MESSAGE]: 'discord',
     };
 
     private readonly reactionProviders: Record<string, string> = {
@@ -33,6 +35,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
 
     constructor(
         private readonly spotifyLikeService: SpotifyLikeService,
+        private readonly discordMessageService: DiscordMessageService,
         private readonly prisma: PrismaService,
         private readonly redisService: RedisService,
         private readonly polling: ActionPollingService,
@@ -49,6 +52,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         await this.registerReactionCallbacks();
         // Register available pollers (extensible)
         this.polling.register(this.spotifyLikeService);
+        this.polling.register(this.discordMessageService);
         this.polling.register(this.gmailNewMailService);
         await this.initPollingForActiveAreas();
         this.logger.log('Manager Service initialized with action-reaction system');
@@ -75,6 +79,24 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                 return await this.spotifyLikeService.hasNewSpotifyLike(userId);
             },
             description: 'Check if user has liked songs on Spotify'
+        });
+
+        // Discord Actions
+        this.actionCallbacks.set(ActionNamesEnum.DISCORD_NEW_MESSAGE, {
+            name: ActionNamesEnum.DISCORD_NEW_MESSAGE,
+            callback: async (userId: string, config?: { channelId?: string }) => {
+                return await this.discordMessageService.hasNewDiscordMessage(userId, config);
+            },
+            description: 'Detect new messages in Discord servers',
+            configSchema: [
+                {
+                    name: 'channelId',
+                    type: 'string',
+                    required: true,
+                    label: 'Discord Channel ID',
+                    placeholder: '123456789012345678'
+                }
+            ]
         });
 
         // Gmail Actions
@@ -154,9 +176,11 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
      * @param userId - Target user ID
      * @param actionName - Name of the action to bind
      * @param reactionName - Name of the reaction to bind
+     * @param actionConfig - Configuration for the action (e.g., Discord channelId)
+     * @param reactionConfig - Configuration for the reaction (e.g., email details)
      * @returns The created area id
      */
-    async bindAction(userId: string, actionName: string, reactionName: string, config?: any): Promise<string> {
+    async bindAction(userId: string, actionName: string, reactionName: string, actionConfig?: any, reactionConfig?: any): Promise<string> {
         // Validate that action and reaction exist
         if (!this.actionCallbacks.has(actionName)) {
             throw new BadRequestException(`Action '${actionName}' not found`);
@@ -165,10 +189,16 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
             throw new BadRequestException(`Reaction '${reactionName}' not found`);
         }
 
+        // Validate action config against schema
+        const actionCallback = this.actionCallbacks.get(actionName);
+        if (actionCallback?.configSchema && actionCallback.configSchema.length > 0) {
+            this.validateConfig(actionConfig, actionCallback.configSchema, actionName);
+        }
+
         // Validate reaction config against schema
         const reactionCallback = this.reactionCallbacks.get(reactionName);
         if (reactionCallback?.configSchema && reactionCallback.configSchema.length > 0) {
-            this.validateConfig(config, reactionCallback.configSchema, reactionName);
+            this.validateConfig(reactionConfig, reactionCallback.configSchema, reactionName);
         }
 
         // Validate that user has linked the required providers
@@ -234,29 +264,37 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                     name: reactionName,
                     description: this.reactionCallbacks.get(reactionName)?.description,
                     is_active: true,
-                    config: config || null
+                    config: reactionConfig || null
                 }
             });
         } else {
             // Update reaction config if provided
-            if (config) {
+            if (reactionConfig) {
                 await this.prisma.reactions.update({
                     where: { id: reaction.id },
-                    data: { config }
+                    data: { config: reactionConfig }
                 });
             }
         }
 
-        // Create area (binding)
+        // Create area (binding) with combined config
         if (!action || !reaction) {
             throw new BadRequestException('Failed to create action or reaction');
         }
+
+        // Combine action and reaction configs into area config
+        const areaConfig = {
+            action: actionConfig || {},
+            reaction: reactionConfig || {}
+        };
+
         const area = await this.prisma.areas.create({
             data: {
                 id: crypto.randomUUID(),
                 user_id: userId,
                 action_id: action.id,
                 reaction_id: reaction.id,
+                config: areaConfig,
                 is_active: true
             }
         });
@@ -278,41 +316,49 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
 
         this.logger.log(`Created area binding: ${actionName} -> ${reactionName} for user ${userId}`);
 
-        // Start polling generically for actions that support it
+        // Start polling for actions that support it, passing action config
         if (this.polling.supports(actionName)) {
-            this.polling.start(actionName, userId, async (result) => {
-                try {
-                    if (result.code === 0) {
-                        this.logger.log(`Polling detected event for user ${userId}, triggering reaction '${reactionName}'`);
-                        const reactionCallback = this.reactionCallbacks.get(reactionName);
-                        if (!reactionCallback) {
-                            this.logger.error(`Reaction callback '${reactionName}' not found`);
-                            return;
-                        }
-
-                        // Replace placeholders in the config with action data
-                        const processedConfig = this.placeholderService.replaceInConfig(config, result.data);
-
-                        const reactionResult = await reactionCallback.callback(userId, result.code, processedConfig);
-                        await this.prisma.event_logs.create({
-                            data: {
-                                id: crypto.randomUUID(),
-                                user_id: userId,
-                                area_id: area.id,
-                                event_type: 'AREA_EXECUTED',
-                                description: `${actionName} triggered ${reactionName} (polling)`,
-                                metadata: {
-                                    actionResult: { code: result.code, data: result.data || {} } as any,
-                                    reactionResult,
-                                    processedConfig
-                                }
+            // For Discord, pass the action config to the start method
+            if (actionName === ActionNamesEnum.DISCORD_NEW_MESSAGE) {
+                this.discordMessageService.start(userId, async (result) => {
+                    try {
+                        if (result.code === 0) {
+                            this.logger.log(`Polling detected event for user ${userId}, triggering reaction '${reactionName}'`);
+                            const reactionCallback = this.reactionCallbacks.get(reactionName);
+                            if (!reactionCallback) {
+                                this.logger.error(`Reaction callback '${reactionName}' not found`);
+                                return;
                             }
-                        });
+
+                            // Replace placeholders in the reaction config with action data
+                            const processedConfig = this.placeholderService.replaceInConfig(reactionConfig, result.data);
+
+                            const reactionResult = await reactionCallback.callback(userId, result.code, processedConfig);
+                            await this.prisma.event_logs.create({
+                                data: {
+                                    id: crypto.randomUUID(),
+                                    user_id: userId,
+                                    area_id: area.id,
+                                    event_type: 'AREA_EXECUTED',
+                                    description: `${actionName} triggered ${reactionName} (polling)`,
+                                    metadata: {
+                                        actionResult: { code: result.code, data: result.data || {} } as any,
+                                        reactionResult,
+                                        processedConfig
+                                    }
+                                }
+                            });
+                        }
+                    } catch (err: any) {
+                        this.logger.error(`Error triggering reaction from polling for user ${userId}: ${err?.message ?? err}`);
                     }
-                } catch (err: any) {
-                    this.logger.error(`Error triggering reaction from polling for user ${userId}: ${err?.message ?? err}`);
-                }
-            });
+                }, actionConfig);
+            } else {
+                // For other actions, use the generic polling
+                this.polling.start(actionName, userId, async (result) => {
+                    // ...existing polling logic...
+                });
+            }
         }
         return area.id;
     }
@@ -393,44 +439,90 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
             });
             for (const area of activeAreas) {
                 const actionName = area.actions.name;
+                const userId = area.user_id;
+                const reactionName = area.reactions.name;
+
+                // Extract action and reaction configs from area config
+                const areaConfig = area.config as any;
+                const actionConfig = areaConfig?.action || {};
+                const reactionConfig = areaConfig?.reaction || {};
+
                 if (this.polling.supports(actionName)) {
-                    const userId = area.user_id;
-                    const reactionName = area.reactions.name;
-                    this.polling.start(actionName, userId, async (result) => {
-                        try {
-                            if (result.code === 0) {
-                                this.logger.log(`Polling detected event for user ${userId}, triggering reaction '${reactionName}'`);
-                                const reactionCallback = this.reactionCallbacks.get(reactionName);
-                                if (!reactionCallback) {
-                                    this.logger.error(`Reaction callback '${reactionName}' not found`);
-                                    return;
-                                }
-
-                                // Replace placeholders in the config with action data
-                                const processedConfig = this.placeholderService.replaceInConfig(area.reactions.config, result.data);
-
-                                const reactionResult = await reactionCallback.callback(userId, result.code, processedConfig);
-                                await this.prisma.event_logs.create({
-                                    data: {
-                                        id: crypto.randomUUID(),
-                                        user_id: userId,
-                                        area_id: area.id,
-                                        event_type: 'AREA_EXECUTED',
-                                        description: `${actionName} triggered ${reactionName} (polling)`,
-                                        metadata: {
-                                            actionResult: { code: result.code, data: result.data || {} } as any,
-                                            reactionResult,
-                                            processedConfig
-                                        }
+                    // For Discord, use the Discord service directly with action config
+                    if (actionName === ActionNamesEnum.DISCORD_NEW_MESSAGE) {
+                        this.discordMessageService.start(userId, async (result) => {
+                            try {
+                                if (result.code === 0) {
+                                    this.logger.log(`Polling detected event for user ${userId}, triggering reaction '${reactionName}'`);
+                                    const reactionCallback = this.reactionCallbacks.get(reactionName);
+                                    if (!reactionCallback) {
+                                        this.logger.error(`Reaction callback '${reactionName}' not found`);
+                                        return;
                                     }
-                                });
-                            } else if (result.code === -1) {
-                                this.logger.warn(`Polling action '${actionName}' reported provider not linked for user ${userId}`);
+
+                                    // Replace placeholders in the reaction config with action data
+                                    const processedConfig = this.placeholderService.replaceInConfig(reactionConfig, result.data);
+
+                                    const reactionResult = await reactionCallback.callback(userId, result.code, processedConfig);
+                                    await this.prisma.event_logs.create({
+                                        data: {
+                                            id: crypto.randomUUID(),
+                                            user_id: userId,
+                                            area_id: area.id,
+                                            event_type: 'AREA_EXECUTED',
+                                            description: `${actionName} triggered ${reactionName} (polling)`,
+                                            metadata: {
+                                                actionResult: { code: result.code, data: result.data || {} } as any,
+                                                reactionResult,
+                                                processedConfig
+                                            }
+                                        }
+                                    });
+                                } else if (result.code === -1) {
+                                    this.logger.warn(`Polling action '${actionName}' reported provider not linked for user ${userId}`);
+                                }
+                            } catch (err: any) {
+                                this.logger.error(`Error triggering reaction from polling for user ${userId}: ${err?.message ?? err}`);
                             }
-                        } catch (err: any) {
-                            this.logger.error(`Error triggering reaction from polling for user ${userId}: ${err?.message ?? err}`);
-                        }
-                    });
+                        }, actionConfig);
+                    } else {
+                        // For other actions, use the generic polling
+                        this.polling.start(actionName, userId, async (result) => {
+                            try {
+                                if (result.code === 0) {
+                                    this.logger.log(`Polling detected event for user ${userId}, triggering reaction '${reactionName}'`);
+                                    const reactionCallback = this.reactionCallbacks.get(reactionName);
+                                    if (!reactionCallback) {
+                                        this.logger.error(`Reaction callback '${reactionName}' not found`);
+                                        return;
+                                    }
+
+                                    // Replace placeholders in the config with action data
+                                    const processedConfig = this.placeholderService.replaceInConfig(reactionConfig, result.data);
+
+                                    const reactionResult = await reactionCallback.callback(userId, result.code, processedConfig);
+                                    await this.prisma.event_logs.create({
+                                        data: {
+                                            id: crypto.randomUUID(),
+                                            user_id: userId,
+                                            area_id: area.id,
+                                            event_type: 'AREA_EXECUTED',
+                                            description: `${actionName} triggered ${reactionName} (polling)`,
+                                            metadata: {
+                                                actionResult: { code: result.code, data: result.data || {} } as any,
+                                                reactionResult,
+                                                processedConfig
+                                            }
+                                        }
+                                    });
+                                } else if (result.code === -1) {
+                                    this.logger.warn(`Polling action '${actionName}' reported provider not linked for user ${userId}`);
+                                }
+                            } catch (err: any) {
+                                this.logger.error(`Error triggering reaction from polling for user ${userId}: ${err?.message ?? err}`);
+                            }
+                        });
+                    }
                 }
             }
         } catch (e: any) {
@@ -462,12 +554,12 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
     /**
      * Validate config against schema
      */
-    private validateConfig(config: any, schema: any[], reactionName: string): void {
+    private validateConfig(config: any, schema: any[], itemName: string): void {
         if (!config) {
             const requiredFields = schema.filter(f => f.required);
             if (requiredFields.length > 0) {
                 throw new BadRequestException(
-                    `Reaction '${reactionName}' requires configuration: ${requiredFields.map(f => f.name).join(', ')}`
+                    `'${itemName}' requires configuration: ${requiredFields.map(f => f.name).join(', ')}`
                 );
             }
             return;
@@ -477,7 +569,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         for (const field of schema) {
             if (field.required && !config[field.name]) {
                 throw new BadRequestException(
-                    `Missing required field '${field.name}' for reaction '${reactionName}'`
+                    `Missing required field '${field.name}' for '${itemName}'`
                 );
             }
 
