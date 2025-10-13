@@ -13,6 +13,7 @@ export default function LoginScreen({ navigation }) {
     const [focusInput, setFocusInput] = useState(null);
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
+    const [showVerification, setShowVerification] = useState(false);
     const [verificationCode, setVerificationCode] = useState('');
     const [verifLoading, setVerifLoading] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
