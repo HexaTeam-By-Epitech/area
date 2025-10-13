@@ -4,8 +4,10 @@ import { ManagerService } from '../../src/modules/manager/manager.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { RedisService } from '../../src/modules/redis/redis.service';
 import { SpotifyLikeService } from '../../src/modules/actions/spotify/like.service';
+import { DiscordMessageService } from '../../src/modules/actions/discord/message.service';
 import { GmailNewMailService } from '../../src/modules/actions/gmail/new-mail.service';
 import { GmailSendService } from '../../src/modules/reactions/gmail/send.service';
+import { DiscordSendService } from '../../src/modules/reactions/discord/send.service';
 import { ActionPollingService } from '../../src/modules/manager/polling/action-polling.service';
 import { PlaceholderReplacementService } from '../../src/common/services/placeholder-replacement.service';
 import { ActionNamesEnum, ReactionNamesEnum } from '../../src/common/interfaces/action-names.enum';
@@ -75,6 +77,18 @@ describe('ManagerService', () => {
     run: jest.fn(),
   };
 
+  const mockDiscordSendService = {
+    run: jest.fn(),
+  };
+
+  const mockDiscordMessageService = {
+    supports: jest.fn(),
+    start: jest.fn(),
+    stop: jest.fn(),
+    hasNewDiscordMessage: jest.fn(),
+    getPlaceholders: jest.fn(),
+  };
+
   const mockActionPollingService = {
     register: jest.fn(),
     supports: jest.fn(),
@@ -96,8 +110,10 @@ describe('ManagerService', () => {
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: RedisService, useValue: mockRedisService },
         { provide: SpotifyLikeService, useValue: mockSpotifyLikeService },
+        { provide: DiscordMessageService, useValue: mockDiscordMessageService },
         { provide: GmailNewMailService, useValue: mockGmailNewMailService },
         { provide: GmailSendService, useValue: mockGmailSendService },
+        { provide: DiscordSendService, useValue: mockDiscordSendService },
         { provide: ActionPollingService, useValue: mockActionPollingService },
         { provide: PlaceholderReplacementService, useValue: mockPlaceholderService },
       ],
@@ -171,7 +187,7 @@ describe('ManagerService', () => {
       });
 
       await expect(
-        service.bindAction(userId, actionName, reactionName, validConfig),
+        service.bindAction(userId, actionName, reactionName, {}, validConfig),
       ).rejects.toThrow('You must link your google account before using this action or reaction');
     });
 
@@ -246,7 +262,7 @@ describe('ManagerService', () => {
     it('should return actions grouped by provider with link status', async () => {
       const userId = 'user-123';
 
-      // Mock: User has linked Spotify but not Google
+      // Mock: User has linked Spotify but not Google or Discord
       mockPrismaService.linked_accounts.findMany.mockResolvedValue([
         {
           oauth_providers: { name: 'spotify' },
@@ -263,17 +279,21 @@ describe('ManagerService', () => {
           name: ActionNamesEnum.GMAIL_NEW_EMAIL,
           services: { name: 'google' },
         },
+        {
+          name: ActionNamesEnum.DISCORD_NEW_MESSAGE,
+          services: { name: 'discord' },
+        },
       ]);
 
       const result = await service.getAvailableActionsGrouped(userId);
 
       expect(result).toEqual({
-        spotify: {
-          isLinked: true,
+        discord: {
+          isLinked: false,
           items: [
             {
-              name: ActionNamesEnum.SPOTIFY_HAS_LIKES,
-              description: 'Check if user has liked songs on Spotify',
+              name: ActionNamesEnum.DISCORD_NEW_MESSAGE,
+              description: 'Detect new messages in Discord servers',
             },
           ],
         },
@@ -283,6 +303,15 @@ describe('ManagerService', () => {
             {
               name: ActionNamesEnum.GMAIL_NEW_EMAIL,
               description: 'Detect new incoming email in Gmail inbox',
+            },
+          ],
+        },
+        spotify: {
+          isLinked: true,
+          items: [
+            {
+              name: ActionNamesEnum.SPOTIFY_HAS_LIKES,
+              description: 'Check if user has liked songs on Spotify',
             },
           ],
         },
@@ -306,7 +335,7 @@ describe('ManagerService', () => {
     it('should return reactions grouped by provider with link status', async () => {
       const userId = 'user-123';
 
-      // Mock: User has linked Google
+      // Mock: User has linked Google but not Discord
       mockPrismaService.linked_accounts.findMany.mockResolvedValue([
         {
           oauth_providers: { name: 'google' },
@@ -323,21 +352,15 @@ describe('ManagerService', () => {
           name: ReactionNamesEnum.LOG_EVENT,
           services: { name: 'default' },
         },
+        {
+          name: ReactionNamesEnum.DISCORD_SEND_MESSAGE,
+          services: { name: 'discord' },
+        },
       ]);
 
       const result = await service.getAvailableReactionsGrouped(userId);
 
       expect(result).toEqual({
-        google: {
-          isLinked: true,
-          items: [
-            {
-              name: ReactionNamesEnum.SEND_EMAIL,
-              description: 'Send email notification',
-              configSchema: expect.any(Array),
-            },
-          ],
-        },
         default: {
           isLinked: true,
           items: [
@@ -345,6 +368,26 @@ describe('ManagerService', () => {
               name: ReactionNamesEnum.LOG_EVENT,
               description: 'Log event to database',
               configSchema: [],
+            },
+          ],
+        },
+        discord: {
+          isLinked: false,
+          items: [
+            {
+              name: ReactionNamesEnum.DISCORD_SEND_MESSAGE,
+              description: 'Send a message to a Discord channel',
+              configSchema: expect.any(Array),
+            },
+          ],
+        },
+        google: {
+          isLinked: true,
+          items: [
+            {
+              name: ReactionNamesEnum.SEND_EMAIL,
+              description: 'Send email notification',
+              configSchema: expect.any(Array),
             },
           ],
         },

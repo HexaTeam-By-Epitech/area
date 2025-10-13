@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { DiscordSendService, DiscordSendConfig } from './send.service';
-import { PrismaService } from '../../../prisma/prisma.service';
+import { DiscordSendService, DiscordSendConfig } from '../../../src/modules/reactions/discord/send.service';
+import { DiscordBotService } from '../../../src/modules/discord-bot/discord-bot.service';
 import { Logger } from '@nestjs/common';
 
 // Mock fetch globalement
@@ -8,15 +8,11 @@ global.fetch = jest.fn();
 
 describe('DiscordSendService', () => {
   let service: DiscordSendService;
-  let prismaService: PrismaService;
+  let discordBotService: DiscordBotService;
 
-  const mockPrismaService = {
-    oauth_providers: {
-      findFirst: jest.fn(),
-    },
-    linked_accounts: {
-      findFirst: jest.fn(),
-    },
+  const mockDiscordBotService = {
+    isReady: jest.fn(),
+    sendMessage: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -24,14 +20,14 @@ describe('DiscordSendService', () => {
       providers: [
         DiscordSendService,
         {
-          provide: PrismaService,
-          useValue: mockPrismaService,
+          provide: DiscordBotService,
+          useValue: mockDiscordBotService,
         },
       ],
     }).compile();
 
     service = module.get<DiscordSendService>(DiscordSendService);
-    prismaService = module.get<PrismaService>(PrismaService);
+    discordBotService = module.get<DiscordBotService>(DiscordBotService);
 
     // Clear all mocks
     jest.clearAllMocks();
@@ -52,31 +48,14 @@ describe('DiscordSendService', () => {
       message: 'Hello from AREA!'
     };
 
-    // Mock Discord provider
-    mockPrismaService.oauth_providers.findFirst.mockResolvedValue({
-      id: 1,
-      name: 'discord',
-    });
+    // Mock Discord bot is ready
+    mockDiscordBotService.isReady.mockReturnValue(true);
 
-    // Mock linked account
-    mockPrismaService.linked_accounts.findFirst.mockResolvedValue({
-      id: 'link-id',
-      user_id: userId,
-      provider_id: 1,
-      access_token: 'test-bot-token',
-      is_active: true,
-      deleted_at: null,
+    // Mock successful message send
+    mockDiscordBotService.sendMessage.mockResolvedValue({
+      id: 'message-id-123',
+      content: config.message,
     });
-
-    // Mock successful Discord API response
-    const mockResponse = {
-      ok: true,
-      json: jest.fn().mockResolvedValue({
-        id: 'message-id-123',
-        content: config.message,
-      }),
-    };
-    (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
 
     const result = await service.run(userId, config);
 
@@ -85,83 +64,55 @@ describe('DiscordSendService', () => {
       messageId: 'message-id-123',
     });
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      `https://discord.com/api/v10/channels/${config.channelId}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bot test-bot-token',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: config.message,
-        }),
-      }
+    expect(mockDiscordBotService.isReady).toHaveBeenCalled();
+    expect(mockDiscordBotService.sendMessage).toHaveBeenCalledWith(
+      config.channelId,
+      config.message
     );
   });
 
-  it('should throw error when Discord provider is not found', async () => {
+  it('should throw error when Discord bot is not ready', async () => {
     const userId = 'test-user-id';
     const config: DiscordSendConfig = {
       channelId: '123456789012345678',
       message: 'Hello from AREA!'
     };
 
-    // Mock no Discord provider found
-    mockPrismaService.oauth_providers.findFirst.mockResolvedValue(null);
+    // Mock Discord bot is not ready
+    mockDiscordBotService.isReady.mockReturnValue(false);
 
-    await expect(service.run(userId, config)).rejects.toThrow('Discord provider not configured');
+    await expect(service.run(userId, config)).rejects.toThrow('Discord bot not available');
   });
 
-  it('should throw error when user has no Discord account linked', async () => {
+  it('should throw error when sending message fails', async () => {
     const userId = 'test-user-id';
     const config: DiscordSendConfig = {
       channelId: '123456789012345678',
       message: 'Hello from AREA!'
     };
 
-    // Mock Discord provider exists
-    mockPrismaService.oauth_providers.findFirst.mockResolvedValue({
-      id: 1,
-      name: 'discord',
-    });
+    // Mock Discord bot is ready
+    mockDiscordBotService.isReady.mockReturnValue(true);
 
-    // Mock no linked account
-    mockPrismaService.linked_accounts.findFirst.mockResolvedValue(null);
+    // Mock message send returns null (failure)
+    mockDiscordBotService.sendMessage.mockResolvedValue(null);
 
-    await expect(service.run(userId, config)).rejects.toThrow('Discord not linked for this user');
+    await expect(service.run(userId, config)).rejects.toThrow('Failed to send message via Discord bot');
   });
 
-  it('should throw error when Discord API returns error', async () => {
+  it('should throw error when Discord bot throws an error', async () => {
     const userId = 'test-user-id';
     const config: DiscordSendConfig = {
       channelId: '123456789012345678',
       message: 'Hello from AREA!'
     };
 
-    // Mock Discord provider and linked account
-    mockPrismaService.oauth_providers.findFirst.mockResolvedValue({
-      id: 1,
-      name: 'discord',
-    });
+    // Mock Discord bot is ready
+    mockDiscordBotService.isReady.mockReturnValue(true);
 
-    mockPrismaService.linked_accounts.findFirst.mockResolvedValue({
-      id: 'link-id',
-      user_id: userId,
-      provider_id: 1,
-      access_token: 'test-bot-token',
-      is_active: true,
-      deleted_at: null,
-    });
+    // Mock Discord bot throws error
+    mockDiscordBotService.sendMessage.mockRejectedValue(new Error('Channel not found'));
 
-    // Mock Discord API error response
-    const mockResponse = {
-      ok: false,
-      status: 403,
-      text: jest.fn().mockResolvedValue('Forbidden'),
-    };
-    (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
-
-    await expect(service.run(userId, config)).rejects.toThrow('Failed to send Discord message: 403');
+    await expect(service.run(userId, config)).rejects.toThrow();
   });
 });
