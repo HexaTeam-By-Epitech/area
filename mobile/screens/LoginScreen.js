@@ -168,13 +168,27 @@ export default function LoginScreen({ navigation }) {
                 onRequestClose={() => {}}
             >
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
-                    <View style={[styles.card, { width: '85%', padding: 24, borderRadius: 16, backgroundColor: styles.cardBgPrimary?.backgroundColor || '#23263a' }]}>
-                        <Text style={[styles.title, { fontSize: 18, marginBottom: 12 }]}>Vérification du compte</Text>
-                        <Text style={[styles.text, { fontSize: 15, marginBottom: 16 }]}>Un code de vérification a été envoyé à votre email. Veuillez entrer le code ci-dessous.</Text>
+                    <View style={[styles.card, {
+                        width: '90%',
+                        padding: 28,
+                        borderRadius: 18,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    }]}>
+                        <Text style={[styles.title, { fontSize: 20, marginBottom: 14, textAlign: 'center' }]}>Account verification</Text>
+                        <Text style={[styles.text, { fontSize: 16, marginBottom: 18, textAlign: 'center' }]}>A verification code has been sent to your email. Please enter the code below.</Text>
                         <TextInput
-                            style={[styles.input, { textAlign: 'center', letterSpacing: 8, fontSize: 22, width: '80%' }]}
-                            placeholder="6-digit code"
-                            placeholderTextColor="#c3c9d5"
+                            style={[styles.input, {
+                                textAlign: 'center',
+                                letterSpacing: 8,
+                                fontSize: 22,
+                                width: '80%',
+                                backgroundColor: '#2d2e2e',
+                                color: '#f1f3f9',
+                                borderRadius: 10,
+                                borderWidth: 2,
+                                marginBottom: 8,
+                            }]}
                             value={verificationCode}
                             onChangeText={setVerificationCode}
                             keyboardType="number-pad"
