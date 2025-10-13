@@ -1,6 +1,6 @@
 // screens/LoginScreen.js
 import React, { useState } from 'react';
-import { View, TextInput, Text, Alert, ActivityIndicator } from 'react-native';
+import { View, TextInput, Text, Alert, ActivityIndicator, Modal } from 'react-native';
 import styles from '../styles';
 import Button from '../components/Button';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +13,10 @@ export default function LoginScreen({ navigation }) {
     const [focusInput, setFocusInput] = useState(null);
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
+    const [verificationCode, setVerificationCode] = useState('');
+    const [verifLoading, setVerifLoading] = useState(false);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [verifError, setVerifError] = useState('');
     const { login } = useAuth();
 
     const handleAuth = async (type) => {
@@ -20,32 +24,13 @@ export default function LoginScreen({ navigation }) {
             Alert.alert('Error', 'Please enter email and password');
             return;
         }
-
         try {
             setLoading(true);
             const response = await apiDirect.post(`/auth/${type}`, { email, password });
-
-            console.log('Response status:', response.status);
-            console.log('Response data:', response.data);
-
             if (type === 'register') {
-                console.log('Checking registration success...');
-                console.log('Status >= 200 && < 300:', response.status >= 200 && response.status < 300);
-                console.log('Has message:', !!response.data.message);
-                console.log('Has userId:', !!response.data.userId);
-
-                if (response.status >= 200 && response.status < 300) {
-                    console.log('Registration successful, navigating to verification...');
-                    Alert.alert('Registration Successful', 'A verification code has been sent to your email.', [
-                        {
-                            text: 'OK',
-                            onPress: () => navigation.navigate('Verification', { email, password })
-                        }
-                    ]);
-                } else {
-                    console.log('Registration failed - unexpected status:', response.status);
-                    Alert.alert('Error', 'Registration failed');
-                }
+                setShowVerification(true);
+                setModalVisible(true);
+                setVerifError('');
             } else {
                 const { accessToken, userId, email: userEmail } = response.data;
                 if (accessToken && userId) {
@@ -55,10 +40,13 @@ export default function LoginScreen({ navigation }) {
                 }
             }
         } catch (err) {
-            console.error('Auth error details:', err);
-            console.error('Error response:', err.response?.data);
-            console.error('Error status:', err.response?.status);
-            Alert.alert('Error', err.response?.data?.message || 'Authentication failed');
+            if (type === 'register') {
+                setShowVerification(true);
+                setModalVisible(true);
+                setVerifError('');
+            } else {
+                Alert.alert('Error', err.response?.data?.message || 'Authentication failed');
+            }
         } finally {
             setLoading(false);
         }
@@ -84,6 +72,38 @@ export default function LoginScreen({ navigation }) {
         } catch (err) {
             setGoogleLoading(false);
             Alert.alert('Error', err.message || 'Failed to initiate Google sign-in');
+        }
+    };
+
+    const handleVerifyCode = async () => {
+        if (!verificationCode || verificationCode.length !== 6) {
+            setVerifError('The code must contain 6 digits.');
+            return;
+        }
+        try {
+            setVerifLoading(true);
+            const payload = { email: email.trim(), verificationCode: verificationCode.trim() };
+            const response = await apiDirect.post('/auth/verify-email', payload, {
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const { accessToken, userId, email: userEmail } = response.data;
+            if (response.data.message === 'Email verified successfully' || (accessToken && userId)) {
+                setShowVerification(false);
+                setVerificationCode('');
+                setModalVisible(false);
+                setVerifError('');
+                if (accessToken && userId) {
+                    await login(userEmail || email, accessToken, userId);
+                } else {
+                    Alert.alert('Success', 'Email verified! You can now log in.');
+                }
+            } else {
+                setVerifError('Invalid response from the server');
+            }
+        } catch (err) {
+            setVerifError(err.response?.data?.message || 'Incorrect or expired code');
+        } finally {
+            setVerifLoading(false);
         }
     };
 
@@ -127,7 +147,6 @@ export default function LoginScreen({ navigation }) {
                     />
                 </>
             )}
-
             <View style={{ width: '100%', marginVertical: 20, alignItems: 'center' }}>
                 <Text style={{ color: '#c3c9d5', marginBottom: 10 }}>or</Text>
                 {googleLoading ? (
@@ -141,6 +160,37 @@ export default function LoginScreen({ navigation }) {
                     />
                 )}
             </View>
+            <Modal
+                visible={modalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => {}}
+            >
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
+                    <View style={[styles.card, { width: '85%', padding: 24, borderRadius: 16, backgroundColor: styles.cardBgPrimary?.backgroundColor || '#23263a' }]}>
+                        <Text style={[styles.title, { fontSize: 18, marginBottom: 12 }]}>Vérification du compte</Text>
+                        <Text style={[styles.text, { fontSize: 15, marginBottom: 16 }]}>Un code de vérification a été envoyé à votre email. Veuillez entrer le code ci-dessous.</Text>
+                        <TextInput
+                            style={[styles.input, { textAlign: 'center', letterSpacing: 8, fontSize: 22, width: '80%' }]}
+                            placeholder="6-digit code"
+                            placeholderTextColor="#c3c9d5"
+                            value={verificationCode}
+                            onChangeText={setVerificationCode}
+                            keyboardType="number-pad"
+                            maxLength={6}
+                            editable={!verifLoading}
+                        />
+                        {verifError ? (
+                            <Text style={{ color: '#d32f2f', marginTop: 8, marginBottom: 4, textAlign: 'center' }}>{verifError}</Text>
+                        ) : null}
+                        {verifLoading ? (
+                            <ActivityIndicator size="large" color="#fff" style={{ marginVertical: 20 }} />
+                        ) : (
+                            <Button title="Vérifier" onPress={handleVerifyCode} style={{ marginTop: 20, width: '80%' }} />
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
