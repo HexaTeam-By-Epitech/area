@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { handleGoogleResponse, googleLoading, googleError, googleSuccess } from '@/utils/googleAuth'
 import useAuthStore from "@/stores/webauth";
 
@@ -46,6 +46,81 @@ const apiError = ref('')
 const successMessage = ref('')
 
 const emailCode = ref('')
+
+
+const CODE_LENGTH = 6
+const codeDigits = ref<string[]>(Array(CODE_LENGTH).fill(''))
+const codeInputs = ref<(HTMLInputElement | null)[]>([])
+const verifyLoading = ref(false)
+
+function setCodeRef(el: HTMLInputElement | null, idx: number) {
+  codeInputs.value[idx] = el
+}
+
+function focusIndex(idx: number) {
+  const el = codeInputs.value[idx]
+  if (el) el.focus()
+}
+
+function updateEmailCode() {
+  emailCode.value = codeDigits.value.join('')
+}
+
+function handleCodeInput(idx: number, e: Event) {
+  const target = e.target as HTMLInputElement
+  let v = (target.value || '').replace(/\D/g, '')
+  if (v.length > 1) v = v.charAt(0)
+  codeDigits.value[idx] = v
+  target.value = v
+  updateEmailCode()
+  if (v && idx < CODE_LENGTH - 1) {
+    focusIndex(idx + 1)
+  }
+}
+
+function handleCodeKeydown(idx: number, e: KeyboardEvent) {
+  const key = e.key
+  if (key === 'Backspace') {
+    if (codeDigits.value[idx]) {
+      // clear current
+      codeDigits.value[idx] = ''
+      updateEmailCode()
+      // allow default to clear input
+    } else if (idx > 0) {
+      // move to previous and clear it
+      e.preventDefault()
+      focusIndex(idx - 1)
+      const prev = codeInputs.value[idx - 1]
+      if (prev) {
+        prev.select()
+      }
+    }
+  } else if (key === 'ArrowLeft' && idx > 0) {
+    e.preventDefault(); focusIndex(idx - 1)
+  } else if (key === 'ArrowRight' && idx < CODE_LENGTH - 1) {
+    e.preventDefault(); focusIndex(idx + 1)
+  } else if (key === 'Enter') {
+    if (emailCode.value.length === CODE_LENGTH && !verifyLoading.value) {
+      handleVerificationCode()
+    }
+  }
+}
+
+function handleCodePaste(e: ClipboardEvent) {
+  const text = e.clipboardData?.getData('text') || ''
+  const digits = text.replace(/\D/g, '').slice(0, CODE_LENGTH).split('')
+  if (!digits.length) return
+  e.preventDefault()
+  for (let i = 0; i < CODE_LENGTH; i++) {
+    codeDigits.value[i] = digits[i] || ''
+    const el = codeInputs.value[i]
+    if (el) el.value = codeDigits.value[i]
+  }
+  updateEmailCode()
+  const nextIdx = Math.min(digits.length, CODE_LENGTH - 1)
+  focusIndex(nextIdx)
+}
+
 
 const validateEmail = () => {
   if (!email.value) { emailError.value = 'Email is required'; return false }
@@ -94,6 +169,8 @@ const handleSubmit = async () => {
 }
 
 const handleVerificationCode = async () => {
+  if (emailCode.value.length !== CODE_LENGTH) return
+  verifyLoading.value = true
   try {
     const res = await fetch('/auth/verify-email', {
       method: 'POST',
@@ -124,6 +201,8 @@ const handleVerificationCode = async () => {
   } catch (e) {
     console.log(`Error while verifying email: ${e}`);
     apiError.value = e instanceof Error ? e.message : 'Verification failed';
+  } finally {
+    verifyLoading.value = false
   }
 }
 
@@ -169,17 +248,31 @@ const handleVerificationCode = async () => {
       <div v-if="apiError" class="api-error">{{ apiError }}</div>
       <div v-if="successMessage" class="success-message">{{ successMessage }}</div>
 
-      <div v-if="successMessage">
-        <form @submit.prevent="handleVerificationCode">
-          <label for="emailcode">Code reçu par mail</label>
-          <input
-              id="emailcode"
-              type="number"
-              placeholder="000000"
-              class="form-group"
-              v-model="emailCode"
-          />
-          <button type="submit">Submit</button>
+      <div v-if="authStore.page === 'waitingcode'">
+        <h2>Verification code</h2>
+        <form @submit.prevent="handleVerificationCode" class="code-container" @paste="handleCodePaste">
+          <div class="code-inputs">
+            <input
+              v-for="(_, i) in CODE_LENGTH"
+              :key="i"
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              maxlength="1"
+              class="code-bit"
+              autocomplete="one-time-code"
+              :value="codeDigits[i]"
+              @input="(e) => handleCodeInput(i, e)"
+              @keydown="(e) => handleCodeKeydown(i, e)"
+              :ref="(el) => setCodeRef(el as HTMLInputElement | null, i)"
+              aria-label="Verification code digit"
+              :autofocus="i === 0"
+              required
+            />
+          </div>
+          <button type="submit" style="width: 100%" :disabled="emailCode.length !== CODE_LENGTH || verifyLoading">
+            {{ verifyLoading ? 'Verifying...' : 'Submit' }}
+          </button>
         </form>
       </div>
 
@@ -231,6 +324,9 @@ const handleVerificationCode = async () => {
   gap: 0.75rem;
 }
 
+.code-container { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
+.code-inputs { display: flex; gap: 0.5rem; justify-content: center; }
+
 .google-loading {
   text-align: center;
   padding: 0.75rem;
@@ -239,4 +335,17 @@ const handleVerificationCode = async () => {
   color: #4285F4;
   font-weight: 500;
 }
+
+.code-bit {
+  caret-color: transparent;
+  border-radius: 5px;
+  font-size: 36px;
+  height: 60px;
+  width: 50px;
+  border: 1px solid var(--button-color);
+  text-align: center;
+  font-weight: 300;
+  -moz-appearance: textfield;
+}
+
 </style>
