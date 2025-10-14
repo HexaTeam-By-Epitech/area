@@ -30,7 +30,6 @@ describe('DiscordSendService', () => {
     discordBotService = module.get<DiscordBotService>(DiscordBotService);
 
     // Clear all mocks
-    jest.clearAllMocks();
   });
 
   afterEach(() => {
