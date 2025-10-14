@@ -160,7 +160,7 @@ export class DiscordBotService implements OnModuleInit, OnModuleDestroy {
       }
 
       // Check if the channel is a text-based channel that supports sending messages
-      if (!channel.isTextBased() || channel.isVoiceBased()) {
+      if (!channel.isTextBased()) {
         this.logger.error(`Channel ${channelId} is not a text channel or does not support sending messages`);
         return null;
       }
