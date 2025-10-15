@@ -6,6 +6,83 @@ import { ActionNamesEnum } from '../../../common/interfaces/action-names.enum';
 import { Events, Message } from 'discord.js';
 
 /**
+ * Interface defining the structure of Discord message data available as placeholders
+ */
+interface DiscordMessageData {
+  DISCORD_MESSAGE_ID: string;
+  DISCORD_MESSAGE_CONTENT: string;
+  DISCORD_MESSAGE_AUTHOR_USERNAME: string;
+  DISCORD_MESSAGE_AUTHOR_DISCRIMINATOR: string;
+  DISCORD_MESSAGE_AUTHOR_ID: string;
+  DISCORD_MESSAGE_TIMESTAMP: string;
+  DISCORD_MESSAGE_GUILD_NAME: string;
+  DISCORD_MESSAGE_CHANNEL_ID: string;
+  DISCORD_MESSAGE_TYPE: string;
+  DISCORD_MESSAGE_EDITED_TIMESTAMP: string;
+  DISCORD_MESSAGE_MENTION_EVERYONE: string;
+  DISCORD_MESSAGE_ATTACHMENTS_COUNT: string;
+  DISCORD_MESSAGE_EMBEDS_COUNT: string;
+}
+
+/**
+ * Metadata for each Discord message placeholder field
+ */
+const DISCORD_MESSAGE_PLACEHOLDERS: Record<keyof DiscordMessageData, { description: string; example: string }> = {
+  DISCORD_MESSAGE_ID: {
+    description: 'The unique ID of the message',
+    example: '1234567890123456789',
+  },
+  DISCORD_MESSAGE_CONTENT: {
+    description: 'The content/text of the message',
+    example: 'Hello everyone!',
+  },
+  DISCORD_MESSAGE_AUTHOR_USERNAME: {
+    description: 'The username of the message author',
+    example: 'john_doe',
+  },
+  DISCORD_MESSAGE_AUTHOR_DISCRIMINATOR: {
+    description: 'The discriminator of the message author',
+    example: '1234',
+  },
+  DISCORD_MESSAGE_AUTHOR_ID: {
+    description: 'The unique ID of the message author',
+    example: '9876543210987654321',
+  },
+  DISCORD_MESSAGE_TIMESTAMP: {
+    description: 'When the message was sent (ISO 8601 format)',
+    example: '2023-12-10T15:30:00.000Z',
+  },
+  DISCORD_MESSAGE_GUILD_NAME: {
+    description: 'The name of the Discord server/guild',
+    example: 'My Awesome Server',
+  },
+  DISCORD_MESSAGE_CHANNEL_ID: {
+    description: 'The unique ID of the channel',
+    example: '1111111111111111111',
+  },
+  DISCORD_MESSAGE_TYPE: {
+    description: 'The type of message (0 = default, 7 = user join, etc.)',
+    example: '0',
+  },
+  DISCORD_MESSAGE_EDITED_TIMESTAMP: {
+    description: 'When the message was last edited (if applicable)',
+    example: '2023-12-10T15:35:00.000Z',
+  },
+  DISCORD_MESSAGE_MENTION_EVERYONE: {
+    description: 'Whether the message mentions @everyone',
+    example: 'false',
+  },
+  DISCORD_MESSAGE_ATTACHMENTS_COUNT: {
+    description: 'Number of file attachments in the message',
+    example: '2',
+  },
+  DISCORD_MESSAGE_EMBEDS_COUNT: {
+    description: 'Number of embeds in the message',
+    example: '1',
+  },
+};
+
+/**
  * Discord real-time action that detects new messages using the Discord bot.
  *
  * This service uses the Discord bot's real-time connection to listen for
@@ -37,7 +114,7 @@ export class DiscordMessageService {
    * @returns `true` if the action name is `ActionNamesEnum.DISCORD_NEW_MESSAGE`.
    */
   supports(actionName: string): boolean {
-    return actionName === ActionNamesEnum.DISCORD_NEW_MESSAGE;
+    return actionName === ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE;
   }
 
   /**
@@ -104,6 +181,35 @@ export class DiscordMessageService {
   }
 
   /**
+   * Creates a typed DiscordMessageData object from a Discord.js Message
+   *
+   * @param message - The Discord.js Message object
+   * @param messageTimestamp - The ISO timestamp of the message
+   * @returns Typed DiscordMessageData object with all placeholder fields
+   */
+  private createMessageData(message: Message, messageTimestamp: string): DiscordMessageData {
+    // Get additional channel and guild info
+    const guildName: string = message.guild?.name ?? 'Direct Message';
+
+
+    return {
+      DISCORD_MESSAGE_ID: message.id,
+      DISCORD_MESSAGE_CONTENT: message.content || 'No content',
+      DISCORD_MESSAGE_AUTHOR_USERNAME: message.author.username,
+      DISCORD_MESSAGE_AUTHOR_DISCRIMINATOR: message.author.discriminator || '0',
+      DISCORD_MESSAGE_AUTHOR_ID: message.author.id,
+      DISCORD_MESSAGE_TIMESTAMP: messageTimestamp,
+      DISCORD_MESSAGE_GUILD_NAME: guildName,
+      DISCORD_MESSAGE_CHANNEL_ID: message.channelId,
+      DISCORD_MESSAGE_TYPE: message.type.toString(),
+      DISCORD_MESSAGE_EDITED_TIMESTAMP: message.editedAt?.toISOString() || '',
+      DISCORD_MESSAGE_MENTION_EVERYONE: message.mentions.everyone.toString(),
+      DISCORD_MESSAGE_ATTACHMENTS_COUNT: message.attachments.size.toString(),
+      DISCORD_MESSAGE_EMBEDS_COUNT: message.embeds.length.toString(),
+    };
+  }
+
+  /**
    * Handles a new Discord message and triggers relevant user callbacks
    */
   private async handleNewMessage(message: Message): Promise<void> {
@@ -131,27 +237,8 @@ export class DiscordMessageService {
         // Update cache with new timestamp
         await this.redisService.setValue(cacheKey, messageTimestamp);
 
-        // Get additional channel and guild info
-        const channelName = message.channel && 'name' in message.channel ? message.channel.name : 'Unknown Channel';
-        const guildName = message.guild?.name || 'Direct Message';
-
-        // Extract message details for placeholders
-        const messageData = {
-          DISCORD_MESSAGE_ID: message.id,
-          DISCORD_MESSAGE_CONTENT: message.content || 'No content',
-          DISCORD_MESSAGE_AUTHOR_USERNAME: message.author.username,
-          DISCORD_MESSAGE_AUTHOR_DISCRIMINATOR: message.author.discriminator || '0',
-          DISCORD_MESSAGE_AUTHOR_ID: message.author.id,
-          DISCORD_MESSAGE_TIMESTAMP: messageTimestamp,
-          DISCORD_MESSAGE_GUILD_NAME: guildName,
-          DISCORD_MESSAGE_CHANNEL_NAME: channelName,
-          DISCORD_MESSAGE_CHANNEL_ID: channelId,
-          DISCORD_MESSAGE_TYPE: message.type.toString(),
-          DISCORD_MESSAGE_EDITED_TIMESTAMP: message.editedAt?.toISOString() || '',
-          DISCORD_MESSAGE_MENTION_EVERYONE: message.mentions.everyone.toString(),
-          DISCORD_MESSAGE_ATTACHMENTS_COUNT: message.attachments.size.toString(),
-          DISCORD_MESSAGE_EMBEDS_COUNT: message.embeds.length.toString(),
-        };
+        // Create typed message data using utility method
+        const messageData = this.createMessageData(message, messageTimestamp);
 
         this.logger.log(`[Discord] New message detected for user=${userId}: ${message.id} in channel ${channelId}`);
 
@@ -194,77 +281,9 @@ export class DiscordMessageService {
    * These placeholders can be used in reaction configurations.
    */
   getPlaceholders(): ActionPlaceholder[] {
-    return [
-      {
-        key: 'DISCORD_MESSAGE_ID',
-        description: 'The unique ID of the message',
-        example: '1234567890123456789',
-      },
-      {
-        key: 'DISCORD_MESSAGE_CONTENT',
-        description: 'The content/text of the message',
-        example: 'Hello everyone!',
-      },
-      {
-        key: 'DISCORD_MESSAGE_AUTHOR_USERNAME',
-        description: 'The username of the message author',
-        example: 'john_doe',
-      },
-      {
-        key: 'DISCORD_MESSAGE_AUTHOR_DISCRIMINATOR',
-        description: 'The discriminator of the message author',
-        example: '1234',
-      },
-      {
-        key: 'DISCORD_MESSAGE_AUTHOR_ID',
-        description: 'The unique ID of the message author',
-        example: '9876543210987654321',
-      },
-      {
-        key: 'DISCORD_MESSAGE_TIMESTAMP',
-        description: 'When the message was sent (ISO 8601 format)',
-        example: '2023-12-10T15:30:00.000Z',
-      },
-      {
-        key: 'DISCORD_MESSAGE_GUILD_NAME',
-        description: 'The name of the Discord server/guild',
-        example: 'My Awesome Server',
-      },
-      {
-        key: 'DISCORD_MESSAGE_CHANNEL_NAME',
-        description: 'The name of the channel where the message was posted',
-        example: 'general',
-      },
-      {
-        key: 'DISCORD_MESSAGE_CHANNEL_ID',
-        description: 'The unique ID of the channel',
-        example: '1111111111111111111',
-      },
-      {
-        key: 'DISCORD_MESSAGE_TYPE',
-        description: 'The type of message (0 = default, 7 = user join, etc.)',
-        example: '0',
-      },
-      {
-        key: 'DISCORD_MESSAGE_EDITED_TIMESTAMP',
-        description: 'When the message was last edited (if applicable)',
-        example: '2023-12-10T15:35:00.000Z',
-      },
-      {
-        key: 'DISCORD_MESSAGE_MENTION_EVERYONE',
-        description: 'Whether the message mentions @everyone',
-        example: 'false',
-      },
-      {
-        key: 'DISCORD_MESSAGE_ATTACHMENTS_COUNT',
-        description: 'Number of file attachments in the message',
-        example: '2',
-      },
-      {
-        key: 'DISCORD_MESSAGE_EMBEDS_COUNT',
-        description: 'Number of embeds in the message',
-        example: '1',
-      },
-    ];
+    return Object.keys(DISCORD_MESSAGE_PLACEHOLDERS).map(key => ({
+      key,
+      ...DISCORD_MESSAGE_PLACEHOLDERS[key as keyof DiscordMessageData],
+    }));
   }
 }

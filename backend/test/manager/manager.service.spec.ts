@@ -353,7 +353,7 @@ describe('ManagerService', () => {
           services: { name: 'default' },
         },
         {
-          name: ReactionNamesEnum.DISCORD_SEND_MESSAGE,
+          name: ReactionNamesEnum.DISCORD_SEND_SERVER_MESSAGE,
           services: { name: 'discord' },
         },
       ]);
@@ -375,7 +375,7 @@ describe('ManagerService', () => {
           isLinked: false,
           items: [
             {
-              name: ReactionNamesEnum.DISCORD_SEND_MESSAGE,
+              name: ReactionNamesEnum.DISCORD_SEND_SERVER_MESSAGE,
               description: 'Send a message to a Discord channel',
               configSchema: expect.any(Array),
             },

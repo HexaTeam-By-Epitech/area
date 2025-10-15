@@ -26,13 +26,13 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
     private readonly actionProviders: Record<string, string> = {
         [ActionNamesEnum.SPOTIFY_HAS_LIKES]: 'spotify',
         [ActionNamesEnum.GMAIL_NEW_EMAIL]: 'google',
-        [ActionNamesEnum.DISCORD_NEW_MESSAGE]: 'discord',
+        [ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE]: 'discord',
     };
 
     private readonly reactionProviders: Record<string, string> = {
         [ReactionNamesEnum.SEND_EMAIL]: 'google',
         [ReactionNamesEnum.LOG_EVENT]: 'default',
-        [ReactionNamesEnum.DISCORD_SEND_MESSAGE]: 'discord',
+        [ReactionNamesEnum.DISCORD_SEND_SERVER_MESSAGE]: 'discord',
     };
 
     constructor(
@@ -85,8 +85,8 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         });
 
         // Discord Actions
-        this.actionCallbacks.set(ActionNamesEnum.DISCORD_NEW_MESSAGE, {
-            name: ActionNamesEnum.DISCORD_NEW_MESSAGE,
+        this.actionCallbacks.set(ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE, {
+            name: ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE,
             callback: async (userId: string, config?: { channelId?: string }) => {
                 return await this.discordMessageService.hasNewDiscordMessage(userId, config);
             },
@@ -169,8 +169,8 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         });
 
         // Discord send message reaction
-        this.reactionCallbacks.set(ReactionNamesEnum.DISCORD_SEND_MESSAGE, {
-            name: ReactionNamesEnum.DISCORD_SEND_MESSAGE,
+        this.reactionCallbacks.set(ReactionNamesEnum.DISCORD_SEND_SERVER_MESSAGE, {
+            name: ReactionNamesEnum.DISCORD_SEND_SERVER_MESSAGE,
             callback: async (userId: string, actionResult: any, config: { channelId: string; message: string }) => {
                 return await this.discordSendService.run(userId, config);
             },
@@ -347,7 +347,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         // Start polling for actions that support it, passing action config
         if (this.polling.supports(actionName)) {
             // For Discord, pass the action config to the start method
-            if (actionName === ActionNamesEnum.DISCORD_NEW_MESSAGE) {
+            if (actionName === ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE) {
                 this.discordMessageService.start(userId, async (result) => {
                     try {
                         if (result.code === 0) {
@@ -477,7 +477,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
 
                 if (this.polling.supports(actionName)) {
                     // For Discord, use the Discord service directly with action config
-                    if (actionName === ActionNamesEnum.DISCORD_NEW_MESSAGE) {
+                    if (actionName === ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE) {
                         this.discordMessageService.start(userId, async (result) => {
                             try {
                                 if (result.code === 0) {

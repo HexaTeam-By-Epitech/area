@@ -5,7 +5,7 @@
 export enum ActionNamesEnum {
   SPOTIFY_HAS_LIKES = 'spotify_has_likes',
   GMAIL_NEW_EMAIL = 'gmail_new_email',
-  DISCORD_NEW_MESSAGE = 'discord_new_message',
+  DISCORD_NEW_SERVER_MESSAGE = 'discord_new_server_message',
 }
 
 /**
@@ -15,7 +15,7 @@ export enum ActionNamesEnum {
 export enum ReactionNamesEnum {
   SEND_EMAIL = 'send_email',
   LOG_EVENT = 'log_event',
-  DISCORD_SEND_MESSAGE = 'discord_send_message',
+  DISCORD_SEND_SERVER_MESSAGE = 'discord_send_server_message',
 }
 
 /**
