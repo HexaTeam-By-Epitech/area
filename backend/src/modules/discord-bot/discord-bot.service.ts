@@ -80,7 +80,7 @@ export class DiscordBotService implements OnModuleInit, OnModuleDestroy {
 
     if (this.isConnected && this.client) {
       this.logger.log('Disconnecting Discord bot...');
-      this.client.destroy();
+      await this.client.destroy();
       this.isConnected = false;
     }
   }
