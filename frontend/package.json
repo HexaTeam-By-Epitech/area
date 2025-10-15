@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ionic/vue": "^8.7.6",
     "axios": "^1.12.2",
     "interactjs": "^1.10.27",
     "pinia": "^3.0.3",

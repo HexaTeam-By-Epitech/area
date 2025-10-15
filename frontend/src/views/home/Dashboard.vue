@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { apiDirect as api } from "@/utils/api";
 import { useRouter } from "vue-router";
+import { IonIcon } from "@ionic/vue";
+import { appsOutline, checkmarkCircleOutline, linkOutline, timeOutline } from "ionicons/icons";
+import useServicesStore from "@/stores/linkedproviders";
 
 type Area = {
   id: string;
@@ -11,6 +14,16 @@ type Area = {
   is_active: boolean;
   created_at: string;
 }
+
+type StatCard = {
+  title: string,
+  subtitle: string,
+  value: number,
+  icon: any,
+  color: string
+}
+
+const servicesStore = useServicesStore();
 
 const router = useRouter();
 const areas = ref<Area[]>([]);
@@ -54,8 +67,29 @@ function createNewArea() {
   router.push('/home/workflows/new');
 }
 
+const Stats = computed<StatCard[]>(() => {
+  const total = areas.value.length;
+  const active = areas.value.filter((el) => el.is_active).length;
+  const services = servicesStore.linkedProviders?.length ?? 0;
+  const now = Date.now();
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  const recent = areas.value.filter((a) => {
+    const ts = new Date(a.created_at).getTime();
+    return !Number.isNaN(ts) && (now - ts) <= weekMs;
+  }).length;
+
+  return [
+    { title: "Total AREAs", subtitle: "All automations", value: total, icon: appsOutline, color: '#2196F3' },
+    { title: 'Active', subtitle: 'Running now', value: active, icon: checkmarkCircleOutline, color: '#4CAF50' },
+    { title: 'Services', subtitle: 'Connected', value: services, icon: linkOutline, color: '#FF9800' },
+    { title: 'Recent', subtitle: 'This week', value: recent, icon: timeOutline, color: '#9C27B0' },
+  ];
+});
+
 onMounted(() => {
   loadAreas();
+  // Fetch providers to populate linked providers count for the Services stat
+  servicesStore.fetchProviders().catch(err => console.error('Failed to fetch providers:', err));
 });
 </script>
 
@@ -65,6 +99,21 @@ onMounted(() => {
       <h1>My AREAs</h1>
       <button @click="createNewArea" class="create-btn">+ Create AREA</button>
     </div>
+
+    <ul class="dash-stats">
+      <li v-for="card in Stats" :key="card.title" class="dash-stats-box">
+        <div class="dash-icon-wrap" :style="{backgroundColor: `${card.color}20`}">
+          <IonIcon :icon="card.icon" :style="{color: card.color, fontSize: '24px'}" />
+        </div>
+        <div>
+          <h1>{{ card.value }}</h1>
+        </div>
+        <div class="dash-content">
+          <h3>{{ card.title }}</h3>
+          <h4>{{ card.subtitle }}</h4>
+        </div>
+      </li>
+    </ul>
 
     <div v-if="loading" class="loading">Loading your AREAs...</div>
     <div v-if="error" class="error-message">{{ error }}</div>
@@ -259,4 +308,71 @@ onMounted(() => {
   color: var(--text-secondary);
   font-size: 0.85rem;
 }
+
+.dash-stats {
+  list-style: none;
+  padding: 0;
+  margin: 0 auto 5vh;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  width: 100%;
+  max-width: 1000px;
+}
+
+.dash-stats-box {
+  background-color: var(--card-bg-secondary);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.08) inset, 0 2px 10px rgba(0,0,0,0.15);
+}
+
+.dash-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.dash-content {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.dash-content h1 {
+  margin: 0;
+  color: #fff;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.dash-content h3 {
+  margin: 4px 0 0;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dash-content h4 {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  .dash-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .dash-content h1 { font-size: 24px; }
+}
+
 </style>
