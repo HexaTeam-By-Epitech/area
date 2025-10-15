@@ -280,7 +280,7 @@ describe('ManagerService', () => {
           services: { name: 'google' },
         },
         {
-          name: ActionNamesEnum.DISCORD_NEW_MESSAGE,
+          name: ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE,
           services: { name: 'discord' },
         },
       ]);
@@ -292,7 +292,7 @@ describe('ManagerService', () => {
           isLinked: false,
           items: [
             {
-              name: ActionNamesEnum.DISCORD_NEW_MESSAGE,
+              name: ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE,
               description: 'Detect new messages in Discord servers',
             },
           ],

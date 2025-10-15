@@ -37,15 +37,15 @@ describe('DiscordMessageService', () => {
     expect(service).toBeDefined();
   });
 
-  it('should support DISCORD_NEW_MESSAGE action', () => {
-    expect(service.supports(ActionNamesEnum.DISCORD_NEW_MESSAGE)).toBe(true);
+  it('should support DISCORD_NEW_SERVER_MESSAGE action', () => {
+    expect(service.supports(ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE)).toBe(true);
     expect(service.supports('other_action')).toBe(false);
   });
 
   it('should return correct placeholders', () => {
     const placeholders = service.getPlaceholders();
 
-    expect(placeholders).toHaveLength(14);
+    expect(placeholders).toHaveLength(13);
     expect(placeholders[0]).toEqual({
       key: 'DISCORD_MESSAGE_ID',
       description: 'The unique ID of the message',
