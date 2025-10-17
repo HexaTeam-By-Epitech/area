@@ -37,6 +37,7 @@ export interface ActionCallback {
   name: string;
   callback: (userId: string, config?: any) => Promise<any>;
   description?: string;
+  configSchema?: ConfigField[];
 }
 
 /**

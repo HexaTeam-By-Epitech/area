@@ -1,25 +1,21 @@
 /**
- * Enum for all available action names in the AREA platform.
- * This replaces hardcoded strings to prevent typos and improve type safety.
+ * Enumeration of all available action names in the AREA system.
+ * These represent the triggers that can be monitored.
  */
 export enum ActionNamesEnum {
-  /** Spotify action: Detects when user likes a new track */
   SPOTIFY_HAS_LIKES = 'spotify_has_likes',
-
-  /** Gmail action: Detects new incoming emails in inbox */
   GMAIL_NEW_EMAIL = 'gmail_new_email',
+  DISCORD_NEW_SERVER_MESSAGE = 'discord_new_server_message',
 }
 
 /**
- * Enum for all available reaction names in the AREA platform.
- * This replaces hardcoded strings to prevent typos and improve type safety.
+ * Enumeration of all available reaction names in the AREA system.
+ * These represent the responses that can be executed when actions trigger.
  */
 export enum ReactionNamesEnum {
-  /** Send an email notification */
   SEND_EMAIL = 'send_email',
-
-  /** Log an event to the database */
   LOG_EVENT = 'log_event',
+  DISCORD_SEND_SERVER_MESSAGE = 'discord_send_server_message',
 }
 
 /**
@@ -37,14 +33,14 @@ export function isValidReactionName(name: string): name is ReactionNamesEnum {
 }
 
 /**
- * Get all available action names as an array
+ * Get all available action names
  */
 export function getAllActionNames(): ActionNamesEnum[] {
   return Object.values(ActionNamesEnum);
 }
 
 /**
- * Get all available reaction names as an array
+ * Get all available reaction names
  */
 export function getAllReactionNames(): ReactionNamesEnum[] {
   return Object.values(ReactionNamesEnum);

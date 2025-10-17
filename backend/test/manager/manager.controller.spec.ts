@@ -107,7 +107,8 @@ describe('ManagerController', () => {
       const bindDto = {
         actionName: 'action1',
         reactionName: 'reaction1',
-        config: { key: 'value' },
+        actionConfig: { key: 'value' },
+        reactionConfig: { key2: 'value2' },
       };
 
       (service.bindAction as jest.Mock).mockResolvedValue('area-123');
@@ -120,7 +121,10 @@ describe('ManagerController', () => {
         userId: 'user-123',
         action: 'action1',
         reaction: 'reaction1',
-        config: { key: 'value' },
+        config: {
+          actionConfig: { key: 'value' },
+          reactionConfig: { key2: 'value2' },
+        },
       });
 
       expect(service.bindAction).toHaveBeenCalledWith(
@@ -128,6 +132,7 @@ describe('ManagerController', () => {
         'action1',
         'reaction1',
         { key: 'value' },
+        { key2: 'value2' },
       );
     });
 
