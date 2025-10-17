@@ -16,6 +16,14 @@
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--bg-primary);
   --header-height: 7vh;
+
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+
+:root::-webkit-scrollbar {
+  display: none;
 }
 
 body {
@@ -84,7 +92,7 @@ button:focus-visible {
   justify-content: center;
   align-items: center;
   width: 100%;
-  height: calc(100% - var(--header-height));
+  min-height: calc(100% - var(--header-height));
 }
 
 .center-container-vertical {
