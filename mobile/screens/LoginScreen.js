@@ -43,7 +43,7 @@ export default function LoginScreen() {
             setLoading(true);
             const response = await apiDirect.post(`/auth/${type}`, { email, password });
             if (type === 'register') {
-                if (response && response.status >= 200 && response.status < 300) {
+                if (response && (typeof response.status === 'number' ? (response.status >= 200 && response.status < 300) : !!response.data)) {
                     setModalVisible(true);
                     setVerifError('');
                 } else {
@@ -58,7 +58,6 @@ export default function LoginScreen() {
                 }
             }
         } catch (err) {
-            // Afficher une alerte utilisateur sans logs de debug en production.
             const message = err?.response?.data?.message || err?.message || 'Authentication failed';
             Alert.alert('Error', message);
         } finally {
@@ -214,7 +213,7 @@ export default function LoginScreen() {
                         {verifLoading ? (
                             <ActivityIndicator size="large" color="#fff" style={{ marginVertical: 20 }} />
                         ) : (
-                            <Button title="Verify" onPress={handleVerifyCode} style={{ marginTop: 20, width: '80%' }} />
+                            <Button title="Vérifier" onPress={handleVerifyCode} style={{ marginTop: 20, width: '80%' }} />
                         )}
 
                         <Button
