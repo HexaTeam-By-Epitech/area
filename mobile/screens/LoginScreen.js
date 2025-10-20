@@ -7,13 +7,27 @@ import { useAuth } from '../context/AuthContext';
 import { apiDirect } from '../utils/api';
 import { signInWithGoogle } from '../utils/googleAuth';
 
-export default function LoginScreen({ navigation }) {
+function maskEmail(email) {
+    if (!email) return '';
+    const parts = email.split('@');
+    if (parts.length !== 2) return email;
+    const [local, domain] = parts;
+    const visibleLocal = local.length <= 2 ? local.slice(0, 1) : local.slice(0, 2);
+    const maskedLocal = visibleLocal + '*'.repeat(Math.max(1, local.length - visibleLocal.length));
+    const domainParts = domain.split('.');
+    const domainName = domainParts[0];
+    const domainRest = domainParts.slice(1).join('.');
+    const visibleDomain = domainName.length <= 1 ? domainName.slice(0, 1) : domainName.slice(0, 1);
+    const maskedDomainName = visibleDomain + '*'.repeat(Math.max(1, Math.min(3, domainName.length - 1)));
+    return `${maskedLocal}@${maskedDomainName}${domainRest ? '.' + domainRest : ''}`;
+}
+
+export default function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [focusInput, setFocusInput] = useState(null);
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
-    const [showVerification, setShowVerification] = useState(false);
     const [verificationCode, setVerificationCode] = useState('');
     const [verifLoading, setVerifLoading] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
@@ -29,9 +43,12 @@ export default function LoginScreen({ navigation }) {
             setLoading(true);
             const response = await apiDirect.post(`/auth/${type}`, { email, password });
             if (type === 'register') {
-                setShowVerification(true);
-                setModalVisible(true);
-                setVerifError('');
+                if (response && response.status >= 200 && response.status < 300) {
+                    setModalVisible(true);
+                    setVerifError('');
+                } else {
+                    Alert.alert('Error', 'Registration failed');
+                }
             } else {
                 const { accessToken, userId, email: userEmail } = response.data;
                 if (accessToken && userId) {
@@ -41,13 +58,9 @@ export default function LoginScreen({ navigation }) {
                 }
             }
         } catch (err) {
-            if (type === 'register') {
-                setShowVerification(true);
-                setModalVisible(true);
-                setVerifError('');
-            } else {
-                Alert.alert('Error', err.response?.data?.message || 'Authentication failed');
-            }
+            // Afficher une alerte utilisateur sans logs de debug en production.
+            const message = err?.response?.data?.message || err?.message || 'Authentication failed';
+            Alert.alert('Error', message);
         } finally {
             setLoading(false);
         }
@@ -58,14 +71,11 @@ export default function LoginScreen({ navigation }) {
             setGoogleLoading(true);
             await signInWithGoogle(
                 async (authResult) => {
-                    // Success callback
                     const { accessToken, userId, email: userEmail } = authResult;
                     await login(userEmail, accessToken, userId);
                     setGoogleLoading(false);
-                    // Navigation will be handled automatically by AppNavigator when isAuthenticated changes
                 },
                 (error) => {
-                    // Error callback
                     setGoogleLoading(false);
                     Alert.alert('Google Sign-In Failed', error.message || 'Failed to sign in with Google');
                 }
@@ -89,7 +99,6 @@ export default function LoginScreen({ navigation }) {
             });
             const { accessToken, userId, email: userEmail } = response.data;
             if (response.data.message === 'Email verified successfully' || (accessToken && userId)) {
-                setShowVerification(false);
                 setVerificationCode('');
                 setModalVisible(false);
                 setVerifError('');
@@ -176,7 +185,9 @@ export default function LoginScreen({ navigation }) {
                         justifyContent: 'center',
                     }]}>
                         <Text style={[styles.title, { fontSize: 20, marginBottom: 14, textAlign: 'center' }]}>Account verification</Text>
-                        <Text style={[styles.text, { fontSize: 16, marginBottom: 18, textAlign: 'center' }]}>A verification code has been sent to your email. Please enter the code below.</Text>
+                        <Text style={[styles.text, { fontSize: 16, marginBottom: 18, textAlign: 'center' }]}>
+                            A verification code has been sent to {maskEmail(email)}. Please enter the code below.
+                        </Text>
                         <TextInput
                             style={[styles.input, {
                                 textAlign: 'center',
@@ -189,6 +200,8 @@ export default function LoginScreen({ navigation }) {
                                 borderWidth: 2,
                                 marginBottom: 8,
                             }]}
+                            placeholder=""
+                            placeholderTextColor="#c3c9d5"
                             value={verificationCode}
                             onChangeText={setVerificationCode}
                             keyboardType="number-pad"
@@ -201,8 +214,20 @@ export default function LoginScreen({ navigation }) {
                         {verifLoading ? (
                             <ActivityIndicator size="large" color="#fff" style={{ marginVertical: 20 }} />
                         ) : (
-                            <Button title="Vérifier" onPress={handleVerifyCode} style={{ marginTop: 20, width: '80%' }} />
+                            <Button title="Verify" onPress={handleVerifyCode} style={{ marginTop: 20, width: '80%' }} />
                         )}
+
+                        <Button
+                            title="Exit"
+                            onPress={() => {
+                                setModalVisible(false);
+                                setVerificationCode('');
+                                setVerifError('');
+                                setVerifLoading(false);
+                            }}
+                            style={[{ marginTop: 12, width: '80%' }, styles.buttonSecondary]}
+                            textStyle={styles.buttonTextSecondary}
+                        />
                     </View>
                 </View>
             </Modal>
