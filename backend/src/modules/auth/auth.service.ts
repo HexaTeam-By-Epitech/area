@@ -24,6 +24,7 @@ import { GoogleLinking } from './plugins/google/google-linking';
 import { SpotifyLinking } from './plugins/spotify/spotify-linking';
 import { DiscordLinking } from './plugins/discord/discord-linking';
 import { SlackLinking } from './plugins/slack/slack-linking';
+import { NotionLinking } from './plugins/notion/notion-linking';
 
 /**
  * Authentication service handling email/password flows, verification,
@@ -60,6 +61,7 @@ export class AuthService {
             reg.addLinking(new SpotifyLinking(this.config, this.jwtService, this.tokenStore, this.cryptoSvc, this.http));
             reg.addLinking(new DiscordLinking(this.config, this.jwtService, this.tokenStore, this.cryptoSvc, this.http));
             reg.addLinking(new SlackLinking(this.config, this.jwtService, this.tokenStore, this.cryptoSvc, this.http));
+            reg.addLinking(new NotionLinking(this.config, this.jwtService, this.tokenStore, this.cryptoSvc, this.http));
             (this as any)._providers = reg;
         }
         return (this as any)._providers as ProviderRegistryImpl;
