@@ -1,6 +1,6 @@
 // screens/LoginScreen.js
 import React, { useState } from 'react';
-import { View, TextInput, Text, Alert, ActivityIndicator, Modal } from 'react-native';
+import { View, TextInput, Text, Alert, ActivityIndicator, Modal, TouchableOpacity } from 'react-native';
 import styles from '../styles';
 import Button from '../components/Button';
 import { useAuth } from '../context/AuthContext';
@@ -32,6 +32,8 @@ export default function LoginScreen() {
     const [verifLoading, setVerifLoading] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [verifError, setVerifError] = useState('');
+    const [resendLoading, setResendLoading] = useState(false);
+    const [resendCooldown, setResendCooldown] = useState(0);
     const { login } = useAuth();
 
     const handleAuth = async (type) => {
@@ -113,6 +115,40 @@ export default function LoginScreen() {
             setVerifError(err.response?.data?.message || 'Incorrect or expired code');
         } finally {
             setVerifLoading(false);
+        }
+    };
+
+    const handleResendCode = async () => {
+        if (resendCooldown > 0) {
+            Alert.alert('Please wait', `You can resend in ${resendCooldown} seconds`);
+            return;
+        }
+
+        try {
+            setResendLoading(true);
+            setVerifError('');
+
+            await apiDirect.post('/auth/resend-verification', { email: email.trim() });
+
+            Alert.alert('Success', 'Verification code sent to your email');
+
+            // Démarrer un cooldown de 60 secondes
+            setResendCooldown(60);
+            const interval = setInterval(() => {
+                setResendCooldown(prev => {
+                    if (prev <= 1) {
+                        clearInterval(interval);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+
+        } catch (err) {
+            console.error('Resend error:', err.response?.data);
+            setVerifError(err.response?.data?.message || 'Failed to resend code');
+        } finally {
+            setResendLoading(false);
         }
     };
 
@@ -210,11 +246,37 @@ export default function LoginScreen() {
                         {verifError ? (
                             <Text style={{ color: '#d32f2f', marginTop: 8, marginBottom: 4, textAlign: 'center' }}>{verifError}</Text>
                         ) : null}
+
                         {verifLoading ? (
                             <ActivityIndicator size="large" color="#fff" style={{ marginVertical: 20 }} />
                         ) : (
                             <Button title="Vérifier" onPress={handleVerifyCode} style={{ marginTop: 20, width: '80%' }} />
                         )}
+
+                        {/* Bouton Resend */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 8 }}>
+                            <Text style={[styles.text, { fontSize: 14, color: '#c3c9d5' }]}>
+                                Didn't receive the code?
+                            </Text>
+                            <TouchableOpacity
+                                onPress={handleResendCode}
+                                disabled={resendLoading || resendCooldown > 0}
+                                style={{ marginLeft: 8 }}
+                            >
+                                <Text style={[
+                                    styles.text,
+                                    {
+                                        fontSize: 14,
+                                        color: (resendLoading || resendCooldown > 0) ? '#666' : '#4CAF50',
+                                        fontWeight: 'bold',
+                                        textDecorationLine: (resendLoading || resendCooldown > 0) ? 'none' : 'underline'
+                                    }
+                                ]}>
+                                    {resendLoading ? 'Sending...' :
+                                     resendCooldown > 0 ? `Resend (${resendCooldown}s)` : 'Resend'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
 
                         <Button
                             title="Exit"
@@ -223,6 +285,7 @@ export default function LoginScreen() {
                                 setVerificationCode('');
                                 setVerifError('');
                                 setVerifLoading(false);
+                                setResendCooldown(0);
                             }}
                             style={[{ marginTop: 12, width: '80%' }, styles.buttonSecondary]}
                             textStyle={styles.buttonTextSecondary}
