@@ -24,9 +24,11 @@ interface NotionDatabaseItemData {
  * Strategy:
  * - Periodically queries the specified Notion database sorted by created_time descending
  * - Fetches the most recent item and compares its created_time with cached value in Redis
+ * - Uses a grace period (30 seconds) to ignore very recent items, allowing time for template application
+ * - Only triggers when an item is older than the grace period to ensure all properties are filled
  * - Extracts all properties from the database item to make them available as placeholders
- * - Returns 0 (trigger) if a newer item is found
- * - Returns 1 if unchanged or first baseline initialization
+ * - Returns 0 (trigger) if a new item is found (older than grace period)
+ * - Returns 1 if unchanged, too recent, or first baseline initialization
  * - Returns -1 if Notion provider is not linked for the user
  *
  * Caching semantics:
@@ -37,6 +39,7 @@ interface NotionDatabaseItemData {
 @Injectable()
 export class NotionDatabaseItemService implements PollingAction {
   private readonly pollIntervalMs = Number(process.env.NOTION_POLL_INTERVAL_MS || 10000);
+  private readonly gracePeriodMs = Number(process.env.NOTION_GRACE_PERIOD_MS || 30000); // 30 seconds by default
   private readonly logger = new Logger(NotionDatabaseItemService.name);
   /** Active polling intervals keyed by user id. */
   private pollIntervals: Map<string, NodeJS.Timeout> = new Map();
@@ -142,6 +145,16 @@ export class NotionDatabaseItemService implements PollingAction {
       return { code: 1 };
     }
 
+    // Check if the item is too recent (within grace period)
+    const now = new Date();
+    const itemCreatedDate = new Date(createdTime);
+    const ageMs = now.getTime() - itemCreatedDate.getTime();
+    
+    if (ageMs < this.gracePeriodMs) {
+      this.logger.debug(`[Notion] Item too recent (age=${ageMs}ms, grace=${this.gracePeriodMs}ms), waiting for template application user=${userId}`);
+      return { code: 1 };
+    }
+
     // Check if this is a new item
     if (!cachedBefore) {
       // First time - store baseline and don't trigger
@@ -153,11 +166,11 @@ export class NotionDatabaseItemService implements PollingAction {
     // Check if there's a newer item (same strategy as Spotify)
     // Using > comparison prevents false triggers when items are deleted
     if (createdTime > cachedBefore) {
-      // New item detected - extract all properties as placeholders
+      // New item detected (and old enough) - extract all properties as placeholders
       const itemData = this.extractItemData(latestItem, databaseId);
       await this.redisService.setValue(cacheKey, createdTime);
       
-      this.logger.log(`[Notion] New database item detected for user=${userId} itemId=${latestItem.id} created_time=${createdTime}`);
+      this.logger.log(`[Notion] New database item detected for user=${userId} itemId=${latestItem.id} created_time=${createdTime} (age=${ageMs}ms)`);
       return { code: 0, data: itemData };
     }
 
@@ -181,15 +194,20 @@ export class NotionDatabaseItemService implements PollingAction {
 
     // Extract properties dynamically
     const properties = item.properties || {};
+    this.logger.debug(`[Notion] Extracting properties for item ${item.id}: ${Object.keys(properties).join(', ')}`);
+    
     for (const [propertyName, propertyValue] of Object.entries(properties)) {
       const value = this.extractPropertyValue(propertyValue as any);
+      const sanitizedKey = `NOTION_PROP_${propertyName.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
+      
+      this.logger.debug(`[Notion] Property "${propertyName}" (type: ${(propertyValue as any)?.type}) -> ${sanitizedKey} = "${value}"`);
+      
       if (value !== null) {
-        // Create a sanitized key for the placeholder
-        const sanitizedKey = `NOTION_PROP_${propertyName.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
         data[sanitizedKey] = value;
       }
     }
 
+    this.logger.debug(`[Notion] Extracted data keys: ${Object.keys(data).join(', ')}`);
     return data;
   }
 
@@ -224,7 +242,13 @@ export class NotionDatabaseItemService implements PollingAction {
         case 'status':
           return property.status?.name || '';
         case 'people':
-          return property.people?.map((p: any) => p.name || p.id).join(', ') || '';
+          return property.people?.map((p: any) => {
+            // Handle different user types in Notion API
+            if (p.name) return p.name;
+            if (p.person?.email) return p.person.email;
+            if (p.bot?.owner?.user?.name) return p.bot.owner.user.name;
+            return p.id;
+          }).join(', ') || '';
         case 'files':
           return property.files?.map((f: any) => f.name || f.file?.url || f.external?.url).filter(Boolean).join(', ') || '';
         case 'relation':

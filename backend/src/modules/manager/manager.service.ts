@@ -769,7 +769,8 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
 
             grouped[providerName].items.push({
                 name: actionCallback.name,
-                description: actionCallback.description
+                description: actionCallback.description,
+                configSchema: actionCallback.configSchema || []
             });
         }
 
