@@ -308,6 +308,15 @@ describe('ManagerService', () => {
             {
               name: ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE,
               description: 'Detect new messages in Discord servers',
+              configSchema: [
+                {
+                  name: 'channelId',
+                  type: 'string',
+                  required: true,
+                  label: 'Discord Channel ID',
+                  placeholder: '123456789012345678',
+                },
+              ],
             },
           ],
         },
@@ -317,6 +326,7 @@ describe('ManagerService', () => {
             {
               name: ActionNamesEnum.GMAIL_NEW_EMAIL,
               description: 'Detect new incoming email in Gmail inbox',
+              configSchema: [],
             },
           ],
         },
@@ -326,6 +336,15 @@ describe('ManagerService', () => {
             {
               name: ActionNamesEnum.NOTION_NEW_DATABASE_ITEM,
               description: 'Detect new items added to a Notion database',
+              configSchema: [
+                {
+                  name: 'databaseId',
+                  type: 'string',
+                  required: true,
+                  label: 'Notion Database ID',
+                  placeholder: '123e4567e89b12d3a456426614174000',
+                },
+              ],
             },
           ],
         },
@@ -335,6 +354,7 @@ describe('ManagerService', () => {
             {
               name: ActionNamesEnum.SPOTIFY_HAS_LIKES,
               description: 'Check if user has liked songs on Spotify',
+              configSchema: [],
             },
           ],
         },
