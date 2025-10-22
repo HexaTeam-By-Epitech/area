@@ -5,6 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ManagerModule } from './modules/manager/manager.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { NotionActionsModule } from './modules/actions/notion/notion-actions.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { UsersModule } from './modules/users/users.module';
     ManagerModule,
     AuthModule,
     UsersModule,
+    NotionActionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

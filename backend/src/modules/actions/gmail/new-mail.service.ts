@@ -42,7 +42,7 @@ export class GmailNewMailService implements PollingAction {
   }
 
   /** Start polling loop for a user. */
-  start(userId: string, emit: (result: ActionResult) => void): void {
+  start(userId: string, emit: (result: ActionResult) => void, config?: any): void {
     this.startPolling(userId, emit);
   }
 

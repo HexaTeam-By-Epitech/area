@@ -79,7 +79,7 @@ export interface PollingAction {
   /** Returns true if this poller supports the specified action name. */
   supports(actionName: string): boolean;
   /** Starts polling for a given user and emits an ActionResult to the callback. */
-  start(userId: string, emit: (result: ActionResult) => void): void;
+  start(userId: string, emit: (result: ActionResult) => void, config?: any): void;
   /** Stops polling for a given user. */
   stop(userId: string): void;
   /** Returns the list of placeholders available for this action. */
