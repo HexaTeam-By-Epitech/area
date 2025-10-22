@@ -6,6 +6,7 @@ import { RedisService } from '../../src/modules/redis/redis.service';
 import { SpotifyLikeService } from '../../src/modules/actions/spotify/like.service';
 import { DiscordMessageService } from '../../src/modules/actions/discord/message.service';
 import { GmailNewMailService } from '../../src/modules/actions/gmail/new-mail.service';
+import { NotionDatabaseItemService } from '../../src/modules/actions/notion/database-item.service';
 import { GmailSendService } from '../../src/modules/reactions/gmail/send.service';
 import { DiscordSendService } from '../../src/modules/reactions/discord/send.service';
 import { ActionPollingService } from '../../src/modules/manager/polling/action-polling.service';
@@ -73,6 +74,14 @@ describe('ManagerService', () => {
     getPlaceholders: jest.fn(),
   };
 
+  const mockNotionDatabaseItemService = {
+    supports: jest.fn(),
+    start: jest.fn(),
+    stop: jest.fn(),
+    hasNewDatabaseItem: jest.fn(),
+    getPlaceholders: jest.fn(),
+  };
+
   const mockGmailSendService = {
     run: jest.fn(),
   };
@@ -112,6 +121,7 @@ describe('ManagerService', () => {
         { provide: SpotifyLikeService, useValue: mockSpotifyLikeService },
         { provide: DiscordMessageService, useValue: mockDiscordMessageService },
         { provide: GmailNewMailService, useValue: mockGmailNewMailService },
+        { provide: NotionDatabaseItemService, useValue: mockNotionDatabaseItemService },
         { provide: GmailSendService, useValue: mockGmailSendService },
         { provide: DiscordSendService, useValue: mockDiscordSendService },
         { provide: ActionPollingService, useValue: mockActionPollingService },
@@ -283,6 +293,10 @@ describe('ManagerService', () => {
           name: ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE,
           services: { name: 'discord' },
         },
+        {
+          name: ActionNamesEnum.NOTION_NEW_DATABASE_ITEM,
+          services: { name: 'notion' },
+        },
       ]);
 
       const result = await service.getAvailableActionsGrouped(userId);
@@ -303,6 +317,15 @@ describe('ManagerService', () => {
             {
               name: ActionNamesEnum.GMAIL_NEW_EMAIL,
               description: 'Detect new incoming email in Gmail inbox',
+            },
+          ],
+        },
+        notion: {
+          isLinked: false,
+          items: [
+            {
+              name: ActionNamesEnum.NOTION_NEW_DATABASE_ITEM,
+              description: 'Detect new items added to a Notion database',
             },
           ],
         },
