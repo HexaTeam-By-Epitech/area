@@ -98,7 +98,7 @@ describe('LoginScreen', () => {
                 email: 'test@test.com',
             }
         });
-        // Mock la vérification du code
+        // Mock the code verification
         apiDirect.post.mockResolvedValueOnce({
             data: {
                 message: 'Email verified successfully',
@@ -116,12 +116,12 @@ describe('LoginScreen', () => {
         fireEvent.changeText(getByPlaceholderText('Password'), 'password123');
         fireEvent.press(getByText('Register'));
 
-        // Attendre l'apparition du modal de vérification
+        // Wait for the verification modal to appear
         await waitFor(() => {
             expect(queryByText('Account verification')).toBeTruthy();
         });
 
-        // Saisir le code de vérification (le TextInput n'a pas de placeholder, on utilise getByDisplayValue)
+        // Enter the verification code (the TextInput has no placeholder, we use getByDisplayValue)
         const codeInput = getByDisplayValue('');
         fireEvent.changeText(codeInput, '123456');
         fireEvent.press(getByText('Vérifier'));

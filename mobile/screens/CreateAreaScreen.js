@@ -3,7 +3,9 @@ import {
     View,
     Text,
     ActivityIndicator,
-    Alert
+    Alert,
+    KeyboardAvoidingView,
+    Platform
 } from 'react-native';
 import styles from '../styles';
 import Button from '../components/Button';
@@ -136,6 +138,12 @@ export default function CreateAreaScreen({ navigation }) {
     };
 
     const handleCreateArea = async () => {
+        // Check that we have both an action and a reaction selected
+        if (!logic.selectedAction || !logic.selectedReaction) {
+            Alert.alert('Error', 'Please select both an action and a reaction before creating the AREA');
+            return;
+        }
+
         const result = await logic.createArea();
         if (result.success) {
             Alert.alert('Success', 'AREA created successfully!', [
@@ -149,6 +157,11 @@ export default function CreateAreaScreen({ navigation }) {
         }
     };
 
+    // Function to determine if we can create the AREA
+    const canCreateArea = () => {
+        return logic.currentStep === 5 && logic.selectedAction && logic.selectedReaction;
+    };
+
     if (logic.loading) {
         return (
             <View style={[styles.container, { justifyContent: 'center' }]}>
@@ -159,7 +172,11 @@ export default function CreateAreaScreen({ navigation }) {
     }
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#1e1e1e' }}>
+        <KeyboardAvoidingView
+            style={{ flex: 1, backgroundColor: '#1e1e1e' }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
             {/* Header */}
             <View style={headerStyle.container}>
                 <Text style={headerStyle.title}>New AREA</Text>
@@ -198,7 +215,7 @@ export default function CreateAreaScreen({ navigation }) {
 
                 {logic.creating ? (
                     <ActivityIndicator size="large" color="#fff" style={{ flex: 1 }} />
-                ) : logic.currentStep === 5 || (logic.currentStep === 4 && logic.getReactionConfigSchema().length === 0) || (logic.currentStep === 3 && logic.reactionSubStep === 2 && logic.getReactionConfigSchema().length === 0 && logic.getActionConfigSchema().length === 0) ? (
+                ) : canCreateArea() ? (
                     <Button
                         title="Create AREA"
                         onPress={handleCreateArea}
@@ -218,6 +235,6 @@ export default function CreateAreaScreen({ navigation }) {
                     style={navigationStyle.cancelButton}
                 />
             </View>
-        </View>
+        </KeyboardAvoidingView>
     );
 }

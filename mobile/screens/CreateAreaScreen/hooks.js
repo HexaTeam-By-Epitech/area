@@ -29,7 +29,7 @@ export const useCreateAreaLogic = () => {
 
     // Load placeholders when action is selected
     useEffect(() => {
-        if (selectedAction) {
+        if (selectedAction && selectedAction.name) {
             loadActionPlaceholders(selectedAction.name);
         } else {
             setActionPlaceholders([]);
@@ -89,11 +89,27 @@ export const useCreateAreaLogic = () => {
     };
 
     const getActionConfigSchema = () => {
-        return selectedAction?.configSchema || [];
+        try {
+            if (!selectedAction || typeof selectedAction !== 'object') {
+                return [];
+            }
+            return selectedAction.configSchema || [];
+        } catch (error) {
+            console.warn('Error getting action config schema:', error);
+            return [];
+        }
     };
 
     const getReactionConfigSchema = () => {
-        return selectedReaction?.configSchema || [];
+        try {
+            if (!selectedReaction || typeof selectedReaction !== 'object') {
+                return [];
+            }
+            return selectedReaction.configSchema || [];
+        } catch (error) {
+            console.warn('Error getting reaction config schema:', error);
+            return [];
+        }
     };
 
     const handleActionConfigChange = (key, value) => {
@@ -124,12 +140,17 @@ export const useCreateAreaLogic = () => {
         setSelectedAction(action);
         setActionConfig({});
         // Initialize config with default values
-        if (action.configSchema) {
-            const initialConfig = {};
-            action.configSchema.forEach(field => {
-                initialConfig[field.key || field.name] = field.defaultValue || '';
-            });
-            setActionConfig(initialConfig);
+        if (action && action.configSchema && Array.isArray(action.configSchema)) {
+            try {
+                const initialConfig = {};
+                action.configSchema.forEach(field => {
+                    initialConfig[field.key || field.name] = field.defaultValue || '';
+                });
+                setActionConfig(initialConfig);
+            } catch (error) {
+                console.warn('Error initializing action config:', error);
+                setActionConfig({});
+            }
         }
     };
 
@@ -137,18 +158,28 @@ export const useCreateAreaLogic = () => {
         setSelectedReaction(reaction);
         setReactionConfig({});
         // Initialize config with default values
-        if (reaction.configSchema) {
-            const initialConfig = {};
-            reaction.configSchema.forEach(field => {
-                initialConfig[field.key || field.name] = field.defaultValue || '';
-            });
-            setReactionConfig(initialConfig);
+        if (reaction && reaction.configSchema && Array.isArray(reaction.configSchema)) {
+            try {
+                const initialConfig = {};
+                reaction.configSchema.forEach(field => {
+                    initialConfig[field.key || field.name] = field.defaultValue || '';
+                });
+                setReactionConfig(initialConfig);
+            } catch (error) {
+                console.warn('Error initializing reaction config:', error);
+                setReactionConfig({});
+            }
         }
     };
 
     const createArea = async () => {
         try {
             setCreating(true);
+
+            // Security check before accessing properties
+            if (!selectedAction || !selectedReaction) {
+                return { success: false, error: 'Please select both an action and a reaction' };
+            }
 
             const payload = {
                 actionName: selectedAction.name,

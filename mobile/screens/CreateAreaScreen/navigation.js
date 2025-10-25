@@ -27,6 +27,23 @@ export const useNavigation = (state, actions) => {
         setReactionConfig
     } = actions;
 
+    // Safe wrappers to prevent null errors
+    const safeGetActionConfigSchema = () => {
+        try {
+            return getActionConfigSchema() || [];
+        } catch (error) {
+            return [];
+        }
+    };
+
+    const safeGetReactionConfigSchema = () => {
+        try {
+            return getReactionConfigSchema() || [];
+        } catch (error) {
+            return [];
+        }
+    };
+
     const validateStep = (step) => {
         if (step === 1) {
             if (actionSubStep === 1 && !selectedActionProvider) {
@@ -39,7 +56,7 @@ export const useNavigation = (state, actions) => {
             }
         }
         if (step === 2) {
-            const schema = getActionConfigSchema();
+            const schema = safeGetActionConfigSchema();
             for (const field of schema) {
                 if (field.required && !actionConfig[field.key || field.name]) {
                     Alert.alert('Error', `Please fill the required field: ${field.label || field.name}`);
@@ -58,7 +75,7 @@ export const useNavigation = (state, actions) => {
             }
         }
         if (step === 4) {
-            const schema = getReactionConfigSchema();
+            const schema = safeGetReactionConfigSchema();
             for (const field of schema) {
                 if (field.required && !reactionConfig[field.key || field.name]) {
                     Alert.alert('Error', `Please fill the required field: ${field.label || field.name}`);
@@ -91,10 +108,10 @@ export const useNavigation = (state, actions) => {
 
         // Main step validation and navigation
         if (validateStep(currentStep)) {
-            if (currentStep === 1 && getActionConfigSchema().length === 0) {
+            if (currentStep === 1 && safeGetActionConfigSchema().length === 0) {
                 setCurrentStep(3); // Skip action config if not needed
                 setReactionSubStep(1); // Reset reaction sub-step
-            } else if (currentStep === 3 && getReactionConfigSchema().length === 0) {
+            } else if (currentStep === 3 && safeGetReactionConfigSchema().length === 0) {
                 setCurrentStep(5); // Skip reaction config if not needed
             } else {
                 setCurrentStep(currentStep + 1);
@@ -122,10 +139,10 @@ export const useNavigation = (state, actions) => {
         }
 
         // Main step navigation
-        if (currentStep === 3 && getActionConfigSchema().length === 0) {
+        if (currentStep === 3 && safeGetActionConfigSchema().length === 0) {
             setCurrentStep(1); // Skip action config if not needed
             setActionSubStep(2); // Go back to action selection
-        } else if (currentStep === 5 && getReactionConfigSchema().length === 0) {
+        } else if (currentStep === 5 && safeGetReactionConfigSchema().length === 0) {
             setCurrentStep(3); // Skip reaction config if not needed
             setReactionSubStep(2); // Go back to reaction selection
         } else {
@@ -148,7 +165,7 @@ export const useNavigation = (state, actions) => {
 
         // Step 2: Action config - only count if action has config
         if (actualStep === 2) return 2;
-        if (actualStep >= 3 && getActionConfigSchema().length > 0) displayStep = 3;
+        if (actualStep >= 3 && safeGetActionConfigSchema().length > 0) displayStep = 3;
         else if (actualStep >= 3) displayStep = 2;
 
         // Step 3: Reaction provider + selection
@@ -156,7 +173,7 @@ export const useNavigation = (state, actions) => {
 
         // Step 4: Reaction config - only count if reaction has config
         if (actualStep === 4) return displayStep + 1;
-        if (actualStep >= 5 && getReactionConfigSchema().length > 0) displayStep += 2;
+        if (actualStep >= 5 && safeGetReactionConfigSchema().length > 0) displayStep += 2;
         else if (actualStep >= 5) displayStep += 1;
 
         // Step 5: Summary
@@ -167,8 +184,8 @@ export const useNavigation = (state, actions) => {
 
     const getTotalDisplaySteps = () => {
         let total = 3; // Always have: action selection, reaction selection, summary
-        if (getActionConfigSchema().length > 0) total++;
-        if (getReactionConfigSchema().length > 0) total++;
+        if (safeGetActionConfigSchema().length > 0) total++;
+        if (safeGetReactionConfigSchema().length > 0) total++;
         return total;
     };
 
