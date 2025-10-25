@@ -4,7 +4,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { stepIndicatorStyle } from './styles';
 
-export const StepIndicator = ({ currentDisplayStep, totalSteps }) => {
+const StepIndicator = ({ currentDisplayStep, totalSteps }) => {
     return (
         <View style={stepIndicatorStyle.container}>
             {Array.from({ length: totalSteps }, (_, i) => {
@@ -38,3 +38,5 @@ export const StepIndicator = ({ currentDisplayStep, totalSteps }) => {
         </View>
     );
 };
+
+export { StepIndicator };

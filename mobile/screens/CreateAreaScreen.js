@@ -43,11 +43,7 @@ export default function CreateAreaScreen({ navigation }) {
         {
             setCurrentStep: logic.setCurrentStep,
             setActionSubStep: logic.setActionSubStep,
-            setReactionSubStep: logic.setReactionSubStep,
-            setSelectedAction: (action) => logic.selectAction(action),
-            setSelectedReaction: (reaction) => logic.selectReaction(reaction),
-            setActionConfig: () => {}, // handled in selectAction
-            setReactionConfig: () => {} // handled in selectReaction
+            setReactionSubStep: logic.setReactionSubStep
         }
     );
 

@@ -20,11 +20,7 @@ export const useNavigation = (state, actions) => {
     const {
         setCurrentStep,
         setActionSubStep,
-        setReactionSubStep,
-        setSelectedAction,
-        setSelectedReaction,
-        setActionConfig,
-        setReactionConfig
+        setReactionSubStep
     } = actions;
 
     // Safe wrappers to prevent null errors
@@ -126,15 +122,11 @@ export const useNavigation = (state, actions) => {
         // Handle sub-steps within main steps
         if (currentStep === 1 && actionSubStep === 2) {
             setActionSubStep(1);
-            setSelectedAction(null);
-            setActionConfig({});
             return;
         }
 
         if (currentStep === 3 && reactionSubStep === 2) {
             setReactionSubStep(1);
-            setSelectedReaction(null);
-            setReactionConfig({});
             return;
         }
 

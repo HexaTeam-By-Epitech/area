@@ -1,7 +1,7 @@
 // Step components for CreateAreaScreen
 
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import styles from '../../styles';
 import Card from '../../components/Card';
 import { serviceCardStyle, itemCardStyle, configFieldStyle } from './styles';
