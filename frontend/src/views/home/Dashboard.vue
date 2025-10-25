@@ -106,7 +106,7 @@ onMounted(() => {
           <IonIcon :icon="card.icon" :style="{color: card.color, fontSize: '24px'}" />
         </div>
         <div>
-          <h1>{{ card.value }}</h1>
+          <div class="dash-value">{{ card.value }}</div>
         </div>
         <div class="dash-content">
           <h3>{{ card.title }}</h3>
@@ -346,7 +346,7 @@ onMounted(() => {
   line-height: 1.1;
 }
 
-.dash-content h1 {
+.dash-value {
   margin: 0;
   color: #fff;
   font-size: 28px;
@@ -372,7 +372,7 @@ onMounted(() => {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
-  .dash-content h1 { font-size: 24px; }
+  .dash-value { font-size: 24px; }
 }
 
 </style>

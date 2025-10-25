@@ -10,8 +10,16 @@ const props = defineProps({
   <RouterLink custom v-slot="{ navigate, href, isActive}" :to="props.link">
     <div
         :class="['nav-card', 'center-container', 'prevent-select', {'active': isActive}]"
-        style="cursor: pointer"
-        @click="navigate" :ref="href" role="link">
+        :style="{ cursor: props.disabled ? 'default' : 'pointer' }"
+        @click="!props.disabled && navigate()"
+        @keydown.enter.prevent="!props.disabled && navigate()"
+        @keydown.space.prevent="!props.disabled && navigate()"
+        :ref="href"
+        role="link"
+        tabindex="0"
+        :aria-disabled="props.disabled ? 'true' : 'false'"
+        :aria-current="isActive ? 'page' : undefined"
+    >
       <p>{{ props.msg }}</p>
     </div>
   </RouterLink>

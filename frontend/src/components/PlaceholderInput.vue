@@ -31,6 +31,10 @@ const showDropdown = ref(false);
 const selectedIndex = ref(0);
 const cursorPosition = ref(0);
 
+// New: IDs for accessibility
+const dropdownId = `placeholder-dropdown-${Math.random().toString(36).slice(2,9)}`;
+const inputId = props.id || `placeholder-input-${Math.random().toString(36).slice(2,9)}`;
+
 // Valid placeholder keys set
 const validPlaceholderKeys = computed(() =>
   new Set(props.placeholders.map(p => p.key))
@@ -196,8 +200,12 @@ function handleInput() {
   emit('update:modelValue', newValue);
   saveCursorPosition();
 
+  // Ensure aria-activedescendant is in sync when dropdown is visible
+  if (showDropdown.value) {
+    // no-op here; aria-activedescendant is managed via binding in template
+  }
+
   // Force immediate re-render to fix styling issues
-  // This ensures placeholders are re-validated and text outside placeholders doesn't inherit colors
   nextTick(() => {
     if (editorRef.value && props.modelValue === newValue) {
       const savedPos = cursorPosition.value;
@@ -283,7 +291,14 @@ function scrollSelectedIntoView() {
 
 // Handle keyboard navigation
 function handleKeydown(event: KeyboardEvent) {
-  if (!showDropdown.value) return;
+  // If dropdown not visible, still capture some keys for accessibility
+  if (!showDropdown.value) {
+    // Allow Escape to blur
+    if (event.key === 'Escape') {
+      editorRef.value?.blur();
+    }
+    return;
+  }
 
   if (event.key === 'ArrowDown') {
     event.preventDefault();
@@ -342,8 +357,13 @@ onUnmounted(() => {
   <div class="placeholder-input-wrapper">
     <div
       ref="editorRef"
-      :id="id"
+      :id="inputId"
       contenteditable="true"
+      role="combobox"
+      :aria-haspopup="showDropdown ? 'listbox' : 'false'"
+      :aria-expanded="showDropdown ? 'true' : 'false'"
+      :aria-owns="showDropdown ? dropdownId : undefined"
+      :aria-activedescendant="showDropdown ? `${dropdownId}-item-${selectedIndex}` : undefined"
       @input="handleInput"
       @keydown="handleKeydown"
       @keyup="saveCursorPosition"
@@ -352,15 +372,21 @@ onUnmounted(() => {
       @blur="handleBlur"
       :class="['config-input', { empty: !modelValue }]"
       :data-placeholder="placeholder"
+      tabindex="0"
+      :aria-label="placeholder || 'Input with placeholders'"
     ></div>
 
-    <div v-if="showDropdown" class="placeholder-dropdown">
+    <div v-if="showDropdown" :id="dropdownId" class="placeholder-dropdown" role="listbox" :aria-labelledby="inputId">
       <div
         v-for="(ph, index) in filteredPlaceholders"
         :key="ph.key"
+        :id="`${dropdownId}-item-${index}`"
         :class="['placeholder-item', { selected: index === selectedIndex }]"
         @click="insertPlaceholder(ph)"
         @mouseenter="selectedIndex = index"
+        role="option"
+        :aria-selected="index === selectedIndex ? 'true' : 'false'"
+        tabindex="-1"
       >
         <div class="placeholder-key">{{ ph.key }}</div>
         <div class="placeholder-description">{{ ph.description }}</div>

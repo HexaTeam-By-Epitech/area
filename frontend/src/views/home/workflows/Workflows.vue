@@ -178,15 +178,21 @@ onMounted(() => {
             <div
               v-for="action in providerData.items"
               :key="action.name"
-              :class="[
-                'item-card',
-                { selected: selectedAction?.name === action.name },
-                { disabled: !providerData.isLinked }
-              ]"
-              @click="selectAction(action, providerData.isLinked)"
             >
-              <h4>{{ action.name }}</h4>
-              <p>{{ action.description }}</p>
+              <button
+                type="button"
+                :class="[
+                  'item-card',
+                  { selected: selectedAction?.name === action.name },
+                  { disabled: !providerData.isLinked }
+                ]"
+                @click="selectAction(action, providerData.isLinked)"
+                :disabled="!providerData.isLinked"
+                :aria-pressed="selectedAction?.name === action.name ? 'true' : 'false'"
+              >
+                <h4>{{ action.name }}</h4>
+                <p>{{ action.description }}</p>
+              </button>
             </div>
           </div>
         </div>
@@ -207,15 +213,21 @@ onMounted(() => {
             <div
               v-for="reaction in providerData.items"
               :key="reaction.name"
-              :class="[
-                'item-card',
-                { selected: selectedReaction?.name === reaction.name },
-                { disabled: !providerData.isLinked }
-              ]"
-              @click="selectReaction(reaction, providerData.isLinked)"
             >
-              <h4>{{ reaction.name }}</h4>
-              <p>{{ reaction.description }}</p>
+              <button
+                type="button"
+                :class="[
+                  'item-card',
+                  { selected: selectedReaction?.name === reaction.name },
+                  { disabled: !providerData.isLinked }
+                ]"
+                @click="selectReaction(reaction, providerData.isLinked)"
+                :disabled="!providerData.isLinked"
+                :aria-pressed="selectedReaction?.name === reaction.name ? 'true' : 'false'"
+              >
+                <h4>{{ reaction.name }}</h4>
+                <p>{{ reaction.description }}</p>
+              </button>
             </div>
           </div>
         </div>
