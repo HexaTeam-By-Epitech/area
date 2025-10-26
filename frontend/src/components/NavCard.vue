@@ -11,7 +11,13 @@ const props = defineProps({
     <div
         :class="['nav-card', 'center-container', 'prevent-select', {'active': isActive}]"
         style="cursor: pointer"
-        @click="navigate" :ref="href" role="link">
+        @click="navigate"
+        @keydown.enter="navigate"
+        @keydown.space.prevent="navigate"
+        :ref="href"
+        role="link"
+        tabindex="0"
+        :aria-label="`Navigate to ${props.msg}`">
       <p>{{ props.msg }}</p>
     </div>
   </RouterLink>
@@ -33,10 +39,21 @@ const props = defineProps({
   transition: border-bottom-color 400ms ease;
 }
 
-
 .nav-card.active,
-.nav-card:hover {
+.nav-card:hover,
+.nav-card:focus {
   border-bottom-color: var(--button-color);
+}
+
+/* Focus styles for keyboard accessibility */
+.nav-card:focus {
+  outline: 2px solid var(--button-color);
+  outline-offset: 2px;
+}
+
+.nav-card:focus-visible {
+  outline: 2px solid var(--button-color);
+  outline-offset: 2px;
 }
 
 </style>
