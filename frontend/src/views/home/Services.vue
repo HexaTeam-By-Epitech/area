@@ -121,6 +121,7 @@ onMounted(() => {
                 v-if="!provider.linked"
                 @click="linkProvider(provider)"
                 :disabled="provider.loading"
+                :aria-label="provider.displayName"
                 class="service-btn connect-btn"
             >
               {{ provider.loading ? 'Connecting...' : 'Connect' }}
@@ -130,6 +131,7 @@ onMounted(() => {
                 v-else
                 @click="unlinkProvider(provider)"
                 :disabled="provider.loading"
+                :aria-label="`Disconnect ${provider.displayName}`"
                 class="service-btn disconnect-btn"
             >
               {{ provider.loading ? 'Disconnecting...' : 'Disconnect' }}

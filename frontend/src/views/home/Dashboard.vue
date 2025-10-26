@@ -97,7 +97,7 @@ onMounted(() => {
   <div class="center-container-vertical">
     <div class="header">
       <h1>My AREAs</h1>
-      <button @click="createNewArea" class="create-btn">+ Create AREA</button>
+      <button @click="createNewArea" :aria-label="'Create AREA'" class="create-btn">+ Create AREA</button>
     </div>
 
     <ul class="dash-stats">
@@ -120,7 +120,11 @@ onMounted(() => {
 
     <div v-if="!loading && areas.length === 0" class="empty-state">
       <p>You don't have any AREAs yet.</p>
-      <button @click="createNewArea" class="create-btn">Create your first AREA</button>
+      <button
+          @click="createNewArea"
+          class="create-btn">
+        Create your first AREA
+      </button>
     </div>
 
     <div v-if="!loading && areas.length > 0" class="areas-grid">
@@ -133,6 +137,7 @@ onMounted(() => {
             @click="deleteArea(area.id)"
             :disabled="deleting.has(area.id)"
             class="delete-btn"
+            :aria-label="deleting.has(area.id) ? 'Deleting AREA' : 'Delete AREA'"
           >
             {{ deleting.has(area.id) ? '...' : '×' }}
           </button>
