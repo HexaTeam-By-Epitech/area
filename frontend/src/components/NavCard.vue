@@ -40,20 +40,8 @@ const props = defineProps({
 }
 
 .nav-card.active,
-.nav-card:hover,
-.nav-card:focus {
+.nav-card:hover {
   border-bottom-color: var(--button-color);
-}
-
-/* Focus styles for keyboard accessibility */
-.nav-card:focus {
-  outline: 2px solid var(--button-color);
-  outline-offset: 2px;
-}
-
-.nav-card:focus-visible {
-  outline: 2px solid var(--button-color);
-  outline-offset: 2px;
 }
 
 </style>
