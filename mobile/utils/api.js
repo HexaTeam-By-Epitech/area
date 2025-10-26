@@ -10,7 +10,7 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
-    timeout: 10000,
+    timeout: 30000, // augmenter le timeout pour les opérations lentes comme l'envoi d'email
 });
 
 // Create axios instance for direct routes (auth, manager - no /api prefix)
@@ -20,7 +20,7 @@ export const apiDirect = axios.create({
         'Content-Type': 'application/json',
         'ngrok-skip-browser-warning': 'true', // Skip ngrok browser warning
     },
-    timeout: 10000,
+    timeout: 30000,
 });
 
 // Request interceptor to add JWT token
