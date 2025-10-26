@@ -158,9 +158,9 @@ onMounted(() => {
         Manage how you sign in to your account. You can link multiple sign-in methods for convenience.
       </p>
 
-      <div v-if="loading" class="loading">Loading sign-in methods...</div>
-      <div v-if="successMessage" class="success-message">{{ successMessage }}</div>
-      <div v-if="error" class="error-message">{{ error }}</div>
+      <div v-if="loading" class="loading" role="status" aria-live="polite" aria-label="Loading sign-in methods">Loading sign-in methods...</div>
+      <div v-if="successMessage" class="success-message" role="status" aria-live="polite" :aria-label="successMessage">{{ successMessage }}</div>
+      <div v-if="error" class="error-message" role="alert" aria-live="assertive" :aria-label="error">{{ error }}</div>
 
       <div class="identity-providers-list">
         <div

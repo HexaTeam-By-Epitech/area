@@ -291,8 +291,8 @@ onMounted(() => {
       </div>
     </div>
 
-    <div v-if="loading" class="loading">Loading available actions and reactions...</div>
-    <div v-if="error" class="error-message">{{ error }}</div>
+    <div v-if="loading" class="loading" role="status" aria-live="polite" aria-label="Loading available actions and reactions">Loading available actions and reactions...</div>
+    <div v-if="error" class="error-message" role="alert" aria-live="assertive" :aria-label="error">{{ error }}</div>
 
     <div v-if="!loading" class="workflow-layout">
       <!-- Actions Column -->

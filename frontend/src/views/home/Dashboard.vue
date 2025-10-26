@@ -115,8 +115,8 @@ onMounted(() => {
       </li>
     </ul>
 
-    <div v-if="loading" class="loading">Loading your AREAs...</div>
-    <div v-if="error" class="error-message">{{ error }}</div>
+    <div v-if="loading" class="loading" role="status" aria-live="polite" aria-label="Loading your AREAs">Loading your AREAs...</div>
+    <div v-if="error" class="error-message" role="alert" aria-live="assertive" :aria-label="error">{{ error }}</div>
 
     <div v-if="!loading && areas.length === 0" class="empty-state">
       <p>You don't have any AREAs yet.</p>
