@@ -1,0 +1,138 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: area-postgres
+    environment:
+      POSTGRES_USER: area-user
+      POSTGRES_PASSWORD: your-super-secret-password
+      POSTGRES_DB: areadb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U area-user -d areadb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - area-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: area-redis
+    command: redis-server --requirepass mypassword
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - area-network
+    restart: unless-stopped
+
+  server:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: area-server
+    ports:
+      - "8080:8080"
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      HOST: 0.0.0.0
+      DB_USER: area-user
+      DB_PASSWORD: your-super-secret-password
+      DB_NAME: areadb
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DATABASE_URL: postgresql://area-user:your-super-secret-password@postgres:5432/areadb
+      REDIS_URL: redis://redis:6379
+      REDIS_PASSWORD: mypassword
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      BACKEND_BASE_URL: ${BACKEND_BASE_URL:-http://localhost:8080}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:8081}
+      JWT_SECRET: ${JWT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+      GOOGLE_IDENTITY_REDIRECT_URI: ${GOOGLE_IDENTITY_REDIRECT_URI}
+      MOBILE_REDIRECT_URI: ${MOBILE_REDIRECT_URI:-area://oauth}
+      TOKENS_ENC_KEY: ${TOKENS_ENC_KEY}
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
+      SPOTIFY_REDIRECT_URI: ${SPOTIFY_REDIRECT_URI}
+      SLACK_CLIENT_ID: ${SLACK_CLIENT_ID}
+      SLACK_CLIENT_SECRET: ${SLACK_CLIENT_SECRET}
+      SLACK_REDIRECT_URI: ${SLACK_REDIRECT_URI}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
+      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+      NOTION_CLIENT_ID: ${NOTION_CLIENT_ID}
+      NOTION_CLIENT_SECRET: ${NOTION_CLIENT_SECRET}
+      NOTION_REDIRECT_URI: ${NOTION_REDIRECT_URI}
+      CLIENT_HOST: ${CLIENT_HOST:-localhost}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "./healthcheck.sh"]
+      interval: 30s
+      timeout: 3s
+      start_period: 40s
+      retries: 3
+    networks:
+      - area-network
+    restart: unless-stopped
+
+  client_mobile:
+    build:
+      context: ./mobile
+      dockerfile: Dockerfile
+      args:
+        EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-http://localhost:8080}
+        EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${EXPO_PUBLIC_GOOGLE_CLIENT_ID}
+        EXPO_PUBLIC_OAUTH_REDIRECT_URI: ${EXPO_PUBLIC_OAUTH_REDIRECT_URI:-area://oauth}
+    container_name: area-client-mobile
+    volumes:
+      - apk_volume:/shared
+    networks:
+      - area-network
+
+  client_web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
+    container_name: area-client-web
+    ports:
+      - "8081:8081"
+    volumes:
+      - apk_volume:/shared
+    depends_on:
+      - client_mobile
+      - server
+    networks:
+      - area-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  apk_volume:
+
+networks:
+  area-network:
+    driver: bridge
+
