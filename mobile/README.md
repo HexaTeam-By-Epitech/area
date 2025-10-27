@@ -25,25 +25,20 @@ React Native (Expo) mobile application for the AREA project.
 
 ## Environment Configuration
 
-Edit `config.js` to configure the backend API URL:
+Edit `.env` file with your backend URL:
 
-```javascript
-const Config = {
-    API_URL: 'http://10.0.2.2:3000', // For Android emulator
-};
+```bash
+# .env
+EXPO_PUBLIC_API_URL=https://your-ngrok-url.ngrok-free.app
 ```
 
-**Important:** Choose the right URL based on your environment:
-
-- **Android Emulator:** `http://10.0.2.2:3000` (10.0.2.2 is the host machine from Android emulator)
+**Important URLs by environment:**
+- **Android Emulator:** `http://10.0.2.2:3000`
 - **iOS Simulator:** `http://localhost:3000`
-- **Physical Device:** `http://YOUR_IP:3000` (e.g., `http://192.168.1.100:3000`)
+- **Physical Device:** `http://YOUR_LOCAL_IP:3000` (e.g., `http://192.168.1.100:3000`)
+- **Development with ngrok:** `https://your-url.ngrok-free.app` ✅ Recommended
 
-To find your local IP:
-- **macOS/Linux:** `ifconfig` or `ip addr`
-- **Windows:** `ipconfig`
-
-Make sure your phone and computer are on the same Wi-Fi network when testing on a physical device.
+To find your local IP: `ifconfig` (macOS/Linux) or `ipconfig` (Windows)
 
 ## Installation
 
@@ -55,36 +50,73 @@ npm ci
 
 ## Running the Application
 
-### Start Expo development server
+### Development server
 
 ```bash
 npm run start
 ```
 
-This will start the Expo development server and show a QR code.
-
-### Run on different platforms
+### Run on platforms
 
 ```bash
-# Android (emulator or connected device)
-npm run android
-
-# iOS (simulator, macOS only)
-npm run ios
-
-# Web browser
-npm run web
+npm run android  # Android emulator/device
+npm run ios      # iOS simulator (macOS only)
+npm run web      # Web browser
 ```
 
 ### Using Expo Go (Physical Device)
 
-1. Install **Expo Go** from App Store (iOS) or Play Store (Android)
+1. Install **Expo Go** app
 2. Run `npm run start`
-3. Scan the QR code with:
-   - **iOS:** Camera app
-   - **Android:** Expo Go app
+3. Scan QR code
 
-**Note:** Make sure your phone and computer are on the same Wi-Fi network.
+## 🏗️ Building APK (Local Build)
+
+### Prerequisites
+
+- **Android Studio** installed
+- **Java JDK 17** installed
+- Environment variables configured (ANDROID_HOME, JAVA_HOME)
+
+### Build Commands
+
+```bash
+# Build APK (for testing/sharing)
+npm run build:android:apk
+
+# Build AAB (for Play Store)
+npm run build:android:bundle
+```
+
+**APK output:** `android/app/build/outputs/apk/release/app-release.apk`
+**AAB output:** `android/app/build/outputs/bundle/release/app-release.aab`
+
+### Install APK on device
+
+```bash
+# Via ADB
+adb install android/app/build/outputs/apk/release/app-release.apk
+
+# Or transfer the APK file to your phone and install manually
+```
+
+### First-time build setup
+
+If you get signing errors, generate a keystore:
+
+```bash
+cd android/app
+keytool -genkeypair -v -storetype PKCS12 -keystore my-release-key.keystore \
+  -alias my-key-alias -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Then edit `android/gradle.properties`:
+```properties
+MYAPP_RELEASE_STORE_FILE=my-release-key.keystore
+MYAPP_RELEASE_KEY_ALIAS=my-key-alias
+MYAPP_RELEASE_STORE_PASSWORD=your-password
+MYAPP_RELEASE_KEY_PASSWORD=your-password
+```
 
 ## Testing
 

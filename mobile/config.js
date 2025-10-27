@@ -1,23 +1,21 @@
 /**
  * Mobile App Configuration
  *
- * Change these values based on your environment:
- * - For Android emulator: use 10.0.2.2
- * - For iOS simulator: use localhost
- * - For physical device: use your machine's IP address (e.g., 192.168.1.100)
+ * Uses environment variables with fallback to default values.
+ * Variables are loaded at build time from .env file.
+ *
+ * For EAS Build, you can override these in eas.json or through secrets.
  */
 
 const Config = {
-    // Backend API URL
-    API_URL: 'https://necrologically-dimensionless-charlena.ngrok-free.app',
+    // Backend API URL - reads from EXPO_PUBLIC_API_URL environment variable
+    API_URL: process.env.EXPO_PUBLIC_API_URL,
 
     // OAuth redirect URI (must match app.json scheme)
-    OAUTH_REDIRECT_URI: 'area://oauth',
+    OAUTH_REDIRECT_URI: process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URI || 'area://oauth',
 
-    // Alternative URLs for different environments:
-    // API_URL: 'http://localhost:3000', // iOS simulator
-    // API_URL: 'http://192.168.1.100:3000', // Physical device (replace with your IP)
-    // API_URL: 'https://your-production-api.com', // Production
+    // Google OAuth Client ID
+    GOOGLE_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '30466278889-tg1j94b3me7rqqdl5q2ibs3s4etge8bj.apps.googleusercontent.com',
 };
 
 export default Config;
