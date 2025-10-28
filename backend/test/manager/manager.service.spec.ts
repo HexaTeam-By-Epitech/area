@@ -410,7 +410,6 @@ describe('ManagerService', () => {
             {
               name: ReactionNamesEnum.LOG_EVENT,
               description: 'Log event to database',
-              configSchema: [],
             },
           ],
         },
@@ -420,7 +419,6 @@ describe('ManagerService', () => {
             {
               name: ReactionNamesEnum.DISCORD_SEND_SERVER_MESSAGE,
               description: 'Send a message to a Discord channel',
-              configSchema: expect.any(Array),
             },
           ],
         },
@@ -430,11 +428,51 @@ describe('ManagerService', () => {
             {
               name: ReactionNamesEnum.SEND_EMAIL,
               description: 'Send email notification',
-              configSchema: expect.any(Array),
             },
           ],
         },
       });
+    });
+  });
+
+  describe('getReactionConfigSchema', () => {
+    it('should return config schema for a reaction', () => {
+      const schema = service.getReactionConfigSchema(ReactionNamesEnum.SEND_EMAIL);
+      
+      expect(schema).toEqual([
+        {
+          name: 'to',
+          type: 'email',
+          required: true,
+          label: 'Recipient email',
+          placeholder: 'recipient@example.com'
+        },
+        {
+          name: 'subject',
+          type: 'string',
+          required: true,
+          label: 'Email subject',
+          placeholder: 'Notification from AREA'
+        },
+        {
+          name: 'body',
+          type: 'string',
+          required: true,
+          label: 'Email body',
+          placeholder: 'Your message here...'
+        }
+      ]);
+    });
+
+    it('should throw NotFoundException for unknown reaction', () => {
+      expect(() => {
+        service.getReactionConfigSchema('unknown_reaction');
+      }).toThrow('Reaction \'unknown_reaction\' not found');
+    });
+
+    it('should return empty array for reactions without config schema', () => {
+      const schema = service.getReactionConfigSchema(ReactionNamesEnum.LOG_EVENT);
+      expect(schema).toEqual([]);
     });
   });
 });

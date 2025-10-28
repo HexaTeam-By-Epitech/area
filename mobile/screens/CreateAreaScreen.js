@@ -22,7 +22,9 @@ export default function CreateAreaScreen({ navigation }) {
 
     const [selectedAction, setSelectedAction] = useState('');
     const [selectedReaction, setSelectedReaction] = useState('');
+    const [actionConfig, setActionConfig] = useState({});
     const [reactionConfig, setReactionConfig] = useState({});
+    const [reactionConfigSchema, setReactionConfigSchema] = useState([]);
 
     useEffect(() => {
         loadActionsAndReactions();
@@ -58,9 +60,28 @@ export default function CreateAreaScreen({ navigation }) {
         data.isLinked ? data.items || [] : []
     );
 
+    const loadReactionConfigSchema = async (reactionName) => {
+        try {
+            const response = await apiDirect.get(`/manager/reactions/${reactionName}/config-schema`);
+            setReactionConfigSchema(response.data || []);
+        } catch (err) {
+            console.error('Failed to load reaction config schema:', err);
+            setReactionConfigSchema([]);
+        }
+    };
+
+    const handleReactionChange = (reactionName) => {
+        setSelectedReaction(reactionName);
+        setReactionConfig({});
+        if (reactionName) {
+            loadReactionConfigSchema(reactionName);
+        } else {
+            setReactionConfigSchema([]);
+        }
+    };
+
     const getSelectedReactionSchema = () => {
-        const reaction = flattenedReactions.find(r => r.name === selectedReaction);
-        return reaction?.configSchema || [];
+        return reactionConfigSchema;
     };
 
     const handleConfigChange = (key, value) => {
@@ -84,8 +105,8 @@ export default function CreateAreaScreen({ navigation }) {
         // Validate required config fields
         const schema = getSelectedReactionSchema();
         for (const field of schema) {
-            if (field.required && !reactionConfig[field.key]) {
-                Alert.alert('Error', `Please fill in the required field: ${field.label}`);
+            if (field.required && !reactionConfig[field.name]) {
+                Alert.alert('Error', `Please fill in the required field: ${field.label || field.name}`);
                 return;
             }
         }
@@ -95,7 +116,8 @@ export default function CreateAreaScreen({ navigation }) {
             await apiDirect.post('/manager/areas', {
                 actionName: selectedAction,
                 reactionName: selectedReaction,
-                config: reactionConfig
+                actionConfig: actionConfig,
+                reactionConfig: reactionConfig
             });
 
             Alert.alert('Success', 'AREA created successfully!', [
@@ -171,10 +193,7 @@ export default function CreateAreaScreen({ navigation }) {
                     <View style={{ backgroundColor: '#2a2a2a', borderRadius: 8, overflow: 'hidden' }}>
                         <Picker
                             selectedValue={selectedReaction}
-                            onValueChange={(value) => {
-                                setSelectedReaction(value);
-                                setReactionConfig({});
-                            }}
+                            onValueChange={handleReactionChange}
                             style={{ color: '#fff' }}
                             dropdownIconColor="#fff"
                         >
@@ -197,21 +216,17 @@ export default function CreateAreaScreen({ navigation }) {
                             Configure Reaction
                         </Text>
                         {getSelectedReactionSchema().map((field) => (
-                            <View key={field.key} style={{ marginBottom: 12 }}>
+                            <View key={field.name} style={{ marginBottom: 12 }}>
                                 <Text style={[styles.text, { fontSize: 14, marginBottom: 4 }]}>
-                                    {field.label}{field.required && <Text style={{ color: '#d32f2f' }}> *</Text>}
+                                    {field.label || field.name}{field.required && <Text style={{ color: '#d32f2f' }}> *</Text>}
                                 </Text>
-                                {field.description && (
-                                    <Text style={[styles.text, { fontSize: 12, color: '#888', marginBottom: 4 }]}>
-                                        {field.description}
-                                    </Text>
-                                )}
                                 <TextInput
                                     style={[styles.input, { marginBottom: 0 }]}
-                                    placeholder={field.placeholder || field.label}
+                                    placeholder={field.placeholder || field.label || field.name}
                                     placeholderTextColor="#c3c9d5"
-                                    value={reactionConfig[field.key] || ''}
-                                    onChangeText={(value) => handleConfigChange(field.key, value)}
+                                    value={reactionConfig[field.name] || ''}
+                                    onChangeText={(value) => handleConfigChange(field.name, value)}
+                                    keyboardType={field.type === 'email' ? 'email-address' : field.type === 'number' ? 'numeric' : 'default'}
                                 />
                             </View>
                         ))}

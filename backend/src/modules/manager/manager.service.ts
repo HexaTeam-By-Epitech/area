@@ -810,11 +810,21 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
 
             grouped[providerName].items.push({
                 name: reactionCallback.name,
-                description: reactionCallback.description,
-                configSchema: reactionCallback.configSchema || []
+                description: reactionCallback.description
             });
         }
 
         return grouped;
+    }
+
+    /**
+     * Get config schema for a given reaction
+     */
+    getReactionConfigSchema(reactionName: string) {
+        const reaction = this.reactionCallbacks.get(reactionName);
+        if (!reaction) {
+            throw new NotFoundException(`Reaction '${reactionName}' not found`);
+        }
+        return reaction.configSchema || [];
     }
 }

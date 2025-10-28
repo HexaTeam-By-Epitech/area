@@ -1,6 +1,5 @@
 import { Controller, Get, Param, Post, Body, Delete, HttpCode, HttpStatus, ParseUUIDPipe, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ManagerService } from './manager.service';
-import { ActionCallback, ReactionCallback } from '../../common/interfaces/area.type';
 import { ApiBody } from '@nestjs/swagger/dist/decorators/api-body.decorator';
 import { ApiOperation, ApiParam, ApiProperty, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { GetUser } from '../../common/decorators/get-user.decorator';
@@ -75,6 +74,20 @@ export class ManagerController {
       throw new BadRequestException(`No placeholders available for action '${actionName}'`);
     }
     return placeholders;
+  }
+
+  /**
+   * Get config schema for a specific reaction
+   * @param reactionName - Name of the reaction
+   * @returns Config schema for the reaction
+   */
+  @Get('reactions/:reactionName/config-schema')
+  @ApiParam({ name: 'reactionName', description: 'Name of the reaction' })
+  @ApiOperation({ summary: 'Get config schema for a reaction' })
+  @ApiResponse({ status: 200, description: 'Config schema for the reaction' })
+  @ApiResponse({ status: 404, description: 'Reaction not found' })
+  getReactionConfigSchema(@Param('reactionName') reactionName: string) {
+    return this.managerService.getReactionConfigSchema(reactionName);
   }
 
   /**

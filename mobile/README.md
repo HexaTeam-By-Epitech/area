@@ -197,7 +197,9 @@ The mobile app integrates with the backend API through the following endpoints:
 - `POST /manager/areas` - Create new AREA
 - `DELETE /manager/areas/:id` - Delete an AREA
 - `GET /manager/actions` - Get available actions
-- `GET /manager/reactions` - Get available reactions with config schemas
+- `GET /manager/actions/:actionName/placeholders` - Get placeholders for an action
+- `GET /manager/reactions` - Get available reactions
+- `GET /manager/reactions/:reactionName/config-schema` - Get config schema for a reaction
 
 All authenticated requests include the JWT token in the `Authorization` header via axios interceptors.
 

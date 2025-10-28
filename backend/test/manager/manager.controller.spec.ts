@@ -28,13 +28,13 @@ describe('ManagerController', () => {
     google: {
       isLinked: true,
       items: [
-        { name: 'send_email', description: 'Send email notification', configSchema: [] },
+        { name: 'send_email', description: 'Send email notification' },
       ],
     },
     default: {
       isLinked: true,
       items: [
-        { name: 'log_event', description: 'Log event to database', configSchema: [] },
+        { name: 'log_event', description: 'Log event to database' },
       ],
     },
   };
@@ -62,6 +62,7 @@ describe('ManagerController', () => {
             getUserAreas: jest.fn(),
             deactivateArea: jest.fn(),
             getActionPlaceholders: jest.fn(),
+            getReactionConfigSchema: jest.fn(),
           },
         },
         {
@@ -255,6 +256,49 @@ describe('ManagerController', () => {
       expect(() => controller.getActionPlaceholders('invalid_action')).toThrow(
         BadRequestException,
       );
+    });
+  });
+
+  describe('getReactionConfigSchema', () => {
+    const mockConfigSchema = [
+      {
+        name: 'to',
+        type: 'email',
+        required: true,
+        label: 'Recipient email',
+        placeholder: 'recipient@example.com'
+      },
+      {
+        name: 'subject',
+        type: 'string',
+        required: true,
+        label: 'Email subject',
+        placeholder: 'Notification from AREA'
+      },
+      {
+        name: 'body',
+        type: 'string',
+        required: true,
+        label: 'Email body',
+        placeholder: 'Your message here...'
+      }
+    ];
+
+    it('should return config schema for a valid reaction', () => {
+      (service.getReactionConfigSchema as jest.Mock).mockReturnValue(mockConfigSchema);
+
+      const result = controller.getReactionConfigSchema('send_email');
+
+      expect(result).toEqual(mockConfigSchema);
+      expect(service.getReactionConfigSchema).toHaveBeenCalledWith('send_email');
+    });
+
+    it('should return empty array for reactions without config', () => {
+      (service.getReactionConfigSchema as jest.Mock).mockReturnValue([]);
+
+      const result = controller.getReactionConfigSchema('log_event');
+
+      expect(result).toEqual([]);
     });
   });
 });

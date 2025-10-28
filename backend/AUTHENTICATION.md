@@ -65,7 +65,9 @@ All routes under `/auth/*` are public:
 #### AREA Management Routes (Protected)
 All routes under `/manager/*` require authentication:
 - `GET /manager/actions` - List available actions
+- `GET /manager/actions/:actionName/placeholders` - Get placeholders for an action
 - `GET /manager/reactions` - List available reactions
+- `GET /manager/reactions/:reactionName/config-schema` - Get config schema for a reaction
 - `POST /manager/areas` - Create area (uses authenticated user)
 - `GET /manager/areas` - Get user's areas (uses authenticated user)
 - `DELETE /manager/areas/:areaId` - Delete area (ownership verified)

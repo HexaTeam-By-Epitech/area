@@ -179,13 +179,30 @@ watch(() => actionConfig.value.databaseId, async (newDatabaseId) => {
   }
 });
 
-function selectReaction(reaction: Reaction, isLinked: boolean) {
+async function loadReactionConfigSchema(reactionName: string) {
+  try {
+    const response = await api.get(`/manager/reactions/${reactionName}/config-schema`);
+    return response.data || [];
+  } catch (err) {
+    console.error('Failed to load config schema for reaction:', reactionName, err);
+    return [];
+  }
+}
+
+async function selectReaction(reaction: Reaction, isLinked: boolean) {
   if (!isLinked) return;
   selectedReaction.value = reaction;
+  
+  // Load config schema for the reaction
+  const configSchema = await loadReactionConfigSchema(reaction.name);
+  
+  // Store the config schema on the reaction object for template usage
+  reaction.configSchema = configSchema;
+  
   // Initialize config based on schema with default values
   reactionConfig.value = {};
-  if (reaction.configSchema && reaction.configSchema.length > 0) {
-    reaction.configSchema.forEach(field => {
+  if (configSchema && configSchema.length > 0) {
+    configSchema.forEach((field: ConfigField) => {
       if (field.defaultValue !== undefined) {
         reactionConfig.value[field.name] = field.defaultValue;
       } else {
