@@ -475,4 +475,45 @@ describe('ManagerService', () => {
       expect(schema).toEqual([]);
     });
   });
+
+  describe('getActionConfigSchema', () => {
+    it('should return config schema for an action with config', () => {
+      const schema = service.getActionConfigSchema(ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE);
+      
+      expect(schema).toEqual([
+        {
+          name: 'channelId',
+          type: 'string',
+          required: true,
+          label: 'Discord Channel ID',
+          placeholder: '123456789012345678'
+        }
+      ]);
+    });
+
+    it('should return config schema for Notion action', () => {
+      const schema = service.getActionConfigSchema(ActionNamesEnum.NOTION_NEW_DATABASE_ITEM);
+      
+      expect(schema).toEqual([
+        {
+          name: 'databaseId',
+          type: 'string',
+          required: true,
+          label: 'Notion Database ID',
+          placeholder: '123e4567e89b12d3a456426614174000'
+        }
+      ]);
+    });
+
+    it('should throw NotFoundException for unknown action', () => {
+      expect(() => {
+        service.getActionConfigSchema('unknown_action');
+      }).toThrow('Action \'unknown_action\' not found');
+    });
+
+    it('should return empty array for actions without config schema', () => {
+      const schema = service.getActionConfigSchema(ActionNamesEnum.SPOTIFY_HAS_LIKES);
+      expect(schema).toEqual([]);
+    });
+  });
 });

@@ -77,6 +77,20 @@ export class ManagerController {
   }
 
   /**
+   * Get config schema for a specific action
+   * @param actionName - Name of the action
+   * @returns Config schema for the action
+   */
+  @Get('actions/:actionName/config-schema')
+  @ApiParam({ name: 'actionName', description: 'Name of the action' })
+  @ApiOperation({ summary: 'Get config schema for an action' })
+  @ApiResponse({ status: 200, description: 'Config schema for the action' })
+  @ApiResponse({ status: 404, description: 'Action not found' })
+  getActionConfigSchema(@Param('actionName') actionName: string) {
+    return this.managerService.getActionConfigSchema(actionName);
+  }
+
+  /**
    * Get config schema for a specific reaction
    * @param reactionName - Name of the reaction
    * @returns Config schema for the reaction

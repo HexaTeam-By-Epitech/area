@@ -24,6 +24,7 @@ export default function CreateAreaScreen({ navigation }) {
     const [selectedReaction, setSelectedReaction] = useState('');
     const [actionConfig, setActionConfig] = useState({});
     const [reactionConfig, setReactionConfig] = useState({});
+    const [actionConfigSchema, setActionConfigSchema] = useState([]);
     const [reactionConfigSchema, setReactionConfigSchema] = useState([]);
 
     useEffect(() => {
@@ -60,6 +61,16 @@ export default function CreateAreaScreen({ navigation }) {
         data.isLinked ? data.items || [] : []
     );
 
+    const loadActionConfigSchema = async (actionName) => {
+        try {
+            const response = await apiDirect.get(`/manager/actions/${actionName}/config-schema`);
+            setActionConfigSchema(response.data || []);
+        } catch (err) {
+            console.error('Failed to load action config schema:', err);
+            setActionConfigSchema([]);
+        }
+    };
+
     const loadReactionConfigSchema = async (reactionName) => {
         try {
             const response = await apiDirect.get(`/manager/reactions/${reactionName}/config-schema`);
@@ -67,6 +78,16 @@ export default function CreateAreaScreen({ navigation }) {
         } catch (err) {
             console.error('Failed to load reaction config schema:', err);
             setReactionConfigSchema([]);
+        }
+    };
+
+    const handleActionChange = (actionName) => {
+        setSelectedAction(actionName);
+        setActionConfig({});
+        if (actionName) {
+            loadActionConfigSchema(actionName);
+        } else {
+            setActionConfigSchema([]);
         }
     };
 
@@ -80,11 +101,22 @@ export default function CreateAreaScreen({ navigation }) {
         }
     };
 
+    const getSelectedActionSchema = () => {
+        return actionConfigSchema;
+    };
+
     const getSelectedReactionSchema = () => {
         return reactionConfigSchema;
     };
 
-    const handleConfigChange = (key, value) => {
+    const handleActionConfigChange = (key, value) => {
+        setActionConfig(prev => ({
+            ...prev,
+            [key]: value
+        }));
+    };
+
+    const handleReactionConfigChange = (key, value) => {
         setReactionConfig(prev => ({
             ...prev,
             [key]: value
@@ -102,11 +134,20 @@ export default function CreateAreaScreen({ navigation }) {
             return;
         }
 
-        // Validate required config fields
-        const schema = getSelectedReactionSchema();
-        for (const field of schema) {
+        // Validate required action config fields
+        const actionSchema = getSelectedActionSchema();
+        for (const field of actionSchema) {
+            if (field.required && !actionConfig[field.name]) {
+                Alert.alert('Error', `Please fill in the required action field: ${field.label || field.name}`);
+                return;
+            }
+        }
+
+        // Validate required reaction config fields
+        const reactionSchema = getSelectedReactionSchema();
+        for (const field of reactionSchema) {
             if (field.required && !reactionConfig[field.name]) {
-                Alert.alert('Error', `Please fill in the required field: ${field.label || field.name}`);
+                Alert.alert('Error', `Please fill in the required reaction field: ${field.label || field.name}`);
                 return;
             }
         }
@@ -170,7 +211,7 @@ export default function CreateAreaScreen({ navigation }) {
                     }}>
                         <Picker
                             selectedValue={selectedAction}
-                            onValueChange={(value) => setSelectedAction(value)}
+                            onValueChange={handleActionChange}
                             style={{ color: '#fff' }}
                             dropdownIconColor="#fff"
                         >
@@ -185,6 +226,30 @@ export default function CreateAreaScreen({ navigation }) {
                         </Picker>
                     </View>
                 </Card>
+
+                {/* Action Configuration */}
+                {selectedAction && getSelectedActionSchema().length > 0 && (
+                    <Card style={{ marginBottom: 20, padding: 16 }}>
+                        <Text style={[styles.title, { fontSize: 18, marginBottom: 12 }]}>
+                            Configure Action
+                        </Text>
+                        {getSelectedActionSchema().map((field) => (
+                            <View key={field.name} style={{ marginBottom: 12 }}>
+                                <Text style={[styles.text, { fontSize: 14, marginBottom: 4 }]}>
+                                    {field.label || field.name}{field.required && <Text style={{ color: '#d32f2f' }}> *</Text>}
+                                </Text>
+                                <TextInput
+                                    style={[styles.input, { marginBottom: 0 }]}
+                                    placeholder={field.placeholder || field.label || field.name}
+                                    placeholderTextColor="#c3c9d5"
+                                    value={actionConfig[field.name] || ''}
+                                    onChangeText={(value) => handleActionConfigChange(field.name, value)}
+                                    keyboardType={field.type === 'email' ? 'email-address' : field.type === 'number' ? 'numeric' : 'default'}
+                                />
+                            </View>
+                        ))}
+                    </Card>
+                )}
 
                 {/* Reaction Selection */}
                 <Card style={{ marginBottom: 20, padding: 16 }}>
@@ -225,7 +290,7 @@ export default function CreateAreaScreen({ navigation }) {
                                     placeholder={field.placeholder || field.label || field.name}
                                     placeholderTextColor="#c3c9d5"
                                     value={reactionConfig[field.name] || ''}
-                                    onChangeText={(value) => handleConfigChange(field.name, value)}
+                                    onChangeText={(value) => handleReactionConfigChange(field.name, value)}
                                     keyboardType={field.type === 'email' ? 'email-address' : field.type === 'number' ? 'numeric' : 'default'}
                                 />
                             </View>

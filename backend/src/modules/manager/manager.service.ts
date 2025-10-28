@@ -769,8 +769,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
 
             grouped[providerName].items.push({
                 name: actionCallback.name,
-                description: actionCallback.description,
-                configSchema: actionCallback.configSchema || []
+                description: actionCallback.description
             });
         }
 
@@ -815,6 +814,17 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         }
 
         return grouped;
+    }
+
+    /**
+     * Get config schema for a given action
+     */
+    getActionConfigSchema(actionName: string) {
+        const action = this.actionCallbacks.get(actionName);
+        if (!action) {
+            throw new NotFoundException(`Action '${actionName}' not found`);
+        }
+        return action.configSchema || [];
     }
 
     /**
