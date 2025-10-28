@@ -7,6 +7,7 @@ import { RedisService } from '../redis/redis.service';
 import { GmailSendService } from '../reactions/gmail/send.service';
 import { DiscordSendService } from '../reactions/discord/send.service';
 import { GmailNewMailService } from '../actions/gmail/new-mail.service';
+import { NotionDatabaseItemService } from '../actions/notion/database-item.service';
 import { PlaceholderReplacementService } from '../../common/services/placeholder-replacement.service';
 import type { ActionCallback, ReactionCallback, AreaExecution } from '../../common/interfaces/area.type';
 import { ActionNamesEnum, ReactionNamesEnum } from '../../common/interfaces/action-names.enum';
@@ -27,6 +28,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         [ActionNamesEnum.SPOTIFY_HAS_LIKES]: 'spotify',
         [ActionNamesEnum.GMAIL_NEW_EMAIL]: 'google',
         [ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE]: 'discord',
+        [ActionNamesEnum.NOTION_NEW_DATABASE_ITEM]: 'notion',
     };
 
     private readonly reactionProviders: Record<string, string> = {
@@ -44,6 +46,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         private readonly gmailSendService: GmailSendService,
         private readonly discordSendService: DiscordSendService,
         private readonly gmailNewMailService: GmailNewMailService,
+        private readonly notionDatabaseItemService: NotionDatabaseItemService,
         private readonly placeholderService: PlaceholderReplacementService,
     ) {}
 
@@ -57,6 +60,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         this.polling.register(this.spotifyLikeService);
         this.polling.register(this.discordMessageService);
         this.polling.register(this.gmailNewMailService);
+        this.polling.register(this.notionDatabaseItemService);
         await this.initPollingForActiveAreas();
         this.logger.log('Manager Service initialized with action-reaction system');
     }
@@ -109,6 +113,24 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                 return await this.gmailNewMailService.hasNewGmailEmail(userId);
             },
             description: 'Detect new incoming email in Gmail inbox'
+        });
+
+        // Notion Actions
+        this.actionCallbacks.set(ActionNamesEnum.NOTION_NEW_DATABASE_ITEM, {
+            name: ActionNamesEnum.NOTION_NEW_DATABASE_ITEM,
+            callback: async (userId: string, config?: { databaseId?: string }) => {
+                return await this.notionDatabaseItemService.hasNewDatabaseItem(userId, config);
+            },
+            description: 'Detect new items added to a Notion database',
+            configSchema: [
+                {
+                    name: 'databaseId',
+                    type: 'string',
+                    required: true,
+                    label: 'Notion Database ID',
+                    placeholder: '123e4567e89b12d3a456426614174000'
+                }
+            ]
         });
 
         this.logger.log(`Registered ${this.actionCallbacks.size} action callbacks`);
@@ -382,10 +404,42 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                     }
                 }, actionConfig);
             } else {
-                // For other actions, use the generic polling
+                // For other actions, use the generic polling with action config
                 this.polling.start(actionName, userId, async (result) => {
-                    // ...existing polling logic...
-                });
+                    try {
+                        if (result.code === 0) {
+                            this.logger.log(`Polling detected event for user ${userId}, triggering reaction '${reactionName}'`);
+                            const reactionCallback = this.reactionCallbacks.get(reactionName);
+                            if (!reactionCallback) {
+                                this.logger.error(`Reaction callback '${reactionName}' not found`);
+                                return;
+                            }
+
+                            // Replace placeholders in the config with action data
+                            const processedConfig = this.placeholderService.replaceInConfig(reactionConfig, result.data);
+
+                            const reactionResult = await reactionCallback.callback(userId, result.code, processedConfig);
+                            await this.prisma.event_logs.create({
+                                data: {
+                                    id: crypto.randomUUID(),
+                                    user_id: userId,
+                                    area_id: area.id,
+                                    event_type: 'AREA_EXECUTED',
+                                    description: `${actionName} triggered ${reactionName} (polling)`,
+                                    metadata: {
+                                        actionResult: { code: result.code, data: result.data || {} } as any,
+                                        reactionResult,
+                                        processedConfig
+                                    }
+                                }
+                            });
+                        } else if (result.code === -1) {
+                            this.logger.warn(`Polling action '${actionName}' reported provider not linked for user ${userId}`);
+                        }
+                    } catch (err: any) {
+                        this.logger.error(`Error triggering reaction from polling for user ${userId}: ${err?.message ?? err}`);
+                    }
+                }, actionConfig);
             }
         }
         return area.id;
@@ -514,7 +568,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                             }
                         }, actionConfig);
                     } else {
-                        // For other actions, use the generic polling
+                        // For other actions, use the generic polling with action config
                         this.polling.start(actionName, userId, async (result) => {
                             try {
                                 if (result.code === 0) {
@@ -549,7 +603,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                             } catch (err: any) {
                                 this.logger.error(`Error triggering reaction from polling for user ${userId}: ${err?.message ?? err}`);
                             }
-                        });
+                        }, actionConfig);
                     }
                 }
             }
@@ -715,7 +769,8 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
 
             grouped[providerName].items.push({
                 name: actionCallback.name,
-                description: actionCallback.description
+                description: actionCallback.description,
+                configSchema: actionCallback.configSchema || []
             });
         }
 

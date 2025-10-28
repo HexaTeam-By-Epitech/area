@@ -11,6 +11,7 @@ const wid = route.params.id;
 type Action = {
   name: string;
   description: string;
+  configSchema?: ConfigField[];
 }
 
 type ConfigField = {
@@ -20,6 +21,12 @@ type ConfigField = {
   label?: string;
   placeholder?: string;
   defaultValue?: any;
+}
+
+type NotionDatabase = {
+  id: string;
+  title: string;
+  url: string;
 }
 
 type Reaction = {
@@ -45,11 +52,14 @@ const actionProviders = ref<ProvidersMap>({});
 const reactionProviders = ref<ProvidersMap>({});
 const selectedAction = ref<Action | null>(null);
 const selectedReaction = ref<Reaction | null>(null);
+const actionConfig = ref<any>({});
 const reactionConfig = ref<any>({});
 const loading = ref(true);
 const creating = ref(false);
 const error = ref('');
 const actionPlaceholders = ref<Placeholder[]>([]);
+const notionDatabases = ref<NotionDatabase[]>([]);
+const loadingNotionDatabases = ref(false);
 
 async function loadAvailableActionsReactions() {
   try {
@@ -81,17 +91,91 @@ async function loadActionPlaceholders(actionName: string) {
   }
 }
 
+async function loadNotionDatabases() {
+  try {
+    loadingNotionDatabases.value = true;
+    console.log('[Notion] Loading databases...');
+    const response = await api.get('/actions/notion/databases');
+    console.log('[Notion] Response:', response.data);
+    if (response.data.databases) {
+      notionDatabases.value = response.data.databases;
+      console.log('[Notion] Loaded databases:', notionDatabases.value.length);
+    } else {
+      console.warn('[Notion] No databases field in response');
+    }
+  } catch (err) {
+    console.error('Failed to load Notion databases:', err);
+    notionDatabases.value = [];
+  } finally {
+    loadingNotionDatabases.value = false;
+  }
+}
+
+async function loadNotionDatabaseSchema(databaseId: string) {
+  try {
+    const response = await api.get(`/actions/notion/databases/${databaseId}/schema`);
+    if (response.data.baseProperties && response.data.properties) {
+      // Combine base properties with dynamic properties
+      const basePlaceholders = response.data.baseProperties.map((prop: any) => ({
+        key: prop.key,
+        description: prop.description,
+        example: prop.example || ''
+      }));
+      
+      const dynamicPlaceholders = response.data.properties.map((prop: any) => ({
+        key: prop.placeholderKey,
+        description: `${prop.name} (${prop.type})`,
+        example: ''
+      }));
+      
+      actionPlaceholders.value = [...basePlaceholders, ...dynamicPlaceholders];
+    }
+  } catch (err) {
+    console.error('Failed to load Notion database schema:', err);
+    actionPlaceholders.value = [];
+  }
+}
+
 function selectAction(action: Action, isLinked: boolean) {
   if (!isLinked) return;
+  console.log('[Action] Selected:', action.name, 'Config schema:', action.configSchema);
   selectedAction.value = action;
+  
+  // Initialize action config based on schema with default values
+  actionConfig.value = {};
+  if (action.configSchema && action.configSchema.length > 0) {
+    action.configSchema.forEach(field => {
+      if (field.defaultValue !== undefined) {
+        actionConfig.value[field.name] = field.defaultValue;
+      } else {
+        actionConfig.value[field.name] = '';
+      }
+    });
+  }
+  
+  // Load Notion databases if it's a Notion action
+  if (action.name === 'notion_new_database_item') {
+    console.log('[Action] This is a Notion action, loading databases...');
+    loadNotionDatabases();
+  }
 }
 
 // Watch for action selection changes to load placeholders
 watch(selectedAction, async (newAction) => {
   if (newAction) {
-    await loadActionPlaceholders(newAction.name);
+    // Don't load default placeholders for Notion - we'll load them when database is selected
+    if (newAction.name !== 'notion_new_database_item') {
+      await loadActionPlaceholders(newAction.name);
+    }
   } else {
     actionPlaceholders.value = [];
+  }
+});
+
+// Watch for Notion database selection to load schema
+watch(() => actionConfig.value.databaseId, async (newDatabaseId) => {
+  if (newDatabaseId && selectedAction.value?.name === 'notion_new_database_item') {
+    await loadNotionDatabaseSchema(newDatabaseId);
   }
 });
 
@@ -124,7 +208,8 @@ async function createArea() {
     await api.post('/manager/areas', {
       actionName: selectedAction.value.name,
       reactionName: selectedReaction.value.name,
-      config: reactionConfig.value,
+      actionConfig: actionConfig.value,
+      reactionConfig: reactionConfig.value,
     });
 
     // Redirect to dashboard
@@ -222,9 +307,70 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Action Configuration Section -->
+    <div v-if="selectedAction && selectedAction.configSchema && selectedAction.configSchema.length > 0" class="config-section">
+      <h2>2. Configure Action</h2>
+      <div class="config-form">
+        <div v-for="field in selectedAction.configSchema" :key="field.name" class="form-field">
+          <label :for="'action-' + field.name">
+            {{ field.label || field.name }}
+            <span v-if="field.required" class="required">*</span>
+          </label>
+
+          <!-- Special dropdown for Notion database selection -->
+          <div v-if="selectedAction.name === 'notion_new_database_item' && field.name === 'databaseId'">
+            <select
+              :id="'action-' + field.name"
+              v-model="actionConfig[field.name]"
+              :required="field.required"
+              class="config-input"
+              :disabled="loadingNotionDatabases"
+            >
+              <option value="">{{ loadingNotionDatabases ? 'Loading databases...' : 'Select a database' }}</option>
+              <option v-for="db in notionDatabases" :key="db.id" :value="db.id">
+                {{ db.title }}
+              </option>
+            </select>
+            <small v-if="actionConfig[field.name]" class="field-hint">
+              Database selected. Placeholders will be available for reactions below.
+            </small>
+          </div>
+
+          <!-- Default input types for other fields -->
+          <input
+            v-else-if="field.type === 'string' || field.type === 'email'"
+            :id="'action-' + field.name"
+            :type="field.type === 'email' ? 'email' : 'text'"
+            v-model="actionConfig[field.name]"
+            :placeholder="field.placeholder || ''"
+            :required="field.required"
+            class="config-input"
+          />
+
+          <input
+            v-else-if="field.type === 'number'"
+            :id="'action-' + field.name"
+            type="number"
+            v-model.number="actionConfig[field.name]"
+            :placeholder="field.placeholder || ''"
+            :required="field.required"
+            class="config-input"
+          />
+
+          <input
+            v-else-if="field.type === 'boolean'"
+            :id="'action-' + field.name"
+            type="checkbox"
+            v-model="actionConfig[field.name]"
+            class="config-checkbox"
+          />
+        </div>
+      </div>
+    </div>
+
     <!-- Configuration Section -->
     <div v-if="selectedReaction && selectedReaction.configSchema && selectedReaction.configSchema.length > 0" class="config-section">
-      <h2>3. Configure Reaction</h2>
+      <h2>{{ selectedAction && selectedAction.configSchema && selectedAction.configSchema.length > 0 ? '3' : '2' }}. Configure Reaction</h2>
       <div v-if="selectedAction && actionPlaceholders.length > 0" class="placeholder-hint">
         💡 Type <code v-text="'{{'"></code> to insert placeholders from the selected action
       </div>
@@ -529,6 +675,14 @@ onMounted(() => {
   width: 1.5rem;
   height: 1.5rem;
   cursor: pointer;
+}
+
+.field-hint {
+  display: block;
+  margin-top: 0.5rem;
+  color: #4CAF50;
+  font-size: 0.85rem;
+  font-style: italic;
 }
 
 @media (max-width: 900px) {
