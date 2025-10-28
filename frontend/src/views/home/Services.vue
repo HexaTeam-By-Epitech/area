@@ -94,9 +94,9 @@ onMounted(() => {
   <div class="center-container-vertical">
     <h1>Connect Services</h1>
 
-    <div v-if="loading" class="loading">Loading providers...</div>
-    <div v-if="successMessage" class="success-message">{{ successMessage }}</div>
-    <div v-if="error" class="error-message">{{ error }}</div>
+    <div v-if="loading" class="loading" role="status" aria-live="polite" aria-label="Loading providers">Loading providers...</div>
+    <div v-if="successMessage" class="success-message" role="status" aria-live="polite" :aria-label="successMessage">{{ successMessage }}</div>
+    <div v-if="error" class="error-message" role="alert" aria-live="assertive" :aria-label="error">{{ error }}</div>
 
     <div class="services-grid">
       <div />
@@ -121,6 +121,7 @@ onMounted(() => {
                 v-if="!provider.linked"
                 @click="linkProvider(provider)"
                 :disabled="provider.loading"
+                :aria-label="provider.displayName"
                 class="service-btn connect-btn"
             >
               {{ provider.loading ? 'Connecting...' : 'Connect' }}
@@ -130,6 +131,7 @@ onMounted(() => {
                 v-else
                 @click="unlinkProvider(provider)"
                 :disabled="provider.loading"
+                :aria-label="`Disconnect ${provider.displayName}`"
                 class="service-btn disconnect-btn"
             >
               {{ provider.loading ? 'Disconnecting...' : 'Disconnect' }}
@@ -274,5 +276,18 @@ onMounted(() => {
 .success-message {
   color: #4CAF50;
   background-color: rgba(76, 175, 80, 0.1);
+}
+
+/* Screen reader only class for accessible status messages */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 </style>

@@ -129,8 +129,8 @@ describe('EmailService', () => {
             expect(template).toContain('<html>');
             expect(template).toContain('</html>');
             expect(template).toContain(verificationCode);
-            expect(template).toContain('AREA - Vérification de compte');
-            expect(template).toContain('Ce code expire dans 10 minutes');
+            expect(template).toContain('AREA - Account Verification');
+            expect(template).toContain('Here is your verification code. It will expire in 10 minutes');
         });
 
         it('should include proper CSS styling', () => {

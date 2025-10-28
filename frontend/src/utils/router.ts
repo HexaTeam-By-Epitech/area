@@ -11,12 +11,12 @@ import useAuthStore from "@/stores/webauth";
 
 const routes = [
     {path: '/', component: Default, meta: {title: 'Area', requiresAuth: false}},
-    {path: '/webauth', component: AuthPage, meta: {title: 'Area', requiresAuth: false}},
-    {path: '/home', component: Dashboard, meta: {title: 'Area', requiresAuth: true}},
-    {path: '/home/workflows/:id?', component: Workflows, meta: {title: 'Workflows', requiresAuth: true}},
-    {path: '/home/services', component: Services, meta: {title: 'Services', requiresAuth: true}},
-    {path: '/home/settings', component: Settings, meta: {title: 'Settings', requiresAuth: true}},
-    {path: '/:pathMatch(.*)*', component: NotFound, meta: {title: 'Page not found', requiresAuth: false}}
+    {path: '/webauth', component: AuthPage, meta: {title: 'Area | Login', requiresAuth: false}},
+    {path: '/home', component: Dashboard, meta: {title: 'Area | Dashboard', requiresAuth: true}},
+    {path: '/home/workflows/:id?', component: Workflows, meta: {title: 'Area | Workflows', requiresAuth: true}},
+    {path: '/home/services', component: Services, meta: {title: 'Area | Services', requiresAuth: true}},
+    {path: '/home/settings', component: Settings, meta: {title: 'Area | Settings', requiresAuth: true}},
+    {path: '/:pathMatch(.*)*', component: NotFound, meta: {title: 'Area | Page not found', requiresAuth: false}}
 ]
 
 const router = createRouter({

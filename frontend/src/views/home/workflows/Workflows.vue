@@ -226,6 +226,135 @@ function cancel() {
   router.push('/home');
 }
 
+// Navigation functions for arrow key movement
+function navigateActions(direction: 'up' | 'down', currentProvider: string, currentIndex: number) {
+  const allActions: { provider: string; action: Action; index: number }[] = [];
+
+  // Build flat list of all actions with their provider info
+  Object.entries(actionProviders.value).forEach(([providerName, providerData]) => {
+    if (providerData.isLinked) {
+      providerData.items.forEach((action, index) => {
+        allActions.push({
+          provider: providerName,
+          action: action as Action,
+          index
+        });
+      });
+    }
+  });
+
+  // Find current action in flat list
+  const currentActionIndex = allActions.findIndex(
+    item => item.provider === currentProvider && item.index === currentIndex
+  );
+
+  if (currentActionIndex === -1) return;
+
+  // Navigate up or down
+  let newIndex = currentActionIndex;
+  if (direction === 'up' && currentActionIndex > 0) {
+    newIndex = currentActionIndex - 1;
+  } else if (direction === 'down' && currentActionIndex < allActions.length - 1) {
+    newIndex = currentActionIndex + 1;
+  }
+
+  // Focus the new action card
+  if (newIndex !== currentActionIndex) {
+    const newAction = allActions[newIndex];
+    selectAction(newAction.action, true);
+
+    // Focus the DOM element
+    setTimeout(() => {
+      const selector = `.workflow-column:first-child .item-card[aria-label*="${newAction.action.name}"]`;
+      const element = document.querySelector(selector) as HTMLElement;
+      if (element) element.focus();
+    }, 10);
+  }
+}
+
+function navigateReactions(direction: 'up' | 'down', currentProvider: string, currentIndex: number) {
+  const allReactions: { provider: string; reaction: Reaction; index: number }[] = [];
+
+  // Build flat list of all reactions with their provider info
+  Object.entries(reactionProviders.value).forEach(([providerName, providerData]) => {
+    if (providerData.isLinked) {
+      providerData.items.forEach((reaction, index) => {
+        allReactions.push({
+          provider: providerName,
+          reaction: reaction as Reaction,
+          index
+        });
+      });
+    }
+  });
+
+  // Find current reaction in flat list
+  const currentReactionIndex = allReactions.findIndex(
+    item => item.provider === currentProvider && item.index === currentIndex
+  );
+
+  if (currentReactionIndex === -1) return;
+
+  // Navigate up or down
+  let newIndex = currentReactionIndex;
+  if (direction === 'up' && currentReactionIndex > 0) {
+    newIndex = currentReactionIndex - 1;
+  } else if (direction === 'down' && currentReactionIndex < allReactions.length - 1) {
+    newIndex = currentReactionIndex + 1;
+  }
+
+  // Focus the new reaction card
+  if (newIndex !== currentReactionIndex) {
+    const newReaction = allReactions[newIndex];
+    selectReaction(newReaction.reaction, true);
+
+    // Focus the DOM element
+    setTimeout(() => {
+      const selector = `.workflow-column:last-child .item-card[aria-label*="${newReaction.reaction.name}"]`;
+      const element = document.querySelector(selector) as HTMLElement;
+      if (element) element.focus();
+    }, 10);
+  }
+}
+
+function navigateToReactions() {
+  // Focus first available reaction
+  const firstReactionProvider = Object.entries(reactionProviders.value).find(
+    ([_, providerData]) => providerData.isLinked && providerData.items.length > 0
+  );
+
+  if (firstReactionProvider) {
+    const [providerName, providerData] = firstReactionProvider;
+    const firstReaction = providerData.items[0] as Reaction;
+    selectReaction(firstReaction, true);
+
+    setTimeout(() => {
+      const selector = `.workflow-column:last-child .item-card[aria-label*="${firstReaction.name}"]`;
+      const element = document.querySelector(selector) as HTMLElement;
+      if (element) element.focus();
+    }, 10);
+  }
+}
+
+function navigateToActions() {
+  // Focus first available action
+  const firstActionProvider = Object.entries(actionProviders.value).find(
+    ([_, providerData]) => providerData.isLinked && providerData.items.length > 0
+  );
+
+  if (firstActionProvider) {
+    const [providerName, providerData] = firstActionProvider;
+    const firstAction = providerData.items[0] as Action;
+    selectAction(firstAction, true);
+
+    setTimeout(() => {
+      const selector = `.workflow-column:first-child .item-card[aria-label*="${firstAction.name}"]`;
+      const element = document.querySelector(selector) as HTMLElement;
+      if (element) element.focus();
+    }, 10);
+  }
+}
+
 onMounted(() => {
   loadAvailableActionsReactions();
 });
@@ -247,8 +376,8 @@ onMounted(() => {
       </div>
     </div>
 
-    <div v-if="loading" class="loading">Loading available actions and reactions...</div>
-    <div v-if="error" class="error-message">{{ error }}</div>
+    <div v-if="loading" class="loading" role="status" aria-live="polite" aria-label="Loading available actions and reactions">Loading available actions and reactions...</div>
+    <div v-if="error" class="error-message" role="alert" aria-live="assertive" :aria-label="error">{{ error }}</div>
 
     <div v-if="!loading" class="workflow-layout">
       <!-- Actions Column -->
@@ -261,7 +390,7 @@ onMounted(() => {
               <span v-if="!providerData.isLinked" class="unlinked-badge">Not linked</span>
             </div>
             <div
-              v-for="action in providerData.items"
+              v-for="(action, actionIndex) in providerData.items"
               :key="action.name"
               :class="[
                 'item-card',
@@ -269,6 +398,12 @@ onMounted(() => {
                 { disabled: !providerData.isLinked }
               ]"
               @click="selectAction(action, providerData.isLinked)"
+              @keydown.enter="selectAction(action, providerData.isLinked)"
+              @keydown.space.prevent="selectAction(action, providerData.isLinked)"
+              :tabindex="providerData.isLinked ? 0 : -1"
+              role="button"
+              :aria-label="`Select action: ${action.name}. ${action.description}`"
+              :aria-pressed="selectedAction?.name === action.name"
             >
               <h4>{{ action.name }}</h4>
               <p>{{ action.description }}</p>
@@ -290,7 +425,7 @@ onMounted(() => {
               <span v-if="!providerData.isLinked" class="unlinked-badge">Not linked</span>
             </div>
             <div
-              v-for="reaction in providerData.items"
+              v-for="(reaction, reactionIndex) in providerData.items"
               :key="reaction.name"
               :class="[
                 'item-card',
@@ -298,6 +433,12 @@ onMounted(() => {
                 { disabled: !providerData.isLinked }
               ]"
               @click="selectReaction(reaction, providerData.isLinked)"
+              @keydown.enter="selectReaction(reaction, providerData.isLinked)"
+              @keydown.space.prevent="selectReaction(reaction, providerData.isLinked)"
+              :tabindex="providerData.isLinked ? 0 : -1"
+              role="button"
+              :aria-label="`Select reaction: ${reaction.name}. ${reaction.description}`"
+              :aria-pressed="selectedReaction?.name === reaction.name"
             >
               <h4>{{ reaction.name }}</h4>
               <p>{{ reaction.description }}</p>
@@ -530,6 +671,18 @@ onMounted(() => {
 .item-card:hover {
   background-color: var(--button-hover);
   transform: translateY(-2px);
+}
+
+/* Focus styles for keyboard navigation */
+.item-card:focus {
+  outline: 2px solid var(--accent-color, #4CAF50);
+  outline-offset: 2px;
+  background-color: var(--button-hover);
+}
+
+.item-card:focus-visible {
+  outline: 2px solid var(--accent-color, #4CAF50);
+  outline-offset: 2px;
 }
 
 .item-card.selected {

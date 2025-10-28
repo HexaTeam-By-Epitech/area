@@ -41,11 +41,11 @@ const authStore = useAuthStore();
 }
 
 .logout-btn {
-  background: var(--button-color-error) !important;
+  background: var(--button-color) !important;
 
 }
 .logout-btn:hover {
-  background: #dc2626 !important;
+  background: var(--button-hover) !important;
   border: none;
 }
 
