@@ -138,11 +138,6 @@ async function loadNotionDatabaseSchema(databaseId: string) {
   }
 }
 
-function getProviderIcon(providerName: string): string {
-  // Returns empty string - we'll use the SVG component instead
-  return '';
-}
-
 function getProviderSvg(providerName: string) {
   const name = providerName.toLowerCase();
   
@@ -216,7 +211,6 @@ function backToReactionProviders() {
 
 function selectAction(action: Action, isLinked: boolean) {
   if (!isLinked) return;
-  console.log('[Action] Selected:', action.name, 'Config schema:', action.configSchema);
   selectedAction.value = action;
   
   // Initialize action config based on schema with default values
