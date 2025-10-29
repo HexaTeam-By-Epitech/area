@@ -38,5 +38,7 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 8081
 
-CMD sh -c "while [ ! -f /shared/client.apk ]; do sleep 1; done && cp /shared/client.apk /usr/share/nginx/html/client.apk && nginx -g 'daemon off;'"
+CMD sh -c "nginx -g 'daemon off;' & NGINX_PID=$! && \
+  (if [ -f /shared/client.apk ]; then cp /shared/client.apk /usr/share/nginx/html/client.apk; fi) && \
+  wait $NGINX_PID"
 
