@@ -209,14 +209,40 @@ function backToReactionProviders() {
   reactionConfig.value = {};
 }
 
-function selectAction(action: Action, isLinked: boolean) {
+async function loadActionConfigSchema(actionName: string) {
+  try {
+    const response = await api.get(`/manager/actions/${actionName}/config-schema`);
+    return response.data || [];
+  } catch (err) {
+    console.error('Failed to load config schema for action:', actionName, err);
+    return [];
+  }
+}
+
+async function loadReactionConfigSchema(reactionName: string) {
+  try {
+    const response = await api.get(`/manager/reactions/${reactionName}/config-schema`);
+    return response.data || [];
+  } catch (err) {
+    console.error('Failed to load config schema for reaction:', reactionName, err);
+    return [];
+  }
+}
+
+async function selectAction(action: Action, isLinked: boolean) {
   if (!isLinked) return;
   selectedAction.value = action;
   
+  // Load config schema for the action
+  const configSchema = await loadActionConfigSchema(action.name);
+  
+  // Store the config schema on the action object for template usage
+  action.configSchema = configSchema;
+  
   // Initialize action config based on schema with default values
   actionConfig.value = {};
-  if (action.configSchema && action.configSchema.length > 0) {
-    action.configSchema.forEach(field => {
+  if (configSchema && configSchema.length > 0) {
+    configSchema.forEach((field: ConfigField) => {
       if (field.defaultValue !== undefined) {
         actionConfig.value[field.name] = field.defaultValue;
       } else {
@@ -251,13 +277,21 @@ watch(() => actionConfig.value.databaseId, async (newDatabaseId) => {
   }
 });
 
-function selectReaction(reaction: Reaction, isLinked: boolean) {
+
+async function selectReaction(reaction: Reaction, isLinked: boolean) {
   if (!isLinked) return;
   selectedReaction.value = reaction;
+  
+  // Load config schema for the reaction
+  const configSchema = await loadReactionConfigSchema(reaction.name);
+  
+  // Store the config schema on the reaction object for template usage
+  reaction.configSchema = configSchema;
+  
   // Initialize config based on schema with default values
   reactionConfig.value = {};
-  if (reaction.configSchema && reaction.configSchema.length > 0) {
-    reaction.configSchema.forEach(field => {
+  if (configSchema && configSchema.length > 0) {
+    configSchema.forEach((field: ConfigField) => {
       if (field.defaultValue !== undefined) {
         reactionConfig.value[field.name] = field.defaultValue;
       } else {
