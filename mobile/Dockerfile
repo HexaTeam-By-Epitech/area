@@ -3,8 +3,6 @@ FROM ubuntu:22.04 AS builder
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ANDROID_SDK_ROOT=/opt/android-sdk
 ENV ANDROID_HOME=/opt/android-sdk
-ENV PATH=${PATH}:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools:${ANDROID_SDK_ROOT}/build-tools/35.0.0
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 
 RUN apt-get update && apt-get install -y \
     openjdk-17-jdk \
@@ -12,7 +10,22 @@ RUN apt-get update && apt-get install -y \
     unzip \
     curl \
     git \
+    build-essential \
+    ninja-build \
+    python3 \
+    python3-pip \
+    file \
     && rm -rf /var/lib/apt/lists/*
+
+# Find the actual JAVA_HOME path and create a symlink for consistency
+RUN ACTUAL_JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac)))) && \
+    echo "Found Java at: $ACTUAL_JAVA_HOME" && \
+    ln -sf $ACTUAL_JAVA_HOME /usr/lib/jvm/java-17-openjdk
+
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+ENV ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/27.0.12077973
+ENV ANDROID_NDK=${ANDROID_SDK_ROOT}/ndk/27.0.12077973
+ENV PATH=${PATH}:${JAVA_HOME}/bin:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools:${ANDROID_SDK_ROOT}/build-tools/35.0.0:${ANDROID_SDK_ROOT}/cmake/3.22.1/bin
 
 RUN mkdir -p ${ANDROID_SDK_ROOT}/cmdline-tools && \
     cd /tmp && \
@@ -22,7 +35,8 @@ RUN mkdir -p ${ANDROID_SDK_ROOT}/cmdline-tools && \
     rm commandlinetools-linux-*_latest.zip
 
 RUN yes | sdkmanager --licenses && \
-    sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+    sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" \
+    "ndk;27.0.12077973" "cmake;3.22.1"
 
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get update && \
@@ -49,6 +63,15 @@ ENV EXPO_PUBLIC_OAUTH_REDIRECT_URI=${EXPO_PUBLIC_OAUTH_REDIRECT_URI}
 RUN npx expo prebuild --platform android --clean
 
 WORKDIR /app/android
+
+# Configure Gradle properties for better build performance
+RUN echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m" >> gradle.properties && \
+    echo "android.useAndroidX=true" >> gradle.properties && \
+    echo "android.enableJetifier=true" >> gradle.properties
+
+# Verify NDK and CMake are available
+RUN ls -la ${ANDROID_SDK_ROOT}/ndk/27.0.12077973 && \
+    ls -la ${ANDROID_SDK_ROOT}/cmake/3.22.1
 
 RUN chmod +x ./gradlew && \
     ./gradlew assembleRelease --no-daemon --max-workers=2
