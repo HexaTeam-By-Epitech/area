@@ -13,7 +13,9 @@ AREA is an automation platform that connects different services and allows users
 ├── backend/               # NestJS backend API
 ├── frontend/              # Vue 3 + Vite web app
 ├── mobile/                # React Native (Expo) mobile app
-├── toolbox/               # Docker Compose for databases
+├── toolbox/               # Docker Compose for local development
+├── docker-compose.yml     # Production Docker Compose
+├── .env                   # Production environment variables
 └── .github/workflows/     # CI/CD pipelines
 ```
 
@@ -23,7 +25,7 @@ AREA is an automation platform that connects different services and allows users
 - NestJS 11 (Node.js framework)
 - Prisma ORM with PostgreSQL
 - Redis for caching/queues
-- JWT + OAuth2 (Google, Spotify)
+- JWT + OAuth2 (Google, Spotify, Discord, Slack, Notion)
 - Swagger API documentation
 
 ### Frontend
@@ -37,13 +39,28 @@ AREA is an automation platform that connects different services and allows users
 - React Navigation
 - React Native Paper
 
-## Prerequisites
+## Quick Start - Production (Docker Compose)
+
+```bash
+cp .env.example .env
+docker compose build
+docker compose up -d
+```
+
+Access: http://localhost:8080 (API), http://localhost:8081 (Web)
+
+**See [`DOCKER_DEPLOYMENT.md`](DOCKER_DEPLOYMENT.md) for details.**
+
+## Quick Start - Local Development
+
+**For local development with hot-reload:**
+
+### Prerequisites
 
 - Node.js 20+
 - npm 10+
 - Docker and Docker Compose (for databases)
 
-## Quick Start
 
 ### 1. Start Databases
 
@@ -127,23 +144,20 @@ Each component has its own detailed documentation:
   - Migrations
   - PostgreSQL troubleshooting
 
-## Docker
+## Docker Deployment
 
-### Backend
-
-```bash
-cd backend
-docker build -t area-backend:local .
-docker run --rm --name area-backend -p 3000:3000 --env-file .env area-backend:local
-```
-
-### Frontend
+See [`DOCKER_DEPLOYMENT.md`](DOCKER_DEPLOYMENT.md) for complete guide.
 
 ```bash
-cd frontend
-docker build -t area-web:local .
-docker run --rm --name area-web -p 8080:80 area-web:local
+docker compose build
+docker compose up -d
 ```
+
+Services: postgres, redis, server (8080), client_web (8081), client_mobile (APK builder)
+
+## Environment Variables
+
+All variables in root `.env` file. See `.env.example` for reference.
 
 ## CI/CD
 
