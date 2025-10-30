@@ -307,6 +307,7 @@ describe('ManagerService', () => {
           items: [
             {
               name: ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE,
+              displayName: 'New Discord Message',
               description: 'Detect new messages in Discord servers',
             },
           ],
@@ -316,6 +317,7 @@ describe('ManagerService', () => {
           items: [
             {
               name: ActionNamesEnum.GMAIL_NEW_EMAIL,
+              displayName: 'New Email Received',
               description: 'Detect new incoming email in Gmail inbox',
             },
           ],
@@ -325,6 +327,7 @@ describe('ManagerService', () => {
           items: [
             {
               name: ActionNamesEnum.NOTION_NEW_DATABASE_ITEM,
+              displayName: 'New Notion Page',
               description: 'Detect new items added to a Notion database',
             },
           ],
@@ -334,6 +337,7 @@ describe('ManagerService', () => {
           items: [
             {
               name: ActionNamesEnum.SPOTIFY_HAS_LIKES,
+              displayName: 'New Liked Song',
               description: 'Check if user has liked songs on Spotify',
             },
           ],
@@ -389,6 +393,7 @@ describe('ManagerService', () => {
           items: [
             {
               name: ReactionNamesEnum.LOG_EVENT,
+              displayName: 'Log to Console',
               description: 'Log event to database',
             },
           ],
@@ -398,6 +403,7 @@ describe('ManagerService', () => {
           items: [
             {
               name: ReactionNamesEnum.DISCORD_SEND_SERVER_MESSAGE,
+              displayName: 'Send Discord Message',
               description: 'Send a message to a Discord channel',
             },
           ],
@@ -407,6 +413,7 @@ describe('ManagerService', () => {
           items: [
             {
               name: ReactionNamesEnum.SEND_EMAIL,
+              displayName: 'Send Email',
               description: 'Send email notification',
             },
           ],
