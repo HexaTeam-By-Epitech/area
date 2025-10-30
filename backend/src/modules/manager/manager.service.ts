@@ -51,6 +51,29 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
     ) {}
 
     /**
+     * Mapping of action/reaction technical names to user-friendly display names
+     */
+    private readonly displayNames: Record<string, string> = {
+        // Actions
+        [ActionNamesEnum.SPOTIFY_HAS_LIKES]: 'New Liked Song',
+        [ActionNamesEnum.GMAIL_NEW_EMAIL]: 'New Email Received',
+        [ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE]: 'New Discord Message',
+        [ActionNamesEnum.NOTION_NEW_DATABASE_ITEM]: 'New Notion Page',
+        
+        // Reactions
+        [ReactionNamesEnum.SEND_EMAIL]: 'Send Email',
+        [ReactionNamesEnum.LOG_EVENT]: 'Log to Console',
+        [ReactionNamesEnum.DISCORD_SEND_SERVER_MESSAGE]: 'Send Discord Message',
+    };
+
+    /**
+     * Get user-friendly display name for an action or reaction
+     */
+    private getDisplayName(name: string): string {
+        return this.displayNames[name] || name;
+    }
+
+    /**
      * Lifecycle hook: initialize callbacks, polling registry, and start execution loop.
      */
     async onModuleInit() {
@@ -769,6 +792,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
 
             grouped[providerName].items.push({
                 name: actionCallback.name,
+                displayName: this.getDisplayName(actionCallback.name),
                 description: actionCallback.description
             });
         }
@@ -809,6 +833,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
 
             grouped[providerName].items.push({
                 name: reactionCallback.name,
+                displayName: this.getDisplayName(reactionCallback.name),
                 description: reactionCallback.description
             });
         }

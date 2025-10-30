@@ -10,6 +10,7 @@ const wid = route.params.id;
 
 type Action = {
   name: string;
+  displayName?: string;
   description: string;
   configSchema?: ConfigField[];
 }
@@ -31,6 +32,7 @@ type NotionDatabase = {
 
 type Reaction = {
   name: string;
+  displayName?: string;
   description: string;
   configSchema?: ConfigField[];
 }
@@ -207,6 +209,17 @@ function backToReactionProviders() {
   selectedReactionProvider.value = null;
   selectedReaction.value = null;
   reactionConfig.value = {};
+}
+
+function formatName(name: string): string {
+  // Remove provider prefix (e.g., "gmail_new_email" -> "new_email")
+  const withoutProvider = name.includes('_') ? name.split('_').slice(1).join('_') : name;
+  
+  // Replace underscores with spaces and capitalize each word
+  return withoutProvider
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 async function loadActionConfigSchema(actionName: string) {
@@ -533,10 +546,10 @@ onMounted(() => {
               @keydown.space.prevent="selectAction(action, true)"
               tabindex="0"
               role="button"
-              :aria-label="`Select action: ${action.name}. ${action.description}`"
+              :aria-label="`Select action: ${action.displayName || formatName(action.name)}. ${action.description}`"
               :aria-pressed="selectedAction?.name === action.name"
             >
-              <h4>{{ action.name }}</h4>
+              <h4>{{ action.displayName || formatName(action.name) }}</h4>
               <p>{{ action.description }}</p>
             </div>
           </div>
@@ -593,10 +606,10 @@ onMounted(() => {
               @keydown.space.prevent="selectReaction(reaction, true)"
               tabindex="0"
               role="button"
-              :aria-label="`Select reaction: ${reaction.name}. ${reaction.description}`"
+              :aria-label="`Select reaction: ${reaction.displayName || formatName(reaction.name)}. ${reaction.description}`"
               :aria-pressed="selectedReaction?.name === reaction.name"
             >
-              <h4>{{ reaction.name }}</h4>
+              <h4>{{ reaction.displayName || formatName(reaction.name) }}</h4>
               <p>{{ reaction.description }}</p>
             </div>
           </div>
