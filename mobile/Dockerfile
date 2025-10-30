@@ -14,7 +14,7 @@ ENV EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL}
 ENV EXPO_PUBLIC_GOOGLE_CLIENT_ID=${EXPO_PUBLIC_GOOGLE_CLIENT_ID}
 ENV EXPO_PUBLIC_OAUTH_REDIRECT_URI=${EXPO_PUBLIC_OAUTH_REDIRECT_URI}
 
-COPY app.json babel.config.js metro.config.js* index.js App.js ./
+COPY app.json babel.config.js metro.config.js* index.js App.js styles.js config.js ./
 COPY assets ./assets
 COPY components ./components
 COPY screens ./screens
