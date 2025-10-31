@@ -49,8 +49,9 @@ export class SpotifyLikeService implements PollingAction {
    *
    * @param userId - The user identifier.
    * @param emit - Callback invoked with the ActionResult containing code and track data.
+   * @param config - Optional configuration (not used by this action).
    */
-  start(userId: string, emit: (result: ActionResult) => void): void {
+  start(userId: string, emit: (result: ActionResult) => void, config?: any): void {
     this.startPolling(userId, emit);
   }
 

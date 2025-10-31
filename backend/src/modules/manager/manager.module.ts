@@ -9,6 +9,7 @@ import { DiscordBotModule } from '../discord-bot/discord-bot.module';
 import { SpotifyLikeService } from '../actions/spotify/like.service';
 import { DiscordMessageService } from '../actions/discord/message.service';
 import { GmailNewMailService } from '../actions/gmail/new-mail.service';
+import { NotionDatabaseItemService } from '../actions/notion/database-item.service';
 import { GmailSendService } from '../reactions/gmail/send.service';
 import { DiscordSendService } from '../reactions/discord/send.service';
 import { ActionPollingService } from './polling/action-polling.service';
@@ -28,6 +29,7 @@ import { PlaceholderReplacementService } from '../../common/services/placeholder
     SpotifyLikeService,
     DiscordMessageService,
     GmailNewMailService,
+    NotionDatabaseItemService,
     GmailSendService,
     DiscordSendService,
     ActionPollingService,

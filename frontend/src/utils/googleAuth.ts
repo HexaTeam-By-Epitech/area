@@ -1,5 +1,6 @@
 import useAuthStore from "@/stores/webauth";
 import { ref } from 'vue';
+import { apiFetch } from './fetch';
 
 // Shared state for Google Sign-In feedback
 export const googleLoading = ref(false);
@@ -17,9 +18,7 @@ export async function handleGoogleResponse(response: any) {
   googleSuccess.value = '';
 
   try {
-    // Use absolute backend URL in production, relative in dev (for proxy)
-    const baseUrl = import.meta.env.PROD ? import.meta.env.VITE_API_URL || '' : '';
-    const res = await fetch(`${baseUrl}/auth/google/id-token`, {
+    const res = await apiFetch('/auth/google/id-token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token: response.credential }),

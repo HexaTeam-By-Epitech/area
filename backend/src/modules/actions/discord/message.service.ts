@@ -124,7 +124,7 @@ export class DiscordMessageService {
    * @param emit - Callback invoked with the ActionResult containing code and message data.
    * @param config - Configuration containing channelId to monitor
    */
-  start(userId: string, emit: (result: ActionResult) => void, config?: { channelId?: string }): void {
+  start(userId: string, emit: (result: ActionResult) => void, config?: any): void {
     if (!config?.channelId) {
       this.logger.error(`[Discord] No channelId provided for user=${userId}`);
       return;

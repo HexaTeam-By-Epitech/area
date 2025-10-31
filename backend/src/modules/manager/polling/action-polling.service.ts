@@ -24,14 +24,15 @@ export class ActionPollingService {
   /**
    * Starts polling for the first poller that supports the `actionName`.
    * Logs a warning if none is found.
+   * @param config - Optional configuration to pass to the poller (e.g., databaseId for Notion)
    */
-  start(actionName: string, userId: string, emit: (result: ActionResult) => void): void {
+  start(actionName: string, userId: string, emit: (result: ActionResult) => void, config?: any): void {
     const poller = this.pollers.find((p) => p.supports(actionName));
     if (!poller) {
       this.logger.warn(`No poller registered for action '${actionName}'`);
       return;
     }
-    poller.start(userId, emit);
+    poller.start(userId, emit, config);
   }
 
   /** Stops an active poll for the given user if a supporting poller exists. */

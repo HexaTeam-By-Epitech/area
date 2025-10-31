@@ -1,11 +1,10 @@
 import axios from 'axios';
 import useAuthStore from '@/stores/webauth';
 
-// In development, use proxy (relative URL)
-// In production, use absolute backend URL from environment variable
-const baseURL = import.meta.env.PROD
-  ? import.meta.env.VITE_API_URL || 'http://localhost:3000'
-  : '/api';
+// Always use relative URLs - they work with both:
+// - Vite proxy in development
+// - Nginx proxy in production Docker
+const baseURL = '/api';
 
 const api = axios.create({
   baseURL,
@@ -15,9 +14,8 @@ const api = axios.create({
 });
 
 // Create a separate instance for direct /auth and /manager routes (no /api prefix)
-const directBaseURL = import.meta.env.PROD
-  ? import.meta.env.VITE_API_URL || 'http://localhost:3000'
-  : '';
+// These routes are proxied by Vite (dev) or Nginx (prod) to the backend
+const directBaseURL = '';
 
 export const apiDirect = axios.create({
   baseURL: directBaseURL,

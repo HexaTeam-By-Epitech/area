@@ -6,6 +6,7 @@ import { RedisService } from '../../src/modules/redis/redis.service';
 import { SpotifyLikeService } from '../../src/modules/actions/spotify/like.service';
 import { DiscordMessageService } from '../../src/modules/actions/discord/message.service';
 import { GmailNewMailService } from '../../src/modules/actions/gmail/new-mail.service';
+import { NotionDatabaseItemService } from '../../src/modules/actions/notion/database-item.service';
 import { GmailSendService } from '../../src/modules/reactions/gmail/send.service';
 import { DiscordSendService } from '../../src/modules/reactions/discord/send.service';
 import { ActionPollingService } from '../../src/modules/manager/polling/action-polling.service';
@@ -73,6 +74,14 @@ describe('ManagerService', () => {
     getPlaceholders: jest.fn(),
   };
 
+  const mockNotionDatabaseItemService = {
+    supports: jest.fn(),
+    start: jest.fn(),
+    stop: jest.fn(),
+    hasNewDatabaseItem: jest.fn(),
+    getPlaceholders: jest.fn(),
+  };
+
   const mockGmailSendService = {
     run: jest.fn(),
   };
@@ -112,6 +121,7 @@ describe('ManagerService', () => {
         { provide: SpotifyLikeService, useValue: mockSpotifyLikeService },
         { provide: DiscordMessageService, useValue: mockDiscordMessageService },
         { provide: GmailNewMailService, useValue: mockGmailNewMailService },
+        { provide: NotionDatabaseItemService, useValue: mockNotionDatabaseItemService },
         { provide: GmailSendService, useValue: mockGmailSendService },
         { provide: DiscordSendService, useValue: mockDiscordSendService },
         { provide: ActionPollingService, useValue: mockActionPollingService },
@@ -283,6 +293,10 @@ describe('ManagerService', () => {
           name: ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE,
           services: { name: 'discord' },
         },
+        {
+          name: ActionNamesEnum.NOTION_NEW_DATABASE_ITEM,
+          services: { name: 'notion' },
+        },
       ]);
 
       const result = await service.getAvailableActionsGrouped(userId);
@@ -293,6 +307,7 @@ describe('ManagerService', () => {
           items: [
             {
               name: ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE,
+              displayName: 'New Discord Message',
               description: 'Detect new messages in Discord servers',
             },
           ],
@@ -302,7 +317,18 @@ describe('ManagerService', () => {
           items: [
             {
               name: ActionNamesEnum.GMAIL_NEW_EMAIL,
+              displayName: 'New Email Received',
               description: 'Detect new incoming email in Gmail inbox',
+            },
+          ],
+        },
+        notion: {
+          isLinked: false,
+          items: [
+            {
+              name: ActionNamesEnum.NOTION_NEW_DATABASE_ITEM,
+              displayName: 'New Notion Page',
+              description: 'Detect new items added to a Notion database',
             },
           ],
         },
@@ -311,6 +337,7 @@ describe('ManagerService', () => {
           items: [
             {
               name: ActionNamesEnum.SPOTIFY_HAS_LIKES,
+              displayName: 'New Liked Song',
               description: 'Check if user has liked songs on Spotify',
             },
           ],
@@ -366,8 +393,8 @@ describe('ManagerService', () => {
           items: [
             {
               name: ReactionNamesEnum.LOG_EVENT,
+              displayName: 'Log to Console',
               description: 'Log event to database',
-              configSchema: [],
             },
           ],
         },
@@ -376,8 +403,8 @@ describe('ManagerService', () => {
           items: [
             {
               name: ReactionNamesEnum.DISCORD_SEND_SERVER_MESSAGE,
+              displayName: 'Send Discord Message',
               description: 'Send a message to a Discord channel',
-              configSchema: expect.any(Array),
             },
           ],
         },
@@ -386,12 +413,94 @@ describe('ManagerService', () => {
           items: [
             {
               name: ReactionNamesEnum.SEND_EMAIL,
+              displayName: 'Send Email',
               description: 'Send email notification',
-              configSchema: expect.any(Array),
             },
           ],
         },
       });
+    });
+  });
+
+  describe('getReactionConfigSchema', () => {
+    it('should return config schema for a reaction', () => {
+      const schema = service.getReactionConfigSchema(ReactionNamesEnum.SEND_EMAIL);
+      
+      expect(schema).toEqual([
+        {
+          name: 'to',
+          type: 'email',
+          required: true,
+          label: 'Recipient email',
+          placeholder: 'recipient@example.com'
+        },
+        {
+          name: 'subject',
+          type: 'string',
+          required: true,
+          label: 'Email subject',
+          placeholder: 'Notification from AREA'
+        },
+        {
+          name: 'body',
+          type: 'string',
+          required: true,
+          label: 'Email body',
+          placeholder: 'Your message here...'
+        }
+      ]);
+    });
+
+    it('should throw NotFoundException for unknown reaction', () => {
+      expect(() => {
+        service.getReactionConfigSchema('unknown_reaction');
+      }).toThrow('Reaction \'unknown_reaction\' not found');
+    });
+
+    it('should return empty array for reactions without config schema', () => {
+      const schema = service.getReactionConfigSchema(ReactionNamesEnum.LOG_EVENT);
+      expect(schema).toEqual([]);
+    });
+  });
+
+  describe('getActionConfigSchema', () => {
+    it('should return config schema for an action with config', () => {
+      const schema = service.getActionConfigSchema(ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE);
+      
+      expect(schema).toEqual([
+        {
+          name: 'channelId',
+          type: 'string',
+          required: true,
+          label: 'Discord Channel ID',
+          placeholder: '123456789012345678'
+        }
+      ]);
+    });
+
+    it('should return config schema for Notion action', () => {
+      const schema = service.getActionConfigSchema(ActionNamesEnum.NOTION_NEW_DATABASE_ITEM);
+      
+      expect(schema).toEqual([
+        {
+          name: 'databaseId',
+          type: 'string',
+          required: true,
+          label: 'Notion Database ID',
+          placeholder: '123e4567e89b12d3a456426614174000'
+        }
+      ]);
+    });
+
+    it('should throw NotFoundException for unknown action', () => {
+      expect(() => {
+        service.getActionConfigSchema('unknown_action');
+      }).toThrow('Action \'unknown_action\' not found');
+    });
+
+    it('should return empty array for actions without config schema', () => {
+      const schema = service.getActionConfigSchema(ActionNamesEnum.SPOTIFY_HAS_LIKES);
+      expect(schema).toEqual([]);
     });
   });
 });

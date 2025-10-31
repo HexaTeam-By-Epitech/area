@@ -1,3 +1,12 @@
+### Environment
+.env
+.env.local
+.env.production
+
+### Docker
+postgres_data/
+redis_data/
+
 ### VisualStudioCode template
 .vscode/*
 !.vscode/settings.json

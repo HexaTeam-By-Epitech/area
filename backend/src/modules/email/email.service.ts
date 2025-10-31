@@ -81,10 +81,10 @@ export class EmailService {
   <body>
     <div class="container">
       <div class="header">
-        <h1>AREA - Vérification de compte</h1>
+        <h1>AREA - Account Verification</h1>
       </div>
       <div class="content">
-        <p>Voici votre code de vérification. Ce code expire dans 10 minutes.</p>
+        <p>Here is your verification code. It will expire in 10 minutes</p>
         <div class="code">${code}</div>
       </div>
       <div class="footer">© ${this.currentYear} AREA</div>

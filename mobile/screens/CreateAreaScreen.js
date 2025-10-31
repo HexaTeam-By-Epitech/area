@@ -140,6 +140,24 @@ export default function CreateAreaScreen({ navigation }) {
             return;
         }
 
+        // Validate required action config fields
+        const actionSchema = logic.getActionConfigSchema();
+        for (const field of actionSchema) {
+            if (field.required && !logic.actionConfig[field.name]) {
+                Alert.alert('Error', `Please fill in the required action field: ${field.label || field.name}`);
+                return;
+            }
+        }
+
+        // Validate required reaction config fields
+        const reactionSchema = logic.getReactionConfigSchema();
+        for (const field of reactionSchema) {
+            if (field.required && !logic.reactionConfig[field.name]) {
+                Alert.alert('Error', `Please fill in the required reaction field: ${field.label || field.name}`);
+                return;
+            }
+        }
+
         const result = await logic.createArea();
         if (result.success) {
             Alert.alert('Success', 'AREA created successfully!', [
