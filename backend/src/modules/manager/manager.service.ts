@@ -6,6 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { GmailSendService } from '../reactions/gmail/send.service';
 import { DiscordSendService } from '../reactions/discord/send.service';
+import { SpotifyLikeReactionService } from '../reactions/spotify/like.service';
 import { GmailNewMailService } from '../actions/gmail/new-mail.service';
 import { NotionDatabaseItemService } from '../actions/notion/database-item.service';
 import { PlaceholderReplacementService } from '../../common/services/placeholder-replacement.service';
@@ -35,6 +36,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         [ReactionNamesEnum.SEND_EMAIL]: 'google',
         [ReactionNamesEnum.LOG_EVENT]: 'default',
         [ReactionNamesEnum.DISCORD_SEND_SERVER_MESSAGE]: 'discord',
+        [ReactionNamesEnum.SPOTIFY_LIKE_TRACK]: 'spotify',
     };
 
     constructor(
@@ -45,6 +47,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         private readonly polling: ActionPollingService,
         private readonly gmailSendService: GmailSendService,
         private readonly discordSendService: DiscordSendService,
+        private readonly spotifyLikeReactionService: SpotifyLikeReactionService,
         private readonly gmailNewMailService: GmailNewMailService,
         private readonly notionDatabaseItemService: NotionDatabaseItemService,
         private readonly placeholderService: PlaceholderReplacementService,
@@ -64,6 +67,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         [ReactionNamesEnum.SEND_EMAIL]: 'Send Email',
         [ReactionNamesEnum.LOG_EVENT]: 'Log to Console',
         [ReactionNamesEnum.DISCORD_SEND_SERVER_MESSAGE]: 'Send Discord Message',
+        [ReactionNamesEnum.SPOTIFY_LIKE_TRACK]: 'Like Spotify Track',
     };
 
     /**
@@ -234,6 +238,24 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                     required: true,
                     label: 'Message content',
                     placeholder: 'Hello, this is a test message!'
+                }
+            ]
+        });
+
+        // Spotify like track reaction
+        this.reactionCallbacks.set(ReactionNamesEnum.SPOTIFY_LIKE_TRACK, {
+            name: ReactionNamesEnum.SPOTIFY_LIKE_TRACK,
+            callback: async (userId: string, actionResult: any, config: { trackId: string }) => {
+                return await this.spotifyLikeReactionService.run(userId, config);
+            },
+            description: 'Like (save) a track to your Spotify library',
+            configSchema: [
+                {
+                    name: 'trackId',
+                    type: 'string',
+                    required: true,
+                    label: 'Spotify Track ID',
+                    placeholder: '3n3Ppam7vgaVa1iaRUc9Lp'
                 }
             ]
         });

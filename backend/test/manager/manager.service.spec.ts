@@ -9,6 +9,7 @@ import { GmailNewMailService } from '../../src/modules/actions/gmail/new-mail.se
 import { NotionDatabaseItemService } from '../../src/modules/actions/notion/database-item.service';
 import { GmailSendService } from '../../src/modules/reactions/gmail/send.service';
 import { DiscordSendService } from '../../src/modules/reactions/discord/send.service';
+import { SpotifyLikeReactionService } from '../../src/modules/reactions/spotify/like.service';
 import { ActionPollingService } from '../../src/modules/manager/polling/action-polling.service';
 import { PlaceholderReplacementService } from '../../src/common/services/placeholder-replacement.service';
 import { ActionNamesEnum, ReactionNamesEnum } from '../../src/common/interfaces/action-names.enum';
@@ -90,6 +91,10 @@ describe('ManagerService', () => {
     run: jest.fn(),
   };
 
+  const mockSpotifyLikeReactionService = {
+    run: jest.fn(),
+  };
+
   const mockDiscordMessageService = {
     supports: jest.fn(),
     start: jest.fn(),
@@ -124,6 +129,7 @@ describe('ManagerService', () => {
         { provide: NotionDatabaseItemService, useValue: mockNotionDatabaseItemService },
         { provide: GmailSendService, useValue: mockGmailSendService },
         { provide: DiscordSendService, useValue: mockDiscordSendService },
+        { provide: SpotifyLikeReactionService, useValue: mockSpotifyLikeReactionService },
         { provide: ActionPollingService, useValue: mockActionPollingService },
         { provide: PlaceholderReplacementService, useValue: mockPlaceholderService },
       ],
@@ -383,6 +389,10 @@ describe('ManagerService', () => {
           name: ReactionNamesEnum.DISCORD_SEND_SERVER_MESSAGE,
           services: { name: 'discord' },
         },
+        {
+          name: ReactionNamesEnum.SPOTIFY_LIKE_TRACK,
+          services: { name: 'spotify' },
+        },
       ]);
 
       const result = await service.getAvailableReactionsGrouped(userId);
@@ -415,6 +425,16 @@ describe('ManagerService', () => {
               name: ReactionNamesEnum.SEND_EMAIL,
               displayName: 'Send Email',
               description: 'Send email notification',
+            },
+          ],
+        },
+        spotify: {
+          isLinked: false,
+          items: [
+            {
+              name: ReactionNamesEnum.SPOTIFY_LIKE_TRACK,
+              displayName: 'Like Spotify Track',
+              description: 'Like (save) a track to your Spotify library',
             },
           ],
         },
