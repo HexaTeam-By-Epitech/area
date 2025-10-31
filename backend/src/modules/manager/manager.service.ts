@@ -7,6 +7,7 @@ import { RedisService } from '../redis/redis.service';
 import { GmailSendService } from '../reactions/gmail/send.service';
 import { DiscordSendService } from '../reactions/discord/send.service';
 import { SpotifyLikeReactionService } from '../reactions/spotify/like.service';
+import { SpotifyPauseService } from '../reactions/spotify/pause.service';
 import { GmailNewMailService } from '../actions/gmail/new-mail.service';
 import { NotionDatabaseItemService } from '../actions/notion/database-item.service';
 import { PlaceholderReplacementService } from '../../common/services/placeholder-replacement.service';
@@ -37,6 +38,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         [ReactionNamesEnum.LOG_EVENT]: 'default',
         [ReactionNamesEnum.DISCORD_SEND_SERVER_MESSAGE]: 'discord',
         [ReactionNamesEnum.SPOTIFY_LIKE_TRACK]: 'spotify',
+        [ReactionNamesEnum.SPOTIFY_PAUSE_PLAYBACK]: 'spotify',
     };
 
     constructor(
@@ -48,6 +50,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         private readonly gmailSendService: GmailSendService,
         private readonly discordSendService: DiscordSendService,
         private readonly spotifyLikeReactionService: SpotifyLikeReactionService,
+        private readonly spotifyPauseService: SpotifyPauseService,
         private readonly gmailNewMailService: GmailNewMailService,
         private readonly notionDatabaseItemService: NotionDatabaseItemService,
         private readonly placeholderService: PlaceholderReplacementService,
@@ -68,6 +71,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         [ReactionNamesEnum.LOG_EVENT]: 'Log to Console',
         [ReactionNamesEnum.DISCORD_SEND_SERVER_MESSAGE]: 'Send Discord Message',
         [ReactionNamesEnum.SPOTIFY_LIKE_TRACK]: 'Like Spotify Track',
+        [ReactionNamesEnum.SPOTIFY_PAUSE_PLAYBACK]: 'Pause Spotify Playback',
     };
 
     /**
@@ -258,6 +262,16 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                     placeholder: '3n3Ppam7vgaVa1iaRUc9Lp'
                 }
             ]
+        });
+
+        // Spotify pause playback reaction
+        this.reactionCallbacks.set(ReactionNamesEnum.SPOTIFY_PAUSE_PLAYBACK, {
+            name: ReactionNamesEnum.SPOTIFY_PAUSE_PLAYBACK,
+            callback: async (userId: string, actionResult: any, config?: any) => {
+                return await this.spotifyPauseService.run(userId, config);
+            },
+            description: 'Pause the current Spotify playback',
+            configSchema: [] // No configuration needed
         });
 
         this.logger.log(`Registered ${this.reactionCallbacks.size} reaction callbacks`);
