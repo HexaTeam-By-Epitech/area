@@ -14,6 +14,7 @@ import { GmailSendService } from '../reactions/gmail/send.service';
 import { DiscordSendService } from '../reactions/discord/send.service';
 import { SpotifyLikeReactionService } from '../reactions/spotify/like.service';
 import { SpotifyPauseService } from '../reactions/spotify/pause.service';
+import { SpotifyResumeService } from '../reactions/spotify/resume.service';
 import { ActionPollingService } from './polling/action-polling.service';
 import { PlaceholderReplacementService } from '../../common/services/placeholder-replacement.service';
 
@@ -36,6 +37,7 @@ import { PlaceholderReplacementService } from '../../common/services/placeholder
     DiscordSendService,
     SpotifyLikeReactionService,
     SpotifyPauseService,
+    SpotifyResumeService,
     ActionPollingService,
     PlaceholderReplacementService,
   ],
