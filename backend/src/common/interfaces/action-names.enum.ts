@@ -18,6 +18,7 @@ export enum ReactionNamesEnum {
   LOG_EVENT = 'log_event',
   DISCORD_SEND_SERVER_MESSAGE = 'discord_send_server_message',
   SPOTIFY_LIKE_TRACK = 'spotify_like_track',
+  SPOTIFY_PAUSE_PLAYBACK = 'spotify_pause_playback',
 }
 
 /**
