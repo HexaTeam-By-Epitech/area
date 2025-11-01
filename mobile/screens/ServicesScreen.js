@@ -81,8 +81,8 @@ export default function ServicesScreen() {
                 try {
                     // Open browser for authentication with longer timeout for 2FA
                     const result = await WebBrowser.openAuthSessionAsync(url, Config.OAUTH_REDIRECT_URI, {
-                        // Give more time for 2FA completion
-                        showInRecents: true,
+                        showInRecents: false,
+                        preferEphemeralSession: false
                     });
 
                     if (result.type === 'success') {

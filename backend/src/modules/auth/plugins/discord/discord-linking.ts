@@ -26,14 +26,15 @@ export class DiscordLinking implements LinkingProvider {
    * Build the Discord consent URL for inviting the bot to a server.
    * @param params.userId - Target application user id (logged into state)
    * @param params.scopes - Optional list of scopes; defaults include bot scope for server invitation.
+   * @param params.mobile - Optional flag to indicate mobile app flow
    */
-  buildLinkUrl(params: { userId: string; scopes?: string[] }): string {
+  buildLinkUrl(params: { userId: string; scopes?: string[]; mobile?: boolean }): string {
     const clientId = this.config.get<string>('DISCORD_CLIENT_ID');
     const redirectUri = this.config.get<string>('DISCORD_REDIRECT_URI');
     if (!clientId || !redirectUri) throw new InternalServerErrorException('Discord OAuth not configured');
     if (!params.userId) throw new BadRequestException('userId is required for linking');
 
-    const state = this.jwt.sign({ provider: 'discord', mode: 'link', userId: params.userId }, { expiresIn: '10m' });
+    const state = this.jwt.sign({ provider: 'discord', mode: 'link', userId: params.userId, mobile: params.mobile }, { expiresIn: '10m' });
 
     // Default scopes include 'bot' for server invitation and 'identify' for user info
     const scopes = (params.scopes && params.scopes.length ? params.scopes : [
