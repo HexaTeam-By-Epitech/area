@@ -78,6 +78,8 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         [ReactionNamesEnum.DISCORD_SEND_SERVER_MESSAGE]: 'Send Discord Message',
         [ReactionNamesEnum.SPOTIFY_LIKE_TRACK]: 'Like Spotify Track',
         [ReactionNamesEnum.SPOTIFY_PAUSE_PLAYBACK]: 'Pause Spotify Playback',
+        [ReactionNamesEnum.SPOTIFY_RESUME_PLAYBACK]: 'Resume Spotify Playback',
+        [ReactionNamesEnum.NOTION_CREATE_DATABASE_ITEM]: 'Create Notion Page',
     };
 
     /**
@@ -278,6 +280,56 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
             },
             description: 'Pause the current Spotify playback',
             configSchema: [] // No configuration needed
+        });
+
+        // Spotify resume playback reaction
+        this.reactionCallbacks.set(ReactionNamesEnum.SPOTIFY_RESUME_PLAYBACK, {
+            name: ReactionNamesEnum.SPOTIFY_RESUME_PLAYBACK,
+            callback: async (userId: string, actionResult: any, config?: any) => {
+                return await this.spotifyResumeService.run(userId, config);
+            },
+            description: 'Resume the current Spotify playback',
+            configSchema: [] // No configuration needed
+        });
+
+        // Notion create database item reaction
+        this.reactionCallbacks.set(ReactionNamesEnum.NOTION_CREATE_DATABASE_ITEM, {
+            name: ReactionNamesEnum.NOTION_CREATE_DATABASE_ITEM,
+            callback: async (userId: string, actionResult: any, config: { databaseId: string; titlePropertyName?: string; title?: string; propertiesJson?: string }) => {
+                // Placeholders are already replaced prior to callback invocation
+                return await this.notionCreateDatabaseItemService.run(userId, config);
+            },
+            description: 'Create a new page in a Notion database',
+            configSchema: [
+                {
+                    name: 'databaseId',
+                    type: 'string',
+                    required: true,
+                    label: 'Notion Database',
+                    placeholder: 'Select a database (use the same selector as the Notion action)'
+                },
+                {
+                    name: 'titlePropertyName',
+                    type: 'string',
+                    required: false,
+                    label: 'Title Property Name',
+                    placeholder: 'e.g., Name'
+                },
+                {
+                    name: 'title',
+                    type: 'string',
+                    required: false,
+                    label: 'Title',
+                    placeholder: 'Page title text or {{PLACEHOLDER}}'
+                },
+                {
+                    name: 'propertiesJson',
+                    type: 'string',
+                    required: false,
+                    label: 'Raw Notion Properties (JSON)',
+                    placeholder: '{ "Name": { "title": [{"text": {"content": "My page"}}] } }'
+                }
+            ]
         });
 
         this.logger.log(`Registered ${this.reactionCallbacks.size} reaction callbacks`);
