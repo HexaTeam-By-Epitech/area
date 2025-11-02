@@ -7,11 +7,13 @@ import { SpotifyLikeService } from '../../src/modules/actions/spotify/like.servi
 import { DiscordMessageService } from '../../src/modules/actions/discord/message.service';
 import { GmailNewMailService } from '../../src/modules/actions/gmail/new-mail.service';
 import { NotionDatabaseItemService } from '../../src/modules/actions/notion/database-item.service';
+import { SlackNewMessageService } from '../../src/modules/actions/slack/new-message.service';
 import { GmailSendService } from '../../src/modules/reactions/gmail/send.service';
 import { DiscordSendService } from '../../src/modules/reactions/discord/send.service';
 import { SpotifyLikeReactionService } from '../../src/modules/reactions/spotify/like.service';
 import { SpotifyPauseService } from '../../src/modules/reactions/spotify/pause.service';
 import { SpotifyResumeService } from '../../src/modules/reactions/spotify/resume.service';
+import { SlackSendService } from '../../src/modules/reactions/slack/send.service';
 import { ActionPollingService } from '../../src/modules/manager/polling/action-polling.service';
 import { PlaceholderReplacementService } from '../../src/common/services/placeholder-replacement.service';
 import { ActionNamesEnum, ReactionNamesEnum } from '../../src/common/interfaces/action-names.enum';
@@ -85,6 +87,14 @@ describe('ManagerService', () => {
     getPlaceholders: jest.fn(),
   };
 
+  const mockSlackNewMessageService = {
+    supports: jest.fn(),
+    start: jest.fn(),
+    stop: jest.fn(),
+    hasNewSlackMessage: jest.fn(),
+    getPlaceholders: jest.fn(),
+  };
+
   const mockGmailSendService = {
     run: jest.fn(),
   };
@@ -102,6 +112,10 @@ describe('ManagerService', () => {
   };
 
   const mockSpotifyResumeService = {
+    run: jest.fn(),
+  };
+
+  const mockSlackSendService = {
     run: jest.fn(),
   };
 
@@ -137,11 +151,13 @@ describe('ManagerService', () => {
         { provide: DiscordMessageService, useValue: mockDiscordMessageService },
         { provide: GmailNewMailService, useValue: mockGmailNewMailService },
         { provide: NotionDatabaseItemService, useValue: mockNotionDatabaseItemService },
+        { provide: SlackNewMessageService, useValue: mockSlackNewMessageService },
         { provide: GmailSendService, useValue: mockGmailSendService },
         { provide: DiscordSendService, useValue: mockDiscordSendService },
         { provide: SpotifyLikeReactionService, useValue: mockSpotifyLikeReactionService },
         { provide: SpotifyPauseService, useValue: mockSpotifyPauseService },
         { provide: SpotifyResumeService, useValue: mockSpotifyResumeService },
+        { provide: SlackSendService, useValue: mockSlackSendService },
         { provide: ActionPollingService, useValue: mockActionPollingService },
         { provide: PlaceholderReplacementService, useValue: mockPlaceholderService },
       ],
@@ -350,6 +366,16 @@ describe('ManagerService', () => {
             },
           ],
         },
+        slack: {
+          isLinked: false,
+          items: [
+            {
+              name: ActionNamesEnum.SLACK_NEW_MESSAGE,
+              displayName: 'New Slack Message',
+              description: 'Detect new messages in Slack channels',
+            },
+          ],
+        },
         spotify: {
           isLinked: true,
           items: [
@@ -445,6 +471,16 @@ describe('ManagerService', () => {
               name: ReactionNamesEnum.SEND_EMAIL,
               displayName: 'Send Email',
               description: 'Send email notification',
+            },
+          ],
+        },
+        slack: {
+          isLinked: false,
+          items: [
+            {
+              name: ReactionNamesEnum.SLACK_SEND_MESSAGE,
+              displayName: 'Send Slack Message',
+              description: 'Send a message to a Slack channel',
             },
           ],
         },
