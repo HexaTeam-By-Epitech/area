@@ -161,9 +161,14 @@ export class UsersService {
      */
     async findLinkedAccount(userId: string, provider: ProviderKeyEnum) {
         const providerId = await this.getOrCreateProviderIdByName(provider);
-        return this.prisma.linked_accounts.findUnique({
+        const account = await this.prisma.linked_accounts.findUnique({
             where: { user_id_provider_id: { user_id: userId, provider_id: providerId } },
         });
+        // Only return account if it's active and not deleted
+        if (account && account.is_active && !account.deleted_at) {
+            return account;
+        }
+        return null;
     }
 
     /**

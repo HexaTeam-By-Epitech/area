@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, watch, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { apiDirect as api } from "@/utils/api";
 import PlaceholderInput from "@/components/PlaceholderInput.vue";
@@ -64,6 +64,118 @@ const error = ref('');
 const actionPlaceholders = ref<Placeholder[]>([]);
 const notionDatabases = ref<NotionDatabase[]>([]);
 const loadingNotionDatabases = ref(false);
+const reactionDbPropertiesSchema = ref<any[]>([]);
+const reactionPropertyInputs = ref<Record<string, any>>({});
+
+// Tokens that the backend recognizes as "use current time" for Notion date properties
+const NOW_TOKENS = ['__NOW__', '$NOW', 'NOW', '{{NOW}}', 'now'];
+function isNowToken(v: unknown): boolean {
+  return typeof v === 'string' && NOW_TOKENS.includes(v.trim());
+}
+
+function isSupportedNotionPropType(t: string): boolean {
+  return [
+    'title',
+    'rich_text',
+    'number',
+    'select',
+    'multi_select',
+    'date',
+    'checkbox',
+    'email',
+    'phone_number',
+    'url',
+    'status',
+  ].includes(t);
+}
+
+function buildNotionPropertiesFromInputs(): any {
+  const properties: any = {};
+  for (const prop of reactionDbPropertiesSchema.value) {
+    const name = prop.name as string;
+    const type = prop.type as string;
+    const value = reactionPropertyInputs.value[name];
+
+    if ((value === '' || value === null || value === undefined) && type !== 'checkbox') continue;
+
+    switch (type) {
+      case 'title':
+        properties[name] = {
+          title: [
+            { type: 'text', text: { content: String(value ?? '') } },
+          ],
+        };
+        break;
+      case 'rich_text':
+        properties[name] = {
+          rich_text: [
+            { type: 'text', text: { content: String(value ?? '') } },
+          ],
+        };
+        break;
+      case 'number':
+        properties[name] = { number: value === '' ? null : Number(value) };
+        break;
+      case 'select':
+        properties[name] = { select: value ? { name: String(value) } : null };
+        break;
+      case 'multi_select': {
+        const items = typeof value === 'string' ? value.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+        properties[name] = { multi_select: items.map((n: string) => ({ name: n })) };
+        break;
+      }
+      case 'date':
+        // If NOW token is set, pass it through; backend will replace with current ISO date
+        if (isNowToken(value)) {
+          properties[name] = { date: String(value) };
+        } else {
+          properties[name] = { date: value ? { start: String(value) } : null };
+        }
+        break;
+      case 'checkbox':
+        properties[name] = { checkbox: Boolean(value) };
+        break;
+      case 'email':
+        properties[name] = { email: String(value) };
+        break;
+      case 'phone_number':
+        properties[name] = { phone_number: String(value) };
+        break;
+      case 'url':
+        properties[name] = { url: String(value) };
+        break;
+      case 'status':
+        properties[name] = { status: value ? { name: String(value) } : null };
+        break;
+      default:
+        break;
+    }
+  }
+  return properties;
+}
+
+function onToggleDateNow(propertyName: string, checked: boolean) {
+  if (checked) {
+    // Set to NOW token
+    reactionPropertyInputs.value[propertyName] = 'NOW';
+  } else {
+    // Clear the value so user can enter a specific date
+    reactionPropertyInputs.value[propertyName] = '';
+  }
+}
+
+watch(reactionPropertyInputs, () => {
+  try {
+    const props = buildNotionPropertiesFromInputs();
+    if (Object.keys(props).length > 0) {
+      reactionConfig.value.propertiesJson = JSON.stringify(props);
+    } else {
+      reactionConfig.value.propertiesJson = '';
+    }
+  } catch (err) {
+    console.error('Failed to build Notion propertiesJson:', err);
+  }
+}, { deep: true });
 
 async function loadAvailableActionsReactions() {
   try {
@@ -290,10 +402,52 @@ watch(() => actionConfig.value.databaseId, async (newDatabaseId) => {
   }
 });
 
+watch(() => actionConfig.value.databaseId, async (newDbId) => {
+  // If the reaction is Notion create page and no DB chosen yet, sync from action
+  if (
+    newDbId &&
+    selectedReaction.value?.name === 'notion_create_database_item' &&
+    !reactionConfig.value.databaseId
+  ) {
+    reactionConfig.value.databaseId = newDbId;
+    await loadReactionNotionDatabaseSchema(newDbId);
+  }
+});
+
+async function loadReactionNotionDatabaseSchema(databaseId: string) {
+  try {
+    console.log('[Notion][Reaction] Loading schema for DB:', databaseId);
+    const response = await api.get(`/actions/notion/databases/${databaseId}/schema`);
+    const props = response.data?.properties || [];
+    console.log('[Notion][Reaction] Schema loaded. Total props:', props.length, props);
+    reactionDbPropertiesSchema.value = props.filter((p: any) => isSupportedNotionPropType(p.type));
+    console.log('[Notion][Reaction] Supported props:', reactionDbPropertiesSchema.value.length, reactionDbPropertiesSchema.value);
+
+    // Initialize inputs for new schema keys if not present
+    const inputs: Record<string, any> = { ...reactionPropertyInputs.value };
+    for (const prop of reactionDbPropertiesSchema.value) {
+      if (!(prop.name in inputs)) {
+        switch (prop.type) {
+          case 'checkbox':
+            inputs[prop.name] = false;
+            break;
+          default:
+            inputs[prop.name] = '';
+        }
+      }
+    }
+    reactionPropertyInputs.value = inputs;
+  } catch (err) {
+    console.error('Failed to load Notion database schema for reaction:', err);
+    reactionDbPropertiesSchema.value = [];
+    reactionPropertyInputs.value = {};
+  }
+}
 
 async function selectReaction(reaction: Reaction, isLinked: boolean) {
   if (!isLinked) return;
   selectedReaction.value = reaction;
+  console.log('[Reaction] Selected:', reaction.name);
   
   // Load config schema for the reaction
   const configSchema = await loadReactionConfigSchema(reaction.name);
@@ -311,6 +465,18 @@ async function selectReaction(reaction: Reaction, isLinked: boolean) {
         reactionConfig.value[field.name] = '';
       }
     });
+  }
+
+  // If the selected reaction is the Notion create database item, load databases to enable dropdown selection
+  if (reaction.name === 'notion_create_database_item') {
+    console.log('[Notion][Reaction] Loading databases for selection...');
+    await loadNotionDatabases();
+    // If action already selected a Notion DB, prefill the reaction DB and load schema
+    if (actionConfig.value?.databaseId) {
+      console.log('[Notion][Reaction] Prefilling DB from action:', actionConfig.value.databaseId);
+      reactionConfig.value.databaseId = actionConfig.value.databaseId;
+      await loadReactionNotionDatabaseSchema(actionConfig.value.databaseId);
+    }
   }
 }
 
@@ -476,6 +642,25 @@ function navigateToActions() {
 
 onMounted(() => {
   loadAvailableActionsReactions();
+});
+
+function onReactionDatabaseChange(event: Event) {
+  const target = event.target as HTMLSelectElement;
+  const dbId = target?.value;
+  if (selectedReaction.value?.name === 'notion_create_database_item' && dbId) {
+    loadReactionNotionDatabaseSchema(dbId);
+  }
+}
+
+function shouldHideNotionReactionField(fieldName: string): boolean {
+  return selectedReaction.value?.name === 'notion_create_database_item' && (
+    fieldName === 'titlePropertyName' || fieldName === 'title' || fieldName === 'propertiesJson'
+  );
+}
+
+const visibleReactionFields = computed(() => {
+  const schema = selectedReaction.value?.configSchema || [];
+  return schema.filter((f: any) => !shouldHideNotionReactionField(f.name));
 });
 </script>
 
@@ -685,15 +870,38 @@ onMounted(() => {
         💡 Type <code v-text="'{{'"></code> to insert placeholders from the selected action
       </div>
       <div class="config-form">
-        <div v-for="field in selectedReaction.configSchema" :key="field.name" class="form-field">
+        <div v-for="field in visibleReactionFields" :key="field.name" class="form-field">
           <label :for="field.name">
             {{ field.label || field.name }}
             <span v-if="field.required" class="required">*</span>
           </label>
 
+          <!-- Special dropdown for Notion database selection on reaction config -->
+          <div v-if="selectedReaction.name === 'notion_create_database_item' && field.name === 'databaseId'">
+            <select
+              :id="field.name"
+              v-model="reactionConfig[field.name]"
+              :required="field.required"
+              class="config-input"
+              :disabled="loadingNotionDatabases"
+              @change="onReactionDatabaseChange"
+            >
+              <option value="">{{ loadingNotionDatabases ? 'Loading databases...' : 'Select a database' }}</option>
+              <option v-for="db in notionDatabases" :key="db.id" :value="db.id">
+                {{ db.title }}
+              </option>
+            </select>
+            <small v-if="reactionConfig[field.name]" class="field-hint">
+              Database selected. The page will be created in this database.
+            </small>
+            <small v-if="reactionDbPropertiesSchema.length > 0" class="field-hint">
+              {{ reactionDbPropertiesSchema.length }} properties loaded.
+            </small>
+          </div>
+
           <!-- Text/Email input with placeholder autocomplete -->
           <PlaceholderInput
-            v-if="field.type === 'string' || field.type === 'email'"
+            v-else-if="field.type === 'string' || field.type === 'email'"
             :id="field.name"
             :type="field.type === 'email' ? 'email' : 'text'"
             v-model="reactionConfig[field.name]"
@@ -722,6 +930,78 @@ onMounted(() => {
             class="config-checkbox"
           />
         </div>
+
+        <!-- Dynamic Notion properties for the selected database (reaction) -->
+        <template v-if="selectedReaction?.name === 'notion_create_database_item' && reactionConfig.databaseId && reactionDbPropertiesSchema.length > 0">
+          <div class="form-field">
+            <label>Database properties (optional)</label>
+            <small class="field-hint">Fill any of the following properties. You can use placeholders from the action.</small>
+          </div>
+          <div v-for="prop in reactionDbPropertiesSchema" :key="prop.name" class="form-field">
+            <label :for="'notion-prop-' + prop.name">
+              {{ prop.name }} <small>({{ prop.type }})</small>
+            </label>
+
+            <!-- Boolean -->
+            <input
+              v-if="prop.type === 'checkbox'"
+              :id="'notion-prop-' + prop.name"
+              type="checkbox"
+              v-model="reactionPropertyInputs[prop.name]"
+              class="config-checkbox"
+            />
+
+            <!-- Number -->
+            <input
+              v-else-if="prop.type === 'number'"
+              :id="'notion-prop-' + prop.name"
+              type="number"
+              v-model.number="reactionPropertyInputs[prop.name]"
+              class="config-input"
+              :placeholder="'Enter a number or use a placeholder'"
+            />
+
+            <!-- Date: allow fixed date or current time when executed -->
+            <div v-else-if="prop.type === 'date'" class="date-field">
+              <div class="date-toggle">
+                <input
+                  :id="'notion-prop-now-' + prop.name"
+                  type="checkbox"
+                  :checked="isNowToken(reactionPropertyInputs[prop.name])"
+                  @change="onToggleDateNow(prop.name, ($event.target as HTMLInputElement).checked)"
+                />
+                <label :for="'notion-prop-now-' + prop.name">Use current time when executed</label>
+              </div>
+              <input
+                :id="'notion-prop-' + prop.name"
+                type="datetime-local"
+                v-model="reactionPropertyInputs[prop.name]"
+                class="config-input"
+                :disabled="isNowToken(reactionPropertyInputs[prop.name])"
+              />
+            </div>
+
+            <!-- Multi-select (comma-separated) -->
+            <PlaceholderInput
+              v-else-if="prop.type === 'multi_select'"
+              :id="'notion-prop-' + prop.name"
+              type="text"
+              v-model="reactionPropertyInputs[prop.name]"
+              :placeholders="actionPlaceholders"
+              :placeholder="'Option1, Option2'"
+            />
+
+            <!-- Title, Rich text, Select, Status, Email, Phone, URL -->
+            <PlaceholderInput
+              v-else
+              :id="'notion-prop-' + prop.name"
+              type="text"
+              v-model="reactionPropertyInputs[prop.name]"
+              :placeholders="actionPlaceholders"
+              :placeholder="'Enter a value or {{PLACEHOLDER}}'"
+            />
+          </div>
+        </template>
       </div>
     </div>
   </div>
@@ -1183,6 +1463,18 @@ onMounted(() => {
   color: #4CAF50;
   font-size: 0.85rem;
   font-style: italic;
+}
+
+.date-field {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.date-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 @media (max-width: 900px) {

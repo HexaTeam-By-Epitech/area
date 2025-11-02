@@ -13,6 +13,7 @@ import { NotionDatabaseItemService } from '../actions/notion/database-item.servi
 import { PlaceholderReplacementService } from '../../common/services/placeholder-replacement.service';
 import type { ActionCallback, ReactionCallback, AreaExecution } from '../../common/interfaces/area.type';
 import { ActionNamesEnum, ReactionNamesEnum } from '../../common/interfaces/action-names.enum';
+import { NotionCreateDatabaseItemService } from '../reactions/notion/create-item.service';
 
 /**
  * Orchestrates the AREA engine: registers actions/reactions, binds them for users,
@@ -39,6 +40,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         [ReactionNamesEnum.DISCORD_SEND_SERVER_MESSAGE]: 'discord',
         [ReactionNamesEnum.SPOTIFY_LIKE_TRACK]: 'spotify',
         [ReactionNamesEnum.SPOTIFY_PAUSE_PLAYBACK]: 'spotify',
+        [ReactionNamesEnum.NOTION_CREATE_DATABASE_ITEM]: 'notion',
     };
 
     constructor(
@@ -54,6 +56,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         private readonly gmailNewMailService: GmailNewMailService,
         private readonly notionDatabaseItemService: NotionDatabaseItemService,
         private readonly placeholderService: PlaceholderReplacementService,
+        private readonly notionCreateDatabaseItemService: NotionCreateDatabaseItemService,
     ) {}
 
     /**
@@ -72,6 +75,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         [ReactionNamesEnum.DISCORD_SEND_SERVER_MESSAGE]: 'Send Discord Message',
         [ReactionNamesEnum.SPOTIFY_LIKE_TRACK]: 'Like Spotify Track',
         [ReactionNamesEnum.SPOTIFY_PAUSE_PLAYBACK]: 'Pause Spotify Playback',
+        [ReactionNamesEnum.NOTION_CREATE_DATABASE_ITEM]: 'Create Notion Page',
     };
 
     /**
@@ -272,6 +276,46 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
             },
             description: 'Pause the current Spotify playback',
             configSchema: [] // No configuration needed
+        });
+
+        // Notion create database item reaction
+        this.reactionCallbacks.set(ReactionNamesEnum.NOTION_CREATE_DATABASE_ITEM, {
+            name: ReactionNamesEnum.NOTION_CREATE_DATABASE_ITEM,
+            callback: async (userId: string, actionResult: any, config: { databaseId: string; titlePropertyName?: string; title?: string; propertiesJson?: string }) => {
+                // Placeholders are already replaced prior to callback invocation
+                return await this.notionCreateDatabaseItemService.run(userId, config);
+            },
+            description: 'Create a new page in a Notion database',
+            configSchema: [
+                {
+                    name: 'databaseId',
+                    type: 'string',
+                    required: true,
+                    label: 'Notion Database',
+                    placeholder: 'Select a database (use the same selector as the Notion action)'
+                },
+                {
+                    name: 'titlePropertyName',
+                    type: 'string',
+                    required: false,
+                    label: 'Title Property Name',
+                    placeholder: 'e.g., Name'
+                },
+                {
+                    name: 'title',
+                    type: 'string',
+                    required: false,
+                    label: 'Title',
+                    placeholder: 'Page title text or {{PLACEHOLDER}}'
+                },
+                {
+                    name: 'propertiesJson',
+                    type: 'string',
+                    required: false,
+                    label: 'Raw Notion Properties (JSON)',
+                    placeholder: '{ "Name": { "title": [{"text": {"content": "My page"}}] } }'
+                }
+            ]
         });
 
         this.logger.log(`Registered ${this.reactionCallbacks.size} reaction callbacks`);

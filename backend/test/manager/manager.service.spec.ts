@@ -14,6 +14,7 @@ import { SpotifyPauseService } from '../../src/modules/reactions/spotify/pause.s
 import { ActionPollingService } from '../../src/modules/manager/polling/action-polling.service';
 import { PlaceholderReplacementService } from '../../src/common/services/placeholder-replacement.service';
 import { ActionNamesEnum, ReactionNamesEnum } from '../../src/common/interfaces/action-names.enum';
+import { NotionCreateDatabaseItemService } from '../../src/modules/reactions/notion/create-item.service';
 
 describe('ManagerService', () => {
   let service: ManagerService;
@@ -120,6 +121,10 @@ describe('ManagerService', () => {
     replaceInConfig: jest.fn((config) => config),
   };
 
+  const mockNotionCreateDatabaseItemService = {
+    run: jest.fn(),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -138,6 +143,7 @@ describe('ManagerService', () => {
         { provide: SpotifyPauseService, useValue: mockSpotifyPauseService },
         { provide: ActionPollingService, useValue: mockActionPollingService },
         { provide: PlaceholderReplacementService, useValue: mockPlaceholderService },
+        { provide: NotionCreateDatabaseItemService, useValue: mockNotionCreateDatabaseItemService },
       ],
     }).compile();
 
@@ -403,6 +409,10 @@ describe('ManagerService', () => {
           name: ReactionNamesEnum.SPOTIFY_PAUSE_PLAYBACK,
           services: { name: 'spotify' },
         },
+        {
+          name: ReactionNamesEnum.NOTION_CREATE_DATABASE_ITEM,
+          services: { name: 'notion' },
+        },
       ]);
 
       const result = await service.getAvailableReactionsGrouped(userId);
@@ -435,6 +445,16 @@ describe('ManagerService', () => {
               name: ReactionNamesEnum.SEND_EMAIL,
               displayName: 'Send Email',
               description: 'Send email notification',
+            },
+          ],
+        },
+        notion: {
+          isLinked: false,
+          items: [
+            {
+              name: ReactionNamesEnum.NOTION_CREATE_DATABASE_ITEM,
+              displayName: 'Create Notion Page',
+              description: 'Create a new page in a Notion database',
             },
           ],
         },

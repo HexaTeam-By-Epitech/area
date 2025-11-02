@@ -16,6 +16,7 @@ import { SpotifyLikeReactionService } from '../reactions/spotify/like.service';
 import { SpotifyPauseService } from '../reactions/spotify/pause.service';
 import { ActionPollingService } from './polling/action-polling.service';
 import { PlaceholderReplacementService } from '../../common/services/placeholder-replacement.service';
+import { NotionCreateDatabaseItemService } from '../reactions/notion/create-item.service';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { PlaceholderReplacementService } from '../../common/services/placeholder
     SpotifyPauseService,
     ActionPollingService,
     PlaceholderReplacementService,
+    NotionCreateDatabaseItemService,
   ],
   exports: [ManagerService],
 })
