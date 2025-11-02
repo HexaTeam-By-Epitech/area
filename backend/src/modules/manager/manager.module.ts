@@ -10,11 +10,13 @@ import { SpotifyLikeService } from '../actions/spotify/like.service';
 import { DiscordMessageService } from '../actions/discord/message.service';
 import { GmailNewMailService } from '../actions/gmail/new-mail.service';
 import { NotionDatabaseItemService } from '../actions/notion/database-item.service';
+import { GoogleDriveNewFileService } from '../actions/google-drive/new-file.service';
 import { GmailSendService } from '../reactions/gmail/send.service';
 import { DiscordSendService } from '../reactions/discord/send.service';
 import { SpotifyLikeReactionService } from '../reactions/spotify/like.service';
 import { SpotifyPauseService } from '../reactions/spotify/pause.service';
 import { SpotifyResumeService } from '../reactions/spotify/resume.service';
+import { GoogleDriveCreateFolderService } from '../reactions/google-drive/create-folder.service';
 import { ActionPollingService } from './polling/action-polling.service';
 import { PlaceholderReplacementService } from '../../common/services/placeholder-replacement.service';
 import { NotionCreateDatabaseItemService } from '../reactions/notion/create-item.service';
@@ -34,11 +36,13 @@ import { NotionCreateDatabaseItemService } from '../reactions/notion/create-item
     DiscordMessageService,
     GmailNewMailService,
     NotionDatabaseItemService,
+    GoogleDriveNewFileService,
     GmailSendService,
     DiscordSendService,
     SpotifyLikeReactionService,
     SpotifyPauseService,
     SpotifyResumeService,
+    GoogleDriveCreateFolderService,
     ActionPollingService,
     PlaceholderReplacementService,
     NotionCreateDatabaseItemService,

@@ -7,6 +7,7 @@ export enum ActionNamesEnum {
   GMAIL_NEW_EMAIL = 'gmail_new_email',
   DISCORD_NEW_SERVER_MESSAGE = 'discord_new_server_message',
   NOTION_NEW_DATABASE_ITEM = 'notion_new_database_item',
+  GDRIVE_NEW_FILE = 'gdrive_new_file',
 }
 
 /**
@@ -21,6 +22,7 @@ export enum ReactionNamesEnum {
   SPOTIFY_PAUSE_PLAYBACK = 'spotify_pause_playback',
   NOTION_CREATE_DATABASE_ITEM = 'notion_create_database_item',
   SPOTIFY_RESUME_PLAYBACK = 'spotify_resume_playback',
+  GDRIVE_CREATE_FOLDER = 'gdrive_create_folder',
 }
 
 /**

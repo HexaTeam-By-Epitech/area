@@ -17,7 +17,7 @@ export class GenericAuthLinkingController {
   @ApiResponse({ status: 200, description: 'Returns array of provider keys', schema: { properties: { providers: { type: 'array', items: { type: 'string' } } } } })
   getAvailableProviders() {
     const allProviders = this.auth.listProviders();
-    // Filter out internal providers (e.g., slack_bot which is managed internally)
+    // Filter out internal providers (e.g., discord_bot which is managed internally)
     const publicProviders = allProviders.filter(p => !p.endsWith('_bot'));
     return { providers: publicProviders };
   }

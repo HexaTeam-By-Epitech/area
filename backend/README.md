@@ -65,6 +65,7 @@ cp .env.example .env
 - `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
 - `GOOGLE_REDIRECT_URI` - Callback URL (default: `http://localhost:3000/auth/google/callback`)
 - `GOOGLE_IDENTITY_REDIRECT_URI` - Login callback URL (default: `http://localhost:3000/auth/google/login/callback`)
+- `GOOGLE_DRIVE_REDIRECT_URI` - Google Drive linking callback URL (default: `http://localhost:3000/auth/google_drive/callback`)
 
 #### Spotify OAuth
 - `SPOTIFY_CLIENT_ID` - Spotify OAuth client ID

@@ -66,10 +66,10 @@ describe('GenericAuthLinkingController', () => {
 
   describe('getAvailableProviders', () => {
     it('should return all public providers (filtering out _bot providers)', () => {
-      mockAuthService.listProviders.mockReturnValue(['google', 'spotify', 'slack', 'slack_bot']);
+      mockAuthService.listProviders.mockReturnValue(['google', 'spotify', 'discord', 'discord_bot']);
       const res = controller.getAvailableProviders();
       expect(mockAuthService.listProviders).toHaveBeenCalled();
-      expect(res).toEqual({ providers: ['google', 'spotify', 'slack'] });
+      expect(res).toEqual({ providers: ['google', 'spotify', 'discord'] });
     });
 
     it('should return empty array if no providers', () => {
@@ -87,10 +87,10 @@ describe('GenericAuthLinkingController', () => {
 
   describe('getLinkedProviders', () => {
     it('should return linked providers from service', async () => {
-      mockAuthService.getLinkedProviders.mockResolvedValue({ providers: ['google', 'slack'] });
+      mockAuthService.getLinkedProviders.mockResolvedValue({ providers: ['google', 'spotify'] });
       const res = await controller.getLinkedProviders('u1');
       expect(mockAuthService.getLinkedProviders).toHaveBeenCalledWith('u1');
-      expect(res).toEqual({ providers: ['google', 'slack'] });
+      expect(res).toEqual({ providers: ['google', 'spotify'] });
     });
   });
 });

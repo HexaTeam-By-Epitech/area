@@ -11,6 +11,7 @@ export enum ProviderKeyEnum {
     Spotify = 'spotify',
     Discord = 'discord',
     Notion = 'notion',
+    GoogleDrive = 'google_drive',
 }
 
 /**
