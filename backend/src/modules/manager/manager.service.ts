@@ -8,6 +8,7 @@ import { GmailSendService } from '../reactions/gmail/send.service';
 import { DiscordSendService } from '../reactions/discord/send.service';
 import { SpotifyLikeReactionService } from '../reactions/spotify/like.service';
 import { SpotifyPauseService } from '../reactions/spotify/pause.service';
+import { SpotifyResumeService } from '../reactions/spotify/resume.service';
 import { GmailNewMailService } from '../actions/gmail/new-mail.service';
 import { NotionDatabaseItemService } from '../actions/notion/database-item.service';
 import { PlaceholderReplacementService } from '../../common/services/placeholder-replacement.service';
@@ -40,6 +41,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         [ReactionNamesEnum.DISCORD_SEND_SERVER_MESSAGE]: 'discord',
         [ReactionNamesEnum.SPOTIFY_LIKE_TRACK]: 'spotify',
         [ReactionNamesEnum.SPOTIFY_PAUSE_PLAYBACK]: 'spotify',
+        [ReactionNamesEnum.SPOTIFY_RESUME_PLAYBACK]: 'spotify',
         [ReactionNamesEnum.NOTION_CREATE_DATABASE_ITEM]: 'notion',
     };
 
@@ -53,6 +55,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         private readonly discordSendService: DiscordSendService,
         private readonly spotifyLikeReactionService: SpotifyLikeReactionService,
         private readonly spotifyPauseService: SpotifyPauseService,
+        private readonly spotifyResumeService: SpotifyResumeService,
         private readonly gmailNewMailService: GmailNewMailService,
         private readonly notionDatabaseItemService: NotionDatabaseItemService,
         private readonly placeholderService: PlaceholderReplacementService,
@@ -75,7 +78,6 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         [ReactionNamesEnum.DISCORD_SEND_SERVER_MESSAGE]: 'Send Discord Message',
         [ReactionNamesEnum.SPOTIFY_LIKE_TRACK]: 'Like Spotify Track',
         [ReactionNamesEnum.SPOTIFY_PAUSE_PLAYBACK]: 'Pause Spotify Playback',
-        [ReactionNamesEnum.NOTION_CREATE_DATABASE_ITEM]: 'Create Notion Page',
     };
 
     /**
@@ -276,46 +278,6 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
             },
             description: 'Pause the current Spotify playback',
             configSchema: [] // No configuration needed
-        });
-
-        // Notion create database item reaction
-        this.reactionCallbacks.set(ReactionNamesEnum.NOTION_CREATE_DATABASE_ITEM, {
-            name: ReactionNamesEnum.NOTION_CREATE_DATABASE_ITEM,
-            callback: async (userId: string, actionResult: any, config: { databaseId: string; titlePropertyName?: string; title?: string; propertiesJson?: string }) => {
-                // Placeholders are already replaced prior to callback invocation
-                return await this.notionCreateDatabaseItemService.run(userId, config);
-            },
-            description: 'Create a new page in a Notion database',
-            configSchema: [
-                {
-                    name: 'databaseId',
-                    type: 'string',
-                    required: true,
-                    label: 'Notion Database',
-                    placeholder: 'Select a database (use the same selector as the Notion action)'
-                },
-                {
-                    name: 'titlePropertyName',
-                    type: 'string',
-                    required: false,
-                    label: 'Title Property Name',
-                    placeholder: 'e.g., Name'
-                },
-                {
-                    name: 'title',
-                    type: 'string',
-                    required: false,
-                    label: 'Title',
-                    placeholder: 'Page title text or {{PLACEHOLDER}}'
-                },
-                {
-                    name: 'propertiesJson',
-                    type: 'string',
-                    required: false,
-                    label: 'Raw Notion Properties (JSON)',
-                    placeholder: '{ "Name": { "title": [{"text": {"content": "My page"}}] } }'
-                }
-            ]
         });
 
         this.logger.log(`Registered ${this.reactionCallbacks.size} reaction callbacks`);
@@ -565,11 +527,13 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
             }
         });
 
-        // Transform to include action and reaction names as strings
+        // Transform to include action and reaction names as strings with display names
         return areas.map(area => ({
             id: area.id,
             action: area.actions.name,
+            actionDisplayName: this.getDisplayName(area.actions.name),
             reaction: area.reactions.name,
+            reactionDisplayName: this.getDisplayName(area.reactions.name),
             config: area.config,
             is_active: area.is_active,
             created_at: area.created_at,

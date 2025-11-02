@@ -1,5 +1,6 @@
 import {createWebHistory, createRouter} from 'vue-router';
-import Default from "@/views/Default.vue";
+// Removed Default landing to favor Dashboard as default
+// import Default from "@/views/Default.vue";
 import AuthPage from "@/views/auth/AuthPage.vue";
 import Services from "@/views/home/Services.vue";
 import Dashboard from "@/views/home/Dashboard.vue";
@@ -10,7 +11,7 @@ import useAuthStore from "@/stores/webauth";
 
 
 const routes = [
-    {path: '/', component: Default, meta: {title: 'Area', requiresAuth: false}},
+    { path: '/', redirect: '/home' },
     {path: '/webauth', component: AuthPage, meta: {title: 'Area | Login', requiresAuth: false}},
     {path: '/home', component: Dashboard, meta: {title: 'Area | Dashboard', requiresAuth: true}},
     {path: '/home/workflows/:id?', component: Workflows, meta: {title: 'Area | Workflows', requiresAuth: true}},
@@ -32,11 +33,15 @@ router.beforeEach((to, _, next) => {
 
     // Check if route requires authentication
     if (requiresAuth && !authStore.isAuth()) {
+        // Force logout to clear any stale token/state
+        authStore.logout();
         // Redirect to login page
         next('/webauth');
+        return;
     } else if (to.path === '/webauth' && authStore.isAuth()) {
         // If user is logged in and trying to access auth page, redirect to home
         next('/home');
+        return;
     } else {
         next();
     }

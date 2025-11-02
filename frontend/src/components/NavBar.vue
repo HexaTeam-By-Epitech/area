@@ -1,14 +1,17 @@
 <script setup>
 import NavCard from "./NavCard.vue";
-import useAuthStore from "@/stores/webauth.js";
+import useAuthStore from "@/stores/webauth";
 import { useRouter } from "vue-router";
+import useToastStore from "@/stores/toast";
 
 const authStore = useAuthStore();
 const router = useRouter();
+const toast = useToastStore();
 
 function logout() {
   authStore.logout();
-  router.push('/');
+  toast.show('You have been logged out', 'info', 2500);
+  router.replace('/webauth');
 }
 </script>
 

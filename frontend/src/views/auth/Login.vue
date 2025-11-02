@@ -2,8 +2,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { handleGoogleResponse, googleLoading, googleError, googleSuccess } from '@/utils/googleAuth'
 import useAuthStore from "@/stores/webauth";
+import { useRouter } from 'vue-router'
 
 const authStore = useAuthStore();
+const router = useRouter();
 
 const email = ref('')
 const password = ref('')
@@ -12,6 +14,14 @@ const passwordError = ref('')
 const isLoading = ref(false)
 const apiError = ref('')
 const successMessage = ref('')
+
+// Prefill email when switching to register
+function goToRegister() {
+  if (email.value && !emailError.value) {
+    authStore.email = email.value;
+  }
+  authStore.setPage('register');
+}
 
 const validateEmail = () => {
   if (!email.value) { emailError.value = 'Email is required'; return false }
@@ -48,6 +58,8 @@ const handleSubmit = async () => {
     const data = await response.json();
     if (data.accessToken && data.userId) {
       authStore.login(data.email || email.value, data.accessToken, data.userId);
+      // Navigate to Dashboard after login (SPA)
+      router.replace('/home');
     }
     successMessage.value = 'Login successful!'
     email.value = ''
@@ -143,7 +155,7 @@ onMounted(() => {
       </div>
 
       <p class="login-link">
-        Don't have an account? <a href="#" @click.prevent="authStore.setPage('register')">Register</a>
+        Don't have an account? <a href="#" @click.prevent="goToRegister">Register</a>
       </p>
     </div>
   </div>

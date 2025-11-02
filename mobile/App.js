@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createDrawerNavigator } from '@react-navigation/drawer';
@@ -15,6 +15,8 @@ import LandingScreen from './screens/LandingScreen';
 import './screens/mockBackend';
 import colors from './screens/colors';
 import styles from './styles';
+import { setOnUnauthorized } from './utils/api';
+import { navigationRef } from './navigationRef';
 
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -66,7 +68,15 @@ function ProtectedDrawer() {
 }
 
 function AppNavigator() {
-    const { isAuthenticated, isLoading } = useAuth();
+    const { isAuthenticated, isLoading, logout } = useAuth();
+
+    useEffect(() => {
+        // Subscribe to 401 events
+        setOnUnauthorized(async () => {
+            try { await logout(); } catch {}
+        });
+        return () => setOnUnauthorized(null);
+    }, [logout]);
 
     if (isLoading) {
         return (
@@ -110,7 +120,7 @@ function AppNavigator() {
 export default function App() {
     return (
         <AuthProvider>
-            <NavigationContainer>
+            <NavigationContainer ref={navigationRef}>
                 <AppNavigator />
             </NavigationContainer>
         </AuthProvider>

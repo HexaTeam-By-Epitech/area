@@ -20,6 +20,7 @@ export enum ReactionNamesEnum {
   SPOTIFY_LIKE_TRACK = 'spotify_like_track',
   SPOTIFY_PAUSE_PLAYBACK = 'spotify_pause_playback',
   NOTION_CREATE_DATABASE_ITEM = 'notion_create_database_item',
+  SPOTIFY_RESUME_PLAYBACK = 'spotify_resume_playback',
 }
 
 /**

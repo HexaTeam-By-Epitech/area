@@ -47,6 +47,15 @@ export default defineConfig(({ mode }) => {
             });
           }
         },
+        '/users': {
+          target: apiUrl,
+          changeOrigin: true,
+          configure: (proxy, options) => {
+            proxy.on('proxyReq', (proxyReq, req, res) => {
+              proxyReq.setHeader('ngrok-skip-browser-warning', 'true');
+            });
+          }
+        },
         '/api': {
           target: apiUrl,
           changeOrigin: true,

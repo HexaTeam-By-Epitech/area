@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, Alert } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import styles from '../styles';
@@ -74,22 +74,81 @@ export default function ServicesScreen() {
                 throw new Error('No OAuth URL received');
             }
 
-            // Open browser for authentication
-            const result = await WebBrowser.openAuthSessionAsync(url, Config.OAUTH_REDIRECT_URI);
+            // Open browser for authentication directly
+            await proceedWithAuth();
 
-            if (result.type === 'success') {
-                // Reload providers to get updated linked status
-                await loadProviders();
-                Alert.alert('Success', `Successfully connected to ${provider.displayName}!`);
-            } else if (result.type === 'cancel') {
-                // User cancelled, just update loading state
-                setProviders(prev => prev.map(p =>
-                    p.name === provider.name ? { ...p, loading: false } : p
-                ));
+            async function proceedWithAuth() {
+                try {
+                    // Open browser for authentication with longer timeout for 2FA
+                    const result = await WebBrowser.openAuthSessionAsync(url, Config.OAUTH_REDIRECT_URI, {
+                        showInRecents: false,
+                        preferEphemeralSession: false
+                    });
+
+                    if (result.type === 'success') {
+                        // Reload providers to get updated linked status
+                        await loadProviders();
+                        Alert.alert('Success', `Successfully connected to ${provider.displayName}!`);
+                    } else if (result.type === 'cancel') {
+                        // User cancelled - offer to try again or cancel
+                        Alert.alert(
+                            'Connection Cancelled',
+                            `You cancelled the ${provider.displayName} connection.`,
+                            [
+                                {
+                                    text: 'Try Again',
+                                    onPress: () => linkProvider(provider)
+                                },
+                                {
+                                    text: 'Cancel',
+                                    style: 'cancel',
+                                    onPress: () => {
+                                        // Just reset loading state
+                                        setProviders(prev => prev.map(p =>
+                                            p.name === provider.name ? { ...p, loading: false } : p
+                                        ));
+                                    }
+                                }
+                            ]
+                        );
+                        return; // Don't reset loading state immediately
+                    } else if (result.type === 'dismiss' || result.type === 'locked') {
+                        // Browser was dismissed or locked - offer to try again or cancel
+                        Alert.alert(
+                            'Authentication Interrupted',
+                            `The authentication process was interrupted.`,
+                            [
+                                {
+                                    text: 'Try Again',
+                                    onPress: () => linkProvider(provider)
+                                },
+                                {
+                                    text: 'Cancel',
+                                    style: 'cancel',
+                                    onPress: () => {
+                                        setProviders(prev => prev.map(p =>
+                                            p.name === provider.name ? { ...p, loading: false } : p
+                                        ));
+                                    }
+                                }
+                            ]
+                        );
+                        return;
+                    }
+
+                    // Reset loading state for other result types
+                    setProviders(prev => prev.map(p =>
+                        p.name === provider.name ? { ...p, loading: false } : p
+                    ));
+                } catch (authErr) {
+                    console.error('Auth process error:', authErr);
+                    throw authErr;
+                }
             }
         } catch (err) {
             console.error('Failed to link provider:', err);
             Alert.alert('Error', err.response?.data?.message || `Failed to connect to ${provider.displayName}`);
+            // Always reset loading state on error
             setProviders(prev => prev.map(p =>
                 p.name === provider.name ? { ...p, loading: false } : p
             ));
@@ -159,7 +218,12 @@ export default function ServicesScreen() {
                     </View>
                     <View style={{ flexShrink: 0 }}>
                         {item.loading ? (
-                            <ActivityIndicator size="small" color="#fff" />
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+                                <Text style={[styles.text, { fontSize: 12, color: '#fff' }]}>
+                                    Connecting...
+                                </Text>
+                            </View>
                         ) : (
                             <Button
                                 title={item.linked ? 'Disconnect' : 'Connect'}
@@ -191,9 +255,18 @@ export default function ServicesScreen() {
 
     return (
         <View style={[styles.container, { paddingTop: 32 }]}>
-            <Text style={styles.title}>Connect Services</Text>
+            <View style={{ marginBottom: 16, paddingHorizontal: 20 }}>
+                <Text style={styles.title}>Connect Services</Text>
+            </View>
             {error ? (
-                <Text style={[styles.text, { color: '#d32f2f', marginBottom: 16 }]}>{error}</Text>
+                <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+                    <Text style={[styles.text, { color: '#d32f2f', marginBottom: 8 }]}>{error}</Text>
+                    <Button
+                        title="Retry"
+                        onPress={loadProviders}
+                        style={{ backgroundColor: '#4CAF50', marginBottom: 0 }}
+                    />
+                </View>
             ) : null}
             <FlatList
                 data={providers}
@@ -205,6 +278,8 @@ export default function ServicesScreen() {
                         No services available
                     </Text>
                 }
+                refreshing={loading}
+                onRefresh={loadProviders}
             />
         </View>
     );

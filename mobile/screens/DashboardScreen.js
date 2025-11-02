@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -17,16 +17,28 @@ import { apiDirect } from '../utils/api';
 
 // Helper to extract provider from action/reaction name
 const extractProvider = (name) => {
-    // Actions/Reactions are formatted like: provider_action_name
-    // e.g., "gmail_new_email", "spotify_new_liked_song"
-    const parts = name.split('_');
-    return parts[0]; // Returns the provider (gmail, spotify, etc.)
+    const parts = (name || '').split('_');
+    return parts[0];
+};
+
+// Derive a better provider for display when names are shorthand (e.g., 'send_email' => 'google')
+const deriveDisplayProvider = (fullName) => {
+    const base = extractProvider(fullName);
+    if (fullName === 'send_email') return 'google';
+    return base;
+};
+
+// Map to canonical OAuth provider key for linked-providers check (e.g., 'gmail' => 'google')
+const canonicalOAuthProvider = (provider, fullName) => {
+    if (provider === 'gmail') return 'google';
+    if (provider === 'send' && fullName === 'send_email') return 'google';
+    return provider;
 };
 
 // Check if an action/reaction is internal (doesn't require OAuth)
 const isInternalProvider = (providerName) => {
     const internalProviders = ['log', 'email', 'webhook', 'notification', 'system'];
-    return internalProviders.includes(providerName.toLowerCase());
+    return internalProviders.includes((providerName || '').toLowerCase());
 };
 
 // Map provider names to display info
@@ -43,7 +55,8 @@ const getProviderInfo = (providerName) => {
         notification: { displayName: 'Notification', icon: 'notifications', color: '#FFC107' },
         system: { displayName: 'System', icon: 'settings', color: '#607D8B' },
     };
-    return providers[providerName.toLowerCase()] || { displayName: providerName, icon: 'apps', color: '#666' };
+    const key = (providerName || '').toLowerCase();
+    return providers[key] || { displayName: providerName, icon: 'apps', color: '#666' };
 };
 
 export default function DashboardScreen({ navigation }) {
@@ -124,16 +137,22 @@ export default function DashboardScreen({ navigation }) {
     };
 
     const renderItem = ({ item }) => {
-        const actionProvider = extractProvider(item.action);
-        const reactionProvider = extractProvider(item.reaction);
-        const actionInfo = getProviderInfo(actionProvider);
-        const reactionInfo = getProviderInfo(reactionProvider);
+        // Derive provider names for display
+        const actionProviderRaw = extractProvider(item.action);
+        const reactionProviderRaw = deriveDisplayProvider(item.reaction);
 
-        const actionIsInternal = isInternalProvider(actionProvider);
-        const reactionIsInternal = isInternalProvider(reactionProvider);
+        const actionInfo = getProviderInfo(actionProviderRaw);
+        const reactionInfo = getProviderInfo(reactionProviderRaw);
 
-        const actionConnected = actionIsInternal || linkedProviders.includes(actionProvider);
-        const reactionConnected = reactionIsInternal || linkedProviders.includes(reactionProvider);
+        const actionIsInternal = isInternalProvider(actionProviderRaw);
+        const reactionIsInternal = isInternalProvider(reactionProviderRaw);
+
+        // Canonical names for OAuth linked check
+        const actionOAuthProvider = canonicalOAuthProvider(actionProviderRaw, item.action);
+        const reactionOAuthProvider = canonicalOAuthProvider(reactionProviderRaw, item.reaction);
+
+        const actionConnected = actionIsInternal || linkedProviders.includes(actionOAuthProvider);
+        const reactionConnected = reactionIsInternal || linkedProviders.includes(reactionOAuthProvider);
 
         return (
             <Card style={{ marginBottom: 12, padding: 16, width: '100%' }}>

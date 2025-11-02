@@ -15,6 +15,7 @@ export default function MyAccountScreen({}) {
     const [linkedIdentities, setLinkedIdentities] = useState([]);
     const [loadingIdentities, setLoadingIdentities] = useState(true);
     const [linkingGoogle, setLinkingGoogle] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         loadLinkedIdentities();
@@ -111,6 +112,31 @@ export default function MyAccountScreen({}) {
         );
     };
 
+    const handleDeleteAccount = () => {
+        Alert.alert(
+            'Delete Account',
+            'This will permanently delete your account and all data. This action cannot be undone. Do you want to continue?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            setDeleting(true);
+                            await apiDirect.delete('/users/me');
+                            await logout();
+                        } catch (err) {
+                            console.error('Failed to delete account:', err);
+                            Alert.alert('Error', err?.response?.data?.message || 'Failed to delete account');
+                            setDeleting(false);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     return (
         <View style={[styles.container, { paddingTop: 32 }]}>
             <Text style={styles.title}>My Account</Text>
@@ -175,7 +201,23 @@ export default function MyAccountScreen({}) {
                 </View>
             </Card>
 
-            <View style={{ marginTop: 40, width: '90%' }}>
+            <Card style={{ marginTop: 20, padding: 20, width: '90%', borderColor: 'rgba(211, 47, 47, 0.35)', borderWidth: 1 }}>
+                <Text style={[styles.text, { fontSize: 14, color: '#c3c9d5', marginBottom: 12 }]}>
+                    Danger Zone
+                </Text>
+                {deleting ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                    <Button
+                        title="Delete my account"
+                        onPress={handleDeleteAccount}
+                        style={{ backgroundColor: 'rgba(211,47,47,0.15)', borderWidth: 2, borderColor: '#d32f2f' }}
+                        textStyle={{ color: '#ff6b6b', fontWeight: '800' }}
+                    />
+                )}
+            </Card>
+
+            <View style={{ marginTop: 20, width: '90%' }}>
                 {loggingOut ? (
                     <ActivityIndicator size="large" color="#fff" />
                 ) : (
