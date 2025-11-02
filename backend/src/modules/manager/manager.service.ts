@@ -898,4 +898,49 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         }
         return reaction.configSchema || [];
     }
+
+    /**
+     * Get all services with their actions and reactions for about.json endpoint
+     * Groups actions and reactions by their provider/service
+     */
+    getServicesForAbout() {
+        const servicesMap = new Map<string, { actions: any[], reactions: any[] }>();
+
+        // Process actions
+        const availableActions = this.getAvailableActions();
+        for (const action of availableActions) {
+            const providerName = this.actionProviders[action.name] || 'default';
+            
+            if (!servicesMap.has(providerName)) {
+                servicesMap.set(providerName, { actions: [], reactions: [] });
+            }
+
+            servicesMap.get(providerName)!.actions.push({
+                name: action.name,
+                description: action.description || 'No description available'
+            });
+        }
+
+        // Process reactions
+        const availableReactions = this.getAvailableReactions();
+        for (const reaction of availableReactions) {
+            const providerName = this.reactionProviders[reaction.name] || 'default';
+            
+            if (!servicesMap.has(providerName)) {
+                servicesMap.set(providerName, { actions: [], reactions: [] });
+            }
+
+            servicesMap.get(providerName)!.reactions.push({
+                name: reaction.name,
+                description: reaction.description || 'No description available'
+            });
+        }
+
+        // Convert map to array format
+        return Array.from(servicesMap.entries()).map(([name, data]) => ({
+            name,
+            actions: data.actions,
+            reactions: data.reactions
+        }));
+    }
 }
