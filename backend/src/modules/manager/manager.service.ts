@@ -11,6 +11,7 @@ import { SpotifyPauseService } from '../reactions/spotify/pause.service';
 import { SpotifyResumeService } from '../reactions/spotify/resume.service';
 import { GmailNewMailService } from '../actions/gmail/new-mail.service';
 import { NotionDatabaseItemService } from '../actions/notion/database-item.service';
+import { SlackNewMessageService } from '../actions/slack/new-message.service';
 import { PlaceholderReplacementService } from '../../common/services/placeholder-replacement.service';
 import type { ActionCallback, ReactionCallback, AreaExecution } from '../../common/interfaces/area.type';
 import { ActionNamesEnum, ReactionNamesEnum } from '../../common/interfaces/action-names.enum';
@@ -32,6 +33,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         [ActionNamesEnum.GMAIL_NEW_EMAIL]: 'google',
         [ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE]: 'discord',
         [ActionNamesEnum.NOTION_NEW_DATABASE_ITEM]: 'notion',
+        [ActionNamesEnum.SLACK_NEW_MESSAGE]: 'slack',
     };
 
     private readonly reactionProviders: Record<string, string> = {
@@ -56,6 +58,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         private readonly spotifyResumeService: SpotifyResumeService,
         private readonly gmailNewMailService: GmailNewMailService,
         private readonly notionDatabaseItemService: NotionDatabaseItemService,
+        private readonly slackNewMessageService: SlackNewMessageService,
         private readonly placeholderService: PlaceholderReplacementService,
     ) {}
 
@@ -68,7 +71,8 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         [ActionNamesEnum.GMAIL_NEW_EMAIL]: 'New Email Received',
         [ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE]: 'New Discord Message',
         [ActionNamesEnum.NOTION_NEW_DATABASE_ITEM]: 'New Notion Page',
-        
+        [ActionNamesEnum.SLACK_NEW_MESSAGE]: 'New Slack Message',
+
         // Reactions
         [ReactionNamesEnum.SEND_EMAIL]: 'Send Email',
         [ReactionNamesEnum.LOG_EVENT]: 'Log to Console',
@@ -96,6 +100,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         this.polling.register(this.discordMessageService);
         this.polling.register(this.gmailNewMailService);
         this.polling.register(this.notionDatabaseItemService);
+        this.polling.register(this.slackNewMessageService);
         await this.initPollingForActiveAreas();
         this.logger.log('Manager Service initialized with action-reaction system');
     }
@@ -164,6 +169,24 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                     required: true,
                     label: 'Notion Database ID',
                     placeholder: '123e4567e89b12d3a456426614174000'
+                }
+            ]
+        });
+
+        // Slack Actions
+        this.actionCallbacks.set(ActionNamesEnum.SLACK_NEW_MESSAGE, {
+            name: ActionNamesEnum.SLACK_NEW_MESSAGE,
+            callback: async (userId: string, config?: { channelId?: string }) => {
+                return await this.slackNewMessageService.hasNewSlackMessage(userId, config);
+            },
+            description: 'Detect new messages in Slack channels',
+            configSchema: [
+                {
+                    name: 'channelId',
+                    type: 'string',
+                    required: true,
+                    label: 'Slack Channel ID',
+                    placeholder: 'C1234567890'
                 }
             ]
         });
@@ -476,6 +499,41 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                         this.logger.error(`Error triggering reaction from polling for user ${userId}: ${err?.message ?? err}`);
                     }
                 }, actionConfig);
+            } else if (actionName === ActionNamesEnum.SLACK_NEW_MESSAGE) {
+                // For Slack, pass the action config to the start method
+                this.slackNewMessageService.start(userId, async (result) => {
+                    try {
+                        if (result.code === 0) {
+                            this.logger.log(`Polling detected event for user ${userId}, triggering reaction '${reactionName}'`);
+                            const reactionCallback = this.reactionCallbacks.get(reactionName);
+                            if (!reactionCallback) {
+                                this.logger.error(`Reaction callback '${reactionName}' not found`);
+                                return;
+                            }
+
+                            // Replace placeholders in the reaction config with action data
+                            const processedConfig = this.placeholderService.replaceInConfig(reactionConfig, result.data);
+
+                            const reactionResult = await reactionCallback.callback(userId, result.code, processedConfig);
+                            await this.prisma.event_logs.create({
+                                data: {
+                                    id: crypto.randomUUID(),
+                                    user_id: userId,
+                                    area_id: area.id,
+                                    event_type: 'AREA_EXECUTED',
+                                    description: `${actionName} triggered ${reactionName} (polling)`,
+                                    metadata: {
+                                        actionResult: { code: result.code, data: result.data || {} } as any,
+                                        reactionResult,
+                                        processedConfig
+                                    }
+                                }
+                            });
+                        }
+                    } catch (err: any) {
+                        this.logger.error(`Error triggering reaction from polling for user ${userId}: ${err?.message ?? err}`);
+                    }
+                }, actionConfig);
             } else {
                 // For other actions, use the generic polling with action config
                 this.polling.start(actionName, userId, async (result) => {
@@ -608,6 +666,43 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                     // For Discord, use the Discord service directly with action config
                     if (actionName === ActionNamesEnum.DISCORD_NEW_SERVER_MESSAGE) {
                         this.discordMessageService.start(userId, async (result) => {
+                            try {
+                                if (result.code === 0) {
+                                    this.logger.log(`Polling detected event for user ${userId}, triggering reaction '${reactionName}'`);
+                                    const reactionCallback = this.reactionCallbacks.get(reactionName);
+                                    if (!reactionCallback) {
+                                        this.logger.error(`Reaction callback '${reactionName}' not found`);
+                                        return;
+                                    }
+
+                                    // Replace placeholders in the reaction config with action data
+                                    const processedConfig = this.placeholderService.replaceInConfig(reactionConfig, result.data);
+
+                                    const reactionResult = await reactionCallback.callback(userId, result.code, processedConfig);
+                                    await this.prisma.event_logs.create({
+                                        data: {
+                                            id: crypto.randomUUID(),
+                                            user_id: userId,
+                                            area_id: area.id,
+                                            event_type: 'AREA_EXECUTED',
+                                            description: `${actionName} triggered ${reactionName} (polling)`,
+                                            metadata: {
+                                                actionResult: { code: result.code, data: result.data || {} } as any,
+                                                reactionResult,
+                                                processedConfig
+                                            }
+                                        }
+                                    });
+                                } else if (result.code === -1) {
+                                    this.logger.warn(`Polling action '${actionName}' reported provider not linked for user ${userId}`);
+                                }
+                            } catch (err: any) {
+                                this.logger.error(`Error triggering reaction from polling for user ${userId}: ${err?.message ?? err}`);
+                            }
+                        }, actionConfig);
+                    } else if (actionName === ActionNamesEnum.SLACK_NEW_MESSAGE) {
+                        // For Slack, use the Slack service directly with action config
+                        this.slackNewMessageService.start(userId, async (result) => {
                             try {
                                 if (result.code === 0) {
                                     this.logger.log(`Polling detected event for user ${userId}, triggering reaction '${reactionName}'`);

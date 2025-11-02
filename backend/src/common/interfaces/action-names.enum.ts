@@ -7,6 +7,7 @@ export enum ActionNamesEnum {
   GMAIL_NEW_EMAIL = 'gmail_new_email',
   DISCORD_NEW_SERVER_MESSAGE = 'discord_new_server_message',
   NOTION_NEW_DATABASE_ITEM = 'notion_new_database_item',
+  SLACK_NEW_MESSAGE = 'slack_new_message',
 }
 
 /**
