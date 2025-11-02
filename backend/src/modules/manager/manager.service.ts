@@ -535,11 +535,13 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
             }
         });
 
-        // Transform to include action and reaction names as strings
+        // Transform to include action and reaction names as strings with display names
         return areas.map(area => ({
             id: area.id,
             action: area.actions.name,
+            actionDisplayName: this.getDisplayName(area.actions.name),
             reaction: area.reactions.name,
+            reactionDisplayName: this.getDisplayName(area.reactions.name),
             config: area.config,
             is_active: area.is_active,
             created_at: area.created_at,

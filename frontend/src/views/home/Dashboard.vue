@@ -9,7 +9,9 @@ import useServicesStore from "@/stores/linkedproviders";
 type Area = {
   id: string;
   action: string;
+  actionDisplayName?: string;
   reaction: string;
+  reactionDisplayName?: string;
   config: any;
   is_active: boolean;
   created_at: string;
@@ -146,14 +148,14 @@ onMounted(() => {
         <div class="area-content">
           <div class="area-section">
             <strong>Action:</strong>
-            <span>{{ area.action }}</span>
+            <span>{{ area.actionDisplayName || area.action }}</span>
           </div>
 
           <div class="area-arrow">→</div>
 
           <div class="area-section">
             <strong>Reaction:</strong>
-            <span>{{ area.reaction }}</span>
+            <span>{{ area.reactionDisplayName || area.reaction }}</span>
           </div>
         </div>
 
@@ -218,7 +220,7 @@ onMounted(() => {
 }
 
 .area-card {
-  background-color: var(--button-color);
+  background: linear-gradient(180deg, var(--button-color), var(--button-gradient-color));
   border-radius: 1rem;
   padding: 1.5rem;
   display: flex;
