@@ -31,6 +31,11 @@ export const useCreateAreaLogic = () => {
     const [actionSubStep, setActionSubStep] = useState(1); // 1: provider, 2: action
     const [reactionSubStep, setReactionSubStep] = useState(1); // 1: provider, 2: reaction
 
+    // Notion-specific state
+    const [notionDatabases, setNotionDatabases] = useState([]);
+    const [loadingNotionDatabases, setLoadingNotionDatabases] = useState(false);
+    const [notionDatabaseSchema, setNotionDatabaseSchema] = useState(null);
+
     useEffect(() => {
         loadActionsAndReactions();
     }, []);
@@ -43,6 +48,20 @@ export const useCreateAreaLogic = () => {
             setActionPlaceholders([]);
         }
     }, [selectedAction]);
+
+    // Load Notion databases when Notion action is selected
+    useEffect(() => {
+        if (selectedAction && selectedAction.name === 'notion_new_database_item') {
+            loadNotionDatabases();
+        }
+    }, [selectedAction]);
+
+    // Load Notion databases when Notion reaction is selected
+    useEffect(() => {
+        if (selectedReaction && selectedReaction.name === 'notion_create_database_item') {
+            loadNotionDatabases();
+        }
+    }, [selectedReaction]);
 
     const loadActionsAndReactions = async () => {
         try {
@@ -194,6 +213,29 @@ export const useCreateAreaLogic = () => {
         }
     };
 
+    const loadNotionDatabases = async () => {
+        try {
+            setLoadingNotionDatabases(true);
+            const res = await apiDirect.get('/actions/notion/databases');
+            setNotionDatabases(res.data || []);
+        } catch (err) {
+            console.error('Failed to load Notion databases:', err);
+            setNotionDatabases([]);
+        } finally {
+            setLoadingNotionDatabases(false);
+        }
+    };
+
+    const loadNotionDatabaseSchema = async (databaseId) => {
+        try {
+            const res = await apiDirect.get(`/actions/notion/databases/${databaseId}/schema`);
+            setNotionDatabaseSchema(res.data);
+        } catch (err) {
+            console.error('Failed to load Notion database schema:', err);
+            setNotionDatabaseSchema(null);
+        }
+    };
+
     const selectAction = (action) => {
         setSelectedAction(action);
         // Reset current config and schema before fetching new one
@@ -265,6 +307,10 @@ export const useCreateAreaLogic = () => {
         // expose schema loading flags
         isActionSchemaLoading: actionSchemaLoading,
         isReactionSchemaLoading: reactionSchemaLoading,
+        // Notion-specific
+        notionDatabases,
+        loadingNotionDatabases,
+        notionDatabaseSchema,
 
         // Setters
         setCurrentStep,
@@ -282,6 +328,8 @@ export const useCreateAreaLogic = () => {
         selectReactionProvider,
         selectAction,
         selectReaction,
-        createArea
+        createArea,
+        loadNotionDatabases,
+        loadNotionDatabaseSchema
     };
 };

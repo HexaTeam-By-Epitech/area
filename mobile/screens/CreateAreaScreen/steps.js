@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import styles from '../../styles';
 import Card from '../../components/Card';
 import { serviceCardStyle, itemCardStyle, configFieldStyle } from './styles';
@@ -138,7 +139,10 @@ export const ActionConfig = ({
     actionConfig,
     handleActionConfigChange,
     getDisplayStepNumber,
-    isLoading
+    isLoading,
+    notionDatabases,
+    loadingNotionDatabases,
+    loadNotionDatabaseSchema
 }) => {
     const schema = getActionConfigSchema();
 
@@ -164,6 +168,53 @@ export const ActionConfig = ({
 
             {schema.map((field) => {
                 const fieldKey = field.key || field.name;
+                
+                // Special handling for Notion database selection
+                if (selectedAction?.name === 'notion_new_database_item' && fieldKey === 'databaseId') {
+                    return (
+                        <View key={fieldKey} style={{ marginBottom: 16 }}>
+                            <Text style={configFieldStyle.label}>
+                                {field.label || field.name}
+                                {field.required && <Text style={{ color: '#d32f2f' }}> *</Text>}
+                            </Text>
+                            {field.description && (
+                                <Text style={configFieldStyle.description}>
+                                    {field.description}
+                                </Text>
+                            )}
+                            {loadingNotionDatabases ? (
+                                <View style={[configFieldStyle.input, { justifyContent: 'center' }]}>
+                                    <ActivityIndicator size="small" color="#fff" />
+                                </View>
+                            ) : (
+                                <View style={[configFieldStyle.input, { padding: 0, justifyContent: 'center' }]}>
+                                    <Picker
+                                        selectedValue={actionConfig[fieldKey] || ''}
+                                        onValueChange={(value) => {
+                                            handleActionConfigChange(fieldKey, value);
+                                            if (value && loadNotionDatabaseSchema) {
+                                                loadNotionDatabaseSchema(value);
+                                            }
+                                        }}
+                                        style={{ color: '#fff' }}
+                                        dropdownIconColor="#fff"
+                                    >
+                                        <Picker.Item label="Select a database..." value="" />
+                                        {notionDatabases.map((db) => (
+                                            <Picker.Item
+                                                key={db.id}
+                                                label={db.title || 'Untitled Database'}
+                                                value={db.id}
+                                            />
+                                        ))}
+                                    </Picker>
+                                </View>
+                            )}
+                        </View>
+                    );
+                }
+                
+                // Default field rendering
                 return (
                     <View key={fieldKey} style={{ marginBottom: 16 }}>
                         <Text style={configFieldStyle.label}>
@@ -197,7 +248,10 @@ export const ReactionConfig = ({
     handleReactionConfigChange,
     actionPlaceholders,
     getDisplayStepNumber,
-    isLoading
+    isLoading,
+    notionDatabases,
+    loadingNotionDatabases,
+    loadNotionDatabaseSchema
 }) => {
     const schema = getReactionConfigSchema();
 
@@ -237,6 +291,51 @@ export const ReactionConfig = ({
             {schema.map((field) => {
                 const fieldKey = field.key || field.name;
                 const fieldValue = reactionConfig[fieldKey] || '';
+
+                // Special handling for Notion database selection
+                if (selectedReaction?.name === 'notion_create_database_item' && fieldKey === 'databaseId') {
+                    return (
+                        <View key={fieldKey} style={{ marginBottom: 16 }}>
+                            <Text style={configFieldStyle.label}>
+                                {field.label || field.name}
+                                {field.required && <Text style={{ color: '#d32f2f' }}> *</Text>}
+                            </Text>
+                            {field.description && (
+                                <Text style={configFieldStyle.description}>
+                                    {field.description}
+                                </Text>
+                            )}
+                            {loadingNotionDatabases ? (
+                                <View style={[configFieldStyle.input, { justifyContent: 'center' }]}>
+                                    <ActivityIndicator size="small" color="#fff" />
+                                </View>
+                            ) : (
+                                <View style={[configFieldStyle.input, { padding: 0, justifyContent: 'center' }]}>
+                                    <Picker
+                                        selectedValue={reactionConfig[fieldKey] || ''}
+                                        onValueChange={(value) => {
+                                            handleReactionConfigChange(fieldKey, value);
+                                            if (value && loadNotionDatabaseSchema) {
+                                                loadNotionDatabaseSchema(value);
+                                            }
+                                        }}
+                                        style={{ color: '#fff' }}
+                                        dropdownIconColor="#fff"
+                                    >
+                                        <Picker.Item label="Select a database..." value="" />
+                                        {notionDatabases.map((db) => (
+                                            <Picker.Item
+                                                key={db.id}
+                                                label={db.title || 'Untitled Database'}
+                                                value={db.id}
+                                            />
+                                        ))}
+                                    </Picker>
+                                </View>
+                            )}
+                        </View>
+                    );
+                }
 
                 return (
                     <View key={fieldKey} style={{ marginBottom: 16 }}>
