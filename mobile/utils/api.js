@@ -2,6 +2,10 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Config from '../config';
 
+// Allow consumers to subscribe to 401 Unauthorized globally
+let onUnauthorized = null;
+export const setOnUnauthorized = (handler) => { onUnauthorized = handler; };
+
 const BASE_URL = Config.API_URL;
 
 // Validate BASE_URL on module load
@@ -69,16 +73,20 @@ const handleError = async (error) => {
     // Handle 401 Unauthorized
     if (error.response?.status === 401) {
         try {
-            // Clear auth state
-            await Promise.all([
-                AsyncStorage.removeItem('accessToken'),
-                AsyncStorage.removeItem('email'),
-                AsyncStorage.removeItem('userId')
-            ]);
-
+            if (onUnauthorized) {
+                // Let the app context handle full logout + navigation
+                onUnauthorized();
+            } else {
+                // Fallback: clear tokens directly
+                await Promise.all([
+                    AsyncStorage.removeItem('accessToken'),
+                    AsyncStorage.removeItem('email'),
+                    AsyncStorage.removeItem('userId')
+                ]);
+            }
             console.log('🔓 Unauthorized - clearing auth state');
         } catch (err) {
-            console.error('Failed to clear auth state:', err);
+            console.error('Failed during unauthorized handling:', err);
         }
     }
 

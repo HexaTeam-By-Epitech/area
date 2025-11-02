@@ -181,7 +181,7 @@ describe('UsersService', () => {
 
     describe('updateUser', () => {
         it('should update user and exclude password_hash from response', async () => {
-            const updateDto = { email: 'updated@example.com' };
+            const updateDto = { is_active: false } as any; // conforms to UpdateUserDto shape
             const updatedUser = { ...mockUser, ...updateDto };
             (prisma.users.update as jest.Mock).mockResolvedValue(updatedUser);
 
@@ -204,10 +204,13 @@ describe('UsersService', () => {
                         findUnique: jest.fn().mockResolvedValue(mockUser),
                         delete: jest.fn().mockResolvedValue(mockUser),
                     },
+                    areas: {
+                        findMany: jest.fn().mockResolvedValue([]),
+                        deleteMany: jest.fn(),
+                    },
                     event_logs: { deleteMany: jest.fn() },
                     auth_identities: { deleteMany: jest.fn() },
                     linked_accounts: { deleteMany: jest.fn() },
-                    areas: { deleteMany: jest.fn() },
                 };
                 return callback(tx);
             });
@@ -386,15 +389,10 @@ describe('UsersService', () => {
     describe('unlinkLinkedAccount', () => {
         const userId = 'user-123';
         const spotifyProviderId = 1;
-        const googleProviderId = 2;
         const spotifyServiceId = 'service-spotify-id';
-        const googleServiceId = 'service-google-id';
         const spotifyActionId = 'action-spotify-1';
-        const googleActionId = 'action-google-1';
         const spotifyReactionId = 'reaction-spotify-1';
-        const googleReactionId = 'reaction-google-1';
         const spotifyAreaId = 'area-spotify-1';
-        const googleAreaId = 'area-google-1';
 
         beforeEach(() => {
             // Mock getOrCreateProviderIdByName

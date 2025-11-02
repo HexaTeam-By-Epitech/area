@@ -21,6 +21,8 @@ const identityProviders = ref<IdentityProvider[]>([]);
 const loading = ref(true);
 const error = ref('');
 const successMessage = ref('');
+const deleteLoading = ref(false);
+const deleteError = ref('');
 
 const providerConfig: Record<string, { displayName: string; logo: string; color: string; textColor: string }> = {
   google: {
@@ -126,6 +128,26 @@ async function unlinkIdentity(provider: IdentityProvider) {
   }
 }
 
+async function deleteAccount() {
+  if (!confirm('This will permanently delete your account and all associated data. This action cannot be undone.\n\nDo you really want to proceed?')) {
+    return;
+  }
+  try {
+    deleteLoading.value = true;
+    deleteError.value = '';
+    error.value = '';
+    await api.delete('/users/me');
+    // Logout and redirect to login
+    authStore.logout();
+    await router.replace('/webauth');
+  } catch (err: any) {
+    deleteError.value = err?.response?.data?.message || (err instanceof Error ? err.message : 'Failed to delete account');
+    console.error('Failed to delete account:', err);
+  } finally {
+    deleteLoading.value = false;
+  }
+}
+
 onMounted(() => {
   // Check for OAuth callback status in query params
   const status = route.query.status as string;
@@ -216,6 +238,22 @@ onMounted(() => {
           <span class="info-value">{{ authStore.userId }}</span>
         </div>
       </div>
+    </section>
+
+    <section class="settings-section danger">
+      <h2>Danger Zone</h2>
+      <p class="section-description">
+        Permanently delete your account and all associated data. This action cannot be undone.
+      </p>
+      <div v-if="deleteError" class="error-message" role="alert" aria-live="assertive">{{ deleteError }}</div>
+      <button
+        class="danger-btn"
+        :disabled="deleteLoading"
+        @click="deleteAccount"
+        aria-label="Delete my account permanently"
+      >
+        {{ deleteLoading ? 'Deleting account…' : 'Delete my account' }}
+      </button>
     </section>
   </div>
 </template>
@@ -391,6 +429,32 @@ onMounted(() => {
 .info-value {
   color: var(--text-primary);
   font-family: monospace;
+}
+
+.settings-section.danger {
+  border: 1px solid rgba(244, 67, 54, 0.35);
+}
+
+.danger-btn {
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.5rem;
+  border: 2px solid #f44336;
+  background-color: rgba(244, 67, 54, 0.08);
+  color: #f44336;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.danger-btn:hover:not(:disabled) {
+  background-color: #f44336;
+  color: white;
+  transform: translateY(-1px);
+}
+
+.danger-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 @media (max-width: 600px) {

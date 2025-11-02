@@ -1,6 +1,6 @@
 // screens/LoginScreen.js
-import React, { useState } from 'react';
-import { View, TextInput, Text, Alert, ActivityIndicator, Modal, TouchableOpacity } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, TextInput, Text, Alert, ActivityIndicator, Modal, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ScrollView, InputAccessoryView } from 'react-native';
 import styles from '../styles';
 import Button from '../components/Button';
 import { useAuth } from '../context/AuthContext';
@@ -34,7 +34,39 @@ export default function LoginScreen() {
     const [verifError, setVerifError] = useState('');
     const [resendLoading, setResendLoading] = useState(false);
     const [resendCooldown, setResendCooldown] = useState(0);
-    const { login } = useAuth();
+    const [createdHere, setCreatedHere] = useState(false);
+    const cooldownIntervalRef = useRef(null);
+    const auth = useAuth();
+    const otpInputRef = useRef(null);
+    const [otpFocused, setOtpFocused] = useState(false);
+    const otpAccessoryId = 'otpAccessoryViewId';
+
+    const clearCooldown = () => {
+        if (cooldownIntervalRef.current) {
+            clearInterval(cooldownIntervalRef.current);
+            cooldownIntervalRef.current = null;
+        }
+    };
+
+    const startCooldown = (seconds = 30) => {
+        clearCooldown();
+        setResendCooldown(seconds);
+        cooldownIntervalRef.current = setInterval(() => {
+            setResendCooldown(prev => {
+                if (prev <= 1) {
+                    clearCooldown();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+    };
+
+    useEffect(() => {
+        return () => {
+            clearCooldown();
+        };
+    }, []);
 
     const handleAuth = async (type) => {
         if (!email || !password) {
@@ -46,22 +78,48 @@ export default function LoginScreen() {
             const response = await apiDirect.post(`/auth/${type}`, { email, password });
             if (type === 'register') {
                 if (response && (typeof response.status === 'number' ? (response.status >= 200 && response.status < 300) : !!response.data)) {
+                    setCreatedHere(true);
                     setModalVisible(true);
                     setVerifError('');
+                    startCooldown(30);
                 } else {
                     Alert.alert('Error', 'Registration failed');
                 }
             } else {
                 const { accessToken, userId, email: userEmail } = response.data;
                 if (accessToken && userId) {
-                    await login(userEmail || email, accessToken, userId);
+                    await auth.login(userEmail || email, accessToken, userId);
                 } else {
                     Alert.alert('Error', 'Invalid response from server');
                 }
             }
         } catch (err) {
+            const status = err?.response?.status;
             const message = err?.response?.data?.message || err?.message || 'Authentication failed';
-            Alert.alert('Error', message);
+            if (type === 'register' && status === 409) {
+                // Account exists: attempt resend; if already verified -> guide to login
+                try {
+                    const rv = await apiDirect.post('/auth/resend-verification', { email: email.trim() });
+                    if ((rv.status >= 200 && rv.status < 300) || rv.data?.message) {
+                        setCreatedHere(false);
+                        setPassword('');
+                        setModalVisible(true);
+                        setVerifError('');
+                        startCooldown(30);
+                        Alert.alert('Info', 'We sent you a new verification code.');
+                    } else {
+                        Alert.alert('Info', 'Account already exists. Please log in.');
+                    }
+                } catch (re) {
+                    if (re?.response?.status === 400) {
+                        Alert.alert('Info', 'Account already exists. Please log in.');
+                    } else {
+                        Alert.alert('Error', re?.response?.data?.message || 'Unable to resend verification code');
+                    }
+                }
+            } else {
+                Alert.alert('Error', message);
+            }
         } finally {
             setLoading(false);
         }
@@ -73,7 +131,7 @@ export default function LoginScreen() {
             await signInWithGoogle(
                 async (authResult) => {
                     const { accessToken, userId, email: userEmail } = authResult;
-                    await login(userEmail, accessToken, userId);
+                    await auth.login(userEmail, accessToken, userId);
                     setGoogleLoading(false);
                 },
                 (error) => {
@@ -103,10 +161,23 @@ export default function LoginScreen() {
                 setVerificationCode('');
                 setModalVisible(false);
                 setVerifError('');
+                if (createdHere) {
+                    // Auto-login with the password used during register
+                    try {
+                        const lr = await apiDirect.post('/auth/login', { email: email.trim(), password: password });
+                        const { accessToken: at, userId: uid, email: uemail } = lr.data;
+                        if (at && uid) {
+                            await auth.login(uemail || email, at, uid);
+                            return;
+                        }
+                    } catch (_) {
+                        // fall through
+                    }
+                }
                 if (accessToken && userId) {
-                    await login(userEmail || email, accessToken, userId);
+                    await auth.login(userEmail || email, accessToken, userId);
                 } else {
-                    Alert.alert('Success', 'Email verified! You can now log in.');
+                    Alert.alert('Success', 'Email verified! Please log in.');
                 }
             } else {
                 setVerifError('Invalid response from the server');
@@ -129,21 +200,8 @@ export default function LoginScreen() {
             setVerifError('');
 
             await apiDirect.post('/auth/resend-verification', { email: email.trim() });
-
             Alert.alert('Success', 'Verification code sent to your email');
-
-            // Démarrer un cooldown de 60 secondes
-            setResendCooldown(60);
-            const interval = setInterval(() => {
-                setResendCooldown(prev => {
-                    if (prev <= 1) {
-                        clearInterval(interval);
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
-
+            startCooldown(30);
         } catch (err) {
             console.error('Resend error:', err.response?.data);
             setVerifError(err.response?.data?.message || 'Failed to resend code');
@@ -211,87 +269,128 @@ export default function LoginScreen() {
                 animationType="fade"
                 onRequestClose={() => {}}
             >
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}>
-                    <View style={[styles.card, {
-                        width: '90%',
-                        padding: 28,
-                        borderRadius: 18,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                    }]}>
-                        <Text style={[styles.title, { fontSize: 20, marginBottom: 14, textAlign: 'center' }]}>Account verification</Text>
-                        <Text style={[styles.text, { fontSize: 16, marginBottom: 18, textAlign: 'center' }]}>
-                            A verification code has been sent to {maskEmail(email)}. Please enter the code below.
-                        </Text>
-                        <TextInput
-                            style={[styles.input, {
-                                textAlign: 'center',
-                                letterSpacing: 8,
-                                fontSize: 22,
-                                width: '80%',
-                                backgroundColor: '#2d2e2e',
-                                color: '#f1f3f9',
-                                borderRadius: 10,
-                                borderWidth: 2,
-                                marginBottom: 8,
-                            }]}
-                            placeholder=""
-                            placeholderTextColor="#c3c9d5"
-                            value={verificationCode}
-                            onChangeText={setVerificationCode}
-                            keyboardType="number-pad"
-                            maxLength={6}
-                            editable={!verifLoading}
-                        />
-                        {verifError ? (
-                            <Text style={{ color: '#d32f2f', marginTop: 8, marginBottom: 4, textAlign: 'center' }}>{verifError}</Text>
-                        ) : null}
-
-                        {verifLoading ? (
-                            <ActivityIndicator size="large" color="#fff" style={{ marginVertical: 20 }} />
-                        ) : (
-                            <Button title="Vérifier" onPress={handleVerifyCode} style={{ marginTop: 20, width: '80%' }} />
-                        )}
-
-                        {/* Bouton Resend */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 8 }}>
-                            <Text style={[styles.text, { fontSize: 14, color: '#c3c9d5' }]}>
-                                Didn't receive the code?
-                            </Text>
-                            <TouchableOpacity
-                                onPress={handleResendCode}
-                                disabled={resendLoading || resendCooldown > 0}
-                                style={{ marginLeft: 8 }}
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+                    <TouchableWithoutFeedback onPress={() => { otpInputRef.current?.blur(); Keyboard.dismiss(); }} accessible={false}>
+                        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }}>
+                            <ScrollView
+                                contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 }}
+                                keyboardShouldPersistTaps="handled"
                             >
-                                <Text style={[
-                                    styles.text,
-                                    {
-                                        fontSize: 14,
-                                        color: (resendLoading || resendCooldown > 0) ? '#666' : '#4CAF50',
-                                        fontWeight: 'bold',
-                                        textDecorationLine: (resendLoading || resendCooldown > 0) ? 'none' : 'underline'
-                                    }
-                                ]}>
-                                    {resendLoading ? 'Sending...' :
-                                     resendCooldown > 0 ? `Resend (${resendCooldown}s)` : 'Resend'}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
+                                <View style={[styles.card, {
+                                    width: '90%',
+                                    padding: 28,
+                                    borderRadius: 18,
+                                    alignItems: 'center',
+                                }]}
+                                >
+                                    <Text style={[styles.title, { fontSize: 20, marginBottom: 14, textAlign: 'center' }]}>Account verification</Text>
+                                    <Text style={[styles.text, { fontSize: 16, marginBottom: 18, textAlign: 'center' }]}>A verification code has been sent to {maskEmail(email)}. Please enter the code below.</Text>
+                                    <TextInput
+                                        ref={otpInputRef}
+                                        style={[styles.input, {
+                                            textAlign: 'center',
+                                            letterSpacing: 8,
+                                            fontSize: 22,
+                                            width: '80%',
+                                            backgroundColor: '#2d2e2e',
+                                            color: '#f1f3f9',
+                                            borderRadius: 10,
+                                            borderWidth: 2,
+                                            borderColor: otpFocused ? '#4CAF50' : '#2d2e2e',
+                                            marginBottom: 8,
+                                        }]}
+                                        placeholder=""
+                                        placeholderTextColor="#c3c9d5"
+                                        value={verificationCode}
+                                        onChangeText={(v) => {
+                                            setVerificationCode(v);
+                                            if (v && v.length === 6 && !verifLoading) {
+                                                otpInputRef.current?.blur();
+                                                Keyboard.dismiss();
+                                                handleVerifyCode();
+                                            }
+                                        }}
+                                        onFocus={() => setOtpFocused(true)}
+                                        onBlur={() => setOtpFocused(false)}
+                                        inputMode="numeric"
+                                        keyboardType="number-pad"
+                                        textContentType="oneTimeCode"
+                                        autoComplete="sms-otp"
+                                        inputAccessoryViewID={Platform.OS === 'ios' ? otpAccessoryId : undefined}
+                                        returnKeyType="done"
+                                        blurOnSubmit={true}
+                                        onSubmitEditing={() => {
+                                            otpInputRef.current?.blur();
+                                            if (verificationCode.length === 6 && !verifLoading) handleVerifyCode();
+                                            Keyboard.dismiss();
+                                        }}
+                                        maxLength={6}
+                                        editable={!verifLoading}
+                                    />
+                                    {Platform.OS === 'android' && (
+                                        <TouchableOpacity onPress={() => { otpInputRef.current?.blur(); Keyboard.dismiss(); }} style={{ marginTop: 8 }}>
+                                            <Text style={{ color: '#c3c9d5', textDecorationLine: 'underline' }}>Hide keyboard</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                    {verifError ? (
+                                        <Text style={{ color: '#d32f2f', marginTop: 8, marginBottom: 4, textAlign: 'center' }}>{verifError}</Text>
+                                    ) : null}
 
-                        <Button
-                            title="Exit"
-                            onPress={() => {
-                                setModalVisible(false);
-                                setVerificationCode('');
-                                setVerifError('');
-                                setVerifLoading(false);
-                                setResendCooldown(0);
-                            }}
-                            style={[{ marginTop: 12, width: '80%' }, styles.buttonSecondary]}
-                            textStyle={styles.buttonTextSecondary}
-                        />
-                    </View>
-                </View>
+                                    {verifLoading ? (
+                                        <ActivityIndicator size="large" color="#fff" style={{ marginVertical: 20 }} />
+                                    ) : (
+                                        <Button title="Vérifier" onPress={handleVerifyCode} style={{ marginTop: 20, width: '80%' }} />
+                                    )}
+
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 8 }}>
+                                        <Text style={[styles.text, { fontSize: 14, color: '#c3c9d5' }]}>Didn't receive the code?</Text>
+                                        <TouchableOpacity onPress={handleResendCode} disabled={resendLoading || resendCooldown > 0} style={{ marginLeft: 8 }}>
+                                            <Text style={[styles.text, { fontSize: 14, color: (resendLoading || resendCooldown > 0) ? '#666' : '#4CAF50', fontWeight: 'bold', textDecorationLine: (resendLoading || resendCooldown > 0) ? 'none' : 'underline' }]}>
+                                                {resendLoading ? 'Sending...' : resendCooldown > 0 ? `Resend (${resendCooldown}s)` : 'Resend'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+
+                                    <View style={{ flexDirection: 'row', gap: 12, width: '80%', marginTop: 8 }}>
+                                        <Button
+                                            title="Change email"
+                                            onPress={() => {
+                                                setModalVisible(false);
+                                                setVerificationCode('');
+                                                setVerifError('');
+                                                setVerifLoading(false);
+                                                clearCooldown();
+                                            }}
+                                            style={[{ flex: 1 }, styles.buttonSecondary]}
+                                            textStyle={styles.buttonTextSecondary}
+                                        />
+                                        <Button
+                                            title="Exit"
+                                            onPress={() => {
+                                                setModalVisible(false);
+                                                setVerificationCode('');
+                                                setVerifError('');
+                                                setVerifLoading(false);
+                                                clearCooldown();
+                                            }}
+                                            style={[{ flex: 1 }, styles.buttonSecondary]}
+                                            textStyle={styles.buttonTextSecondary}
+                                        />
+                                    </View>
+                                </View>
+                            </ScrollView>
+                            {Platform.OS === 'ios' && (
+                                <InputAccessoryView nativeID={otpAccessoryId}>
+                                    <View style={{ backgroundColor: '#2d2e2e', padding: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', alignItems: 'flex-end' }}>
+                                        <TouchableOpacity onPress={() => { otpInputRef.current?.blur(); Keyboard.dismiss(); }}>
+                                            <Text style={{ color: '#4CAF50', fontWeight: '600', fontSize: 16 }}>Done</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </InputAccessoryView>
+                            )}
+                        </View>
+                    </TouchableWithoutFeedback>
+                </KeyboardAvoidingView>
             </Modal>
         </View>
     );

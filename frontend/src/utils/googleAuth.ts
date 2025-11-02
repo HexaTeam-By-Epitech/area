@@ -1,6 +1,7 @@
 import useAuthStore from "@/stores/webauth";
 import { ref } from 'vue';
 import { apiFetch } from './fetch';
+import router from '@/utils/router';
 
 // Shared state for Google Sign-In feedback
 export const googleLoading = ref(false);
@@ -41,6 +42,9 @@ export async function handleGoogleResponse(response: any) {
       const authStore = useAuthStore();
       authStore.login(data.email, data.accessToken, data.userId);
       googleSuccess.value = 'Successfully logged in with Google!';
+
+      // Navigate to Dashboard after login via router instance
+      await router.replace('/home');
 
       // Clear success message after 2 seconds
       setTimeout(() => {
