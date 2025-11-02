@@ -614,9 +614,9 @@ export class UsersService {
         });
         if (!identity) throw new NotFoundException('Identity not found for this provider');
 
-        // If user has no password_hash, delete the entire user account
+        // If user has no password_hash, delete the entire user account (full cleanup)
         if (!user.password_hash) {
-            await this.prisma.users.delete({ where: { id: userId } });
+            await this.deleteUser(userId);
             return { deleted: true };
         }
 
