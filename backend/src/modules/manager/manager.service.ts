@@ -12,6 +12,7 @@ import { SpotifyResumeService } from '../reactions/spotify/resume.service';
 import { GmailNewMailService } from '../actions/gmail/new-mail.service';
 import { NotionDatabaseItemService } from '../actions/notion/database-item.service';
 import { GoogleDriveNewFileService } from '../actions/google-drive/new-file.service';
+import { GoogleDriveCreateFolderService } from '../reactions/google-drive/create-folder.service';
 import { PlaceholderReplacementService } from '../../common/services/placeholder-replacement.service';
 import type { ActionCallback, ReactionCallback, AreaExecution } from '../../common/interfaces/area.type';
 import { ActionNamesEnum, ReactionNamesEnum } from '../../common/interfaces/action-names.enum';
@@ -43,6 +44,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         [ReactionNamesEnum.SPOTIFY_LIKE_TRACK]: 'spotify',
         [ReactionNamesEnum.SPOTIFY_PAUSE_PLAYBACK]: 'spotify',
         [ReactionNamesEnum.SPOTIFY_RESUME_PLAYBACK]: 'spotify',
+        [ReactionNamesEnum.GDRIVE_CREATE_FOLDER]: 'google_drive',
     };
 
     constructor(
@@ -59,6 +61,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         private readonly gmailNewMailService: GmailNewMailService,
         private readonly notionDatabaseItemService: NotionDatabaseItemService,
         private readonly googleDriveNewFileService: GoogleDriveNewFileService,
+        private readonly googleDriveCreateFolderService: GoogleDriveCreateFolderService,
         private readonly placeholderService: PlaceholderReplacementService,
     ) {}
 
@@ -80,6 +83,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         [ReactionNamesEnum.SPOTIFY_LIKE_TRACK]: 'Like Spotify Track',
         [ReactionNamesEnum.SPOTIFY_PAUSE_PLAYBACK]: 'Pause Spotify Playback',
         [ReactionNamesEnum.SPOTIFY_RESUME_PLAYBACK]: 'Resume Spotify Playback',
+        [ReactionNamesEnum.GDRIVE_CREATE_FOLDER]: 'Create Google Drive Folder',
     };
 
     /**
@@ -300,6 +304,31 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
             },
             description: 'Resume the current Spotify playback',
             configSchema: [] // No configuration needed
+        });
+
+        // Google Drive create folder reaction
+        this.reactionCallbacks.set(ReactionNamesEnum.GDRIVE_CREATE_FOLDER, {
+            name: ReactionNamesEnum.GDRIVE_CREATE_FOLDER,
+            callback: async (userId: string, actionResult: any, config: { folderName: string; parentFolderId?: string }) => {
+                return await this.googleDriveCreateFolderService.run(userId, config);
+            },
+            description: 'Create a new folder in Google Drive',
+            configSchema: [
+                {
+                    name: 'folderName',
+                    type: 'string',
+                    required: true,
+                    label: 'Folder Name',
+                    placeholder: 'My New Folder'
+                },
+                {
+                    name: 'parentFolderId',
+                    type: 'string',
+                    required: false,
+                    label: 'Parent Folder ID (Optional)',
+                    placeholder: '1abc2def3ghi4jkl5mno'
+                }
+            ]
         });
 
         this.logger.log(`Registered ${this.reactionCallbacks.size} reaction callbacks`);

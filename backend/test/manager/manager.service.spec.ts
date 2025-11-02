@@ -8,6 +8,7 @@ import { DiscordMessageService } from '../../src/modules/actions/discord/message
 import { GmailNewMailService } from '../../src/modules/actions/gmail/new-mail.service';
 import { NotionDatabaseItemService } from '../../src/modules/actions/notion/database-item.service';
 import { GoogleDriveNewFileService } from '../../src/modules/actions/google-drive/new-file.service';
+import { GoogleDriveCreateFolderService } from '../../src/modules/reactions/google-drive/create-folder.service';
 import { GmailSendService } from '../../src/modules/reactions/gmail/send.service';
 import { DiscordSendService } from '../../src/modules/reactions/discord/send.service';
 import { SpotifyLikeReactionService } from '../../src/modules/reactions/spotify/like.service';
@@ -94,6 +95,11 @@ describe('ManagerService', () => {
     getPlaceholders: jest.fn(),
   };
 
+  const mockGoogleDriveCreateFolderService = {
+    run: jest.fn(),
+    getFields: jest.fn(),
+  };
+
   const mockGmailSendService = {
     run: jest.fn(),
   };
@@ -147,6 +153,7 @@ describe('ManagerService', () => {
         { provide: GmailNewMailService, useValue: mockGmailNewMailService },
         { provide: NotionDatabaseItemService, useValue: mockNotionDatabaseItemService },
         { provide: GoogleDriveNewFileService, useValue: mockGoogleDriveNewFileService },
+        { provide: GoogleDriveCreateFolderService, useValue: mockGoogleDriveCreateFolderService },
         { provide: GmailSendService, useValue: mockGmailSendService },
         { provide: DiscordSendService, useValue: mockDiscordSendService },
         { provide: SpotifyLikeReactionService, useValue: mockSpotifyLikeReactionService },
@@ -437,6 +444,10 @@ describe('ManagerService', () => {
           name: ReactionNamesEnum.SPOTIFY_RESUME_PLAYBACK,
           services: { name: 'spotify' },
         },
+        {
+          name: ReactionNamesEnum.GDRIVE_CREATE_FOLDER,
+          services: { name: 'google_drive' },
+        },
       ]);
 
       const result = await service.getAvailableReactionsGrouped(userId);
@@ -469,6 +480,16 @@ describe('ManagerService', () => {
               name: ReactionNamesEnum.SEND_EMAIL,
               displayName: 'Send Email',
               description: 'Send email notification',
+            },
+          ],
+        },
+        google_drive: {
+          isLinked: false,
+          items: [
+            {
+              name: ReactionNamesEnum.GDRIVE_CREATE_FOLDER,
+              displayName: 'Create Google Drive Folder',
+              description: 'Create a new folder in Google Drive',
             },
           ],
         },
