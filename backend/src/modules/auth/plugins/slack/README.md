@@ -1,152 +1,281 @@
 # Slack Hybrid OAuth Integration (Bot + User Tokens)
 
-Ce guide explique comment configurer l'authentification Slack avec une approche **HYBRIDE** utilisant à la fois Bot Tokens et User Tokens, parfait pour une application IFTTT-like.
+This guide explains how to configure Slack authentication with a **HYBRID** approach using both Bot Tokens and User Tokens, perfect for an IFTTT-like application.
 
-## Architecture Hybride pour IFTTT
+## Hybrid Architecture for IFTTT
 
-**Cette implémentation demande les DEUX types de tokens** :
+**This implementation requests BOTH types of tokens**:
 
 ### Bot Token (workspace-level)
-- 🎯 **Usage**: REACTIONS (IF) - Écouter des événements
-- ✅ Accès aux channels même si l'utilisateur n'y est pas
-- ✅ Ne expire jamais
-- ✅ Idéal pour écouter des messages, réactions, etc.
+- 🎯 **Usage**: REACTIONS (IF) - Listen to events
+- ✅ Access to channels even if user is not in them
+- ✅ Never expires
+- ✅ Ideal for listening to messages, reactions, etc.
 - 📍 Token `xoxb-...`
 
 ### User Token (individual)
-- 🎯 **Usage**: ACTIONS (THEN) - Effectuer des actions
-- ✅ Actions au nom de l'utilisateur
-- ✅ Unlink individuel propre
-- ⏱️ Expire et se refresh automatiquement
+- 🎯 **Usage**: ACTIONS (THEN) - Perform actions
+- ✅ Actions on behalf of the user
+- ✅ Clean individual unlinking
+- ⏱️ Expires and refreshes automatically
 - 📍 Token `xoxp-...`
 
-### Exemple de workflow IFTTT
+### IFTTT Workflow Example
 ```
-IF: Message contient "urgent" dans #support (Bot Token écoute)
-THEN: Poste dans #incidents (User Token écrit au nom du user)
+IF: Message contains "urgent" in #support (Bot Token listens)
+THEN: Post in #incidents (User Token writes on behalf of user)
 ```
 
-## Table des matières
+## Table of Contents
 
-1. [Création de l'application Slack](#création-de-lapplication-slack)
-2. [Configuration OAuth & Permissions](#configuration-oauth--permissions)
-3. [Variables d'environnement](#variables-denvironnement)
-4. [Scopes disponibles](#scopes-disponibles)
-5. [Test de l'intégration](#test-de-lintégration)
+1. [Creating the Slack Application](#creating-the-slack-application)
+2. [OAuth & Permissions Configuration](#oauth--permissions-configuration)
+3. [Environment Variables](#environment-variables)
+4. [Available Scopes](#available-scopes)
+5. [Integration Testing](#integration-testing)
 
 ---
 
-## Création de l'application Slack
+## Creating the Slack Application
 
-### 1. Créer une application Slack
+### 1. Create a Slack Application
 
-1. Accédez à [https://api.slack.com/apps](https://api.slack.com/apps)
-2. Cliquez sur **"Create New App"**
-3. Sélectionnez **"From scratch"**
-4. Donnez un nom à votre application (ex: "AREA Bot")
-5. Sélectionnez le workspace de développement
-6. Cliquez sur **"Create App"**
+1. Go to [https://api.slack.com/apps](https://api.slack.com/apps)
+2. Click on **"Create New App"**
+3. Select **"From scratch"**
+4. Give your application a name (ex: "AREA Bot")
+5. Select the development workspace
+6. Click on **"Create App"**
 
-### 2. Récupérer les credentials
+### 2. Get the Credentials
 
-Dans la section **"Basic Information"** > **"App Credentials"**:
+In the **"Basic Information"** > **"App Credentials"** section:
 
-- Notez le **Client ID** → Utilisez-le pour `SLACK_CLIENT_ID`
-- Notez le **Client Secret** (cliquez sur "Show" pour le révéler) → Utilisez-le pour `SLACK_CLIENT_SECRET`
+- Note the **Client ID** → Use it for `SLACK_CLIENT_ID`
+- Note the **Client Secret** (click "Show" to reveal it) → Use it for `SLACK_CLIENT_SECRET`
 
-Ces deux credentials suffisent pour l'intégration OAuth.
+These two credentials are sufficient for OAuth integration.
 
 ---
 
-## Configuration OAuth & Permissions
+## OAuth & Permissions Configuration
 
-### 1. Activer le Bot User (IMPORTANT)
+### 1. Enable Bot User (IMPORTANT)
 
-**Avant toute chose**, tu dois activer le bot :
+**First of all**, you must enable the bot:
 
-1. Dans le menu de gauche, clique sur **"App Home"**
-2. Scrolle jusqu'à **"Bot Users"**
-3. Clique sur **"Add Legacy Bot User"** ou **"Review Scopes to Add"**
-4. Configure le bot :
-   - **Display Name** : `AREA Bot` (ou ce que tu veux)
-   - **Default Username** : `area-bot`
-5. Clique sur **"Add Bot User"** ou **"Save Changes"**
+1. In the left menu, click on **"App Home"**
+2. Scroll down to **"Bot Users"**
+3. Click on **"Add Legacy Bot User"** or **"Review Scopes to Add"**
+4. Configure the bot:
+   - **Display Name**: `AREA Bot` (or whatever you want)
+   - **Default Username**: `area-bot`
+5. Click on **"Add Bot User"** or **"Save Changes"**
 
-**Sans cette étape, l'erreur "doesn't have a bot user to install" apparaîtra !**
+**Without this step, the error "doesn't have a bot user to install" will appear!**
 
-### 2. Configurer les Redirect URLs
+### 2. Configure Redirect URLs
 
-Dans la section **"OAuth & Permissions"**:
+In the **"OAuth & Permissions"** section:
 
-1. Scrollez jusqu'à **"Redirect URLs"**
-2. Cliquez sur **"Add New Redirect URL"**
-3. Ajoutez votre URL de callback selon votre environnement:
+1. Scroll down to **"Redirect URLs"**
+2. Click on **"Add New Redirect URL"**
+3. Add your callback URL according to your environment:
 
-   **Pour le développement local**:
+   **For local development**:
    ```
    http://localhost:3000/auth/slack/callback
    ```
 
-   **Pour le développement avec ngrok** (recommandé pour tester):
+   **For development with ngrok** (recommended for testing):
    ```
    https://your-subdomain.ngrok-free.app/auth/slack/callback
    ```
 
-   **Pour la production**:
+   **For production**:
    ```
-   https://votre-domaine.com/auth/slack/callback
+   https://your-domain.com/auth/slack/callback
    ```
 
-4. Cliquez sur **"Add"** puis **"Save URLs"**
+4. Click on **"Add"** then **"Save URLs"**
 
-💡 **Astuce ngrok**: Pour tester OAuth en développement, utilisez ngrok pour exposer votre backend local :
+💡 **ngrok Tip**: To test OAuth in development, use ngrok to expose your local backend:
 ```bash
 ngrok http 3000
 ```
-Puis utilisez l'URL HTTPS fournie comme redirect URI.
+Then use the provided HTTPS URL as redirect URI.
 
-### 3. Configurer les Scopes (Bot ET User)
+### 3. Configure Scopes (Bot AND User)
 
-**IMPORTANT**: Nous demandons les **deux types de scopes**.
+**IMPORTANT**: We request **both types of scopes**.
 
 #### Bot Token Scopes
 
-Dans **"OAuth & Permissions"** > **"Scopes"** > **"Bot Token Scopes"**:
+In **"OAuth & Permissions"** > **"Scopes"** > **"Bot Token Scopes"**:
 
-- `channels:read` - Lire les canaux (pour les réactions/IF)
-- `channels:history` - Lire l'historique des messages
-- `chat:write` - Écrire des messages en tant que bot
-- `users:read` - Lire les infos utilisateurs
-- `team:read` - Lire les infos du workspace
+- `channels:read` - Read channels (for reactions/IF)
+- `channels:history` - Read message history
+- `chat:write` - Write messages as bot
+- `users:read` - Read user information
+- `team:read` - Read workspace information
 
 #### User Token Scopes
 
-Dans **"OAuth & Permissions"** > **"Scopes"** > **"User Token Scopes"**:
+In **"OAuth & Permissions"** > **"Scopes"** > **"User Token Scopes"**:
 
-- `channels:read` - Lire les canaux de l'utilisateur
-- `channels:history` - Lire l'historique
-- `chat:write` - Écrire au nom de l'utilisateur (pour les actions/THEN)
-- `users:read` - Lire les infos utilisateurs
+- `channels:read` - Read user's channels
+- `channels:history` - Read history
+- `chat:write` - Write on behalf of user (for actions/THEN)
+- `users:read` - Read user information
 
-**Les deux sont requis** pour le fonctionnement complet de l'intégration IFTTT.
+**Both are required** for complete IFTTT integration functionality.
 
-### 4. Activer Event Subscriptions (Optionnel)
+### 4. Enable Event Subscriptions (Optional)
 
-Si vous souhaitez recevoir des événements en temps réel:
+If you want to receive real-time events:
 
-1. Allez dans **"Event Subscriptions"**
-2. Activez **"Enable Events"**
-3. Ajoutez votre Request URL:
+1. Go to **"Event Subscriptions"**
+2. Enable **"Enable Events"**
+3. Add your Request URL:
    ```
-   https://votre-domaine.com/slack/events
+   https://your-domain.com/slack/events
    ```
-4. Souscrivez aux événements bot nécessaires (ex: `message.channels`, `message.im`)
+4. Subscribe to necessary bot events (ex: `message.channels`, `message.im`)
 
 ---
 
-## Variables d'environnement
+## Environment Variables
 
-Ajoutez les variables suivantes à votre fichier `.env`:
+Add the following variables to your `.env` file:
+
+```env
+# Slack OAuth Configuration
+SLACK_CLIENT_ID=your_client_id_here
+SLACK_CLIENT_SECRET=your_client_secret_here
+SLACK_REDIRECT_URI=http://localhost:3000/auth/slack/callback
+
+# Optional: Custom scopes (if different from defaults)
+SLACK_BOT_SCOPES=channels:read,channels:history,chat:write,users:read,team:read
+SLACK_USER_SCOPES=channels:read,channels:history,chat:write,users:read
+```
+
+**Important**: Replace `your_client_id_here` and `your_client_secret_here` with the actual values from your Slack app.
+
+---
+
+## Available Scopes
+
+### Bot Token Scopes
+| Scope | Description | Required for |
+|-------|-------------|-------------|
+| `channels:read` | Read public channel information | Listing channels |
+| `channels:history` | Read public channel message history | Message listening (IF) |
+| `groups:read` | Read private channel information | Private channels |
+| `groups:history` | Read private channel history | Private message listening |
+| `chat:write` | Send messages as bot | Bot messaging |
+| `users:read` | Read user information | User data |
+| `team:read` | Read workspace information | Workspace data |
+
+### User Token Scopes
+| Scope | Description | Required for |
+|-------|-------------|-------------|
+| `channels:read` | Read user's channels | User channel access |
+| `channels:history` | Read message history | User message access |
+| `chat:write` | Write messages as user | User actions (THEN) |
+| `users:read` | Read user profiles | User information |
+
+---
+
+## Integration Testing
+
+### 1. Test OAuth Flow
+
+1. Start your backend server
+2. Navigate to: `http://localhost:3000/auth/slack/link`
+3. You should be redirected to Slack's authorization page
+4. Authorize the application
+5. You should be redirected back with success
+
+### 2. Verify Token Storage
+
+Check that both tokens are properly stored:
+
+```bash
+# Check in your database or logs that you have:
+# - Bot token (xoxb-...)
+# - User token (xoxp-...)
+# - Refresh token for user token
+```
+
+### 3. Test API Calls
+
+Test both token types work:
+
+```typescript
+// Test Bot Token
+const botResponse = await slackApi.conversations.list({
+  token: botToken
+});
+
+// Test User Token
+const userResponse = await slackApi.chat.postMessage({
+  token: userToken,
+  channel: 'C1234567890',
+  text: 'Test message'
+});
+```
+
+---
+
+## Troubleshooting
+
+### Common Errors
+
+**Error**: "doesn't have a bot user to install"
+- **Solution**: Make sure you've added a Bot User in App Home
+
+**Error**: "invalid_redirect_uri"
+- **Solution**: Verify your redirect URI exactly matches what's configured in Slack
+
+**Error**: "insufficient_scope"
+- **Solution**: Check that all required scopes are added for both Bot and User tokens
+
+**Error**: "token_revoked"
+- **Solution**: User needs to re-authorize the application
+
+### Debug Mode
+
+Enable debug logging to troubleshoot issues:
+
+```env
+LOG_LEVEL=debug
+```
+
+This will show detailed OAuth flow information and API calls.
+
+---
+
+## Security Best Practices
+
+1. **Store tokens securely**: Encrypt tokens in your database
+2. **Validate redirect URIs**: Always validate callback URLs
+3. **Handle token refresh**: Implement automatic user token refresh
+4. **Scope minimal permissions**: Only request scopes you actually need
+5. **Monitor for revoked tokens**: Handle token revocation gracefully
+
+---
+
+## Next Steps
+
+After successful integration:
+
+1. Implement your IFTTT-style actions and reactions
+2. Set up proper error handling and logging
+3. Test with real Slack workspaces
+4. Deploy to production with HTTPS
+5. Monitor usage and performance
+
+The hybrid token approach gives you maximum flexibility for building powerful Slack automations! 🚀
 
 ```env
 # Slack OAuth Configuration (Hybrid: Bot + User Tokens)

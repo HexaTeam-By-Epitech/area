@@ -1,118 +1,118 @@
-# Action Slack : Détection de nouveaux messages
+# Slack Action: New Message Detection
 
-## Vue d'ensemble
+## Overview
 
-L'action `SLACK_NEW_MESSAGE` permet de détecter l'arrivée de nouveaux messages dans un canal Slack spécifique. Cette action utilise un système de polling pour vérifier périodiquement la présence de nouveaux messages.
+The `SLACK_NEW_MESSAGE` action allows detecting the arrival of new messages in a specific Slack channel. This action uses a polling system to periodically check for the presence of new messages.
 
 ## Configuration
 
-### Paramètres requis
+### Required Parameters
 
-- **channelId** (string) : L'identifiant du canal Slack à surveiller
-  - Format : `C1234567890` (commence par 'C' suivi de chiffres)
-  - Exemple : `C1234567890`
+- **channelId** (string): The identifier of the Slack channel to monitor
+  - Format: `C1234567890` (starts with 'C' followed by digits)
+  - Example: `C1234567890`
 
-### Paramètres optionnels
+### Optional Parameters
 
-Si aucun `channelId` n'est fourni, l'action utilisera le canal `general` par défaut.
+If no `channelId` is provided, the action will use the `general` channel by default.
 
-## Fonctionnement
+## How it Works
 
-### Stratégie de polling
+### Polling Strategy
 
-1. **Vérification périodique** : L'action interroge l'API Slack toutes les 5 secondes (configurable via `SLACK_POLL_INTERVAL_MS`)
-2. **Comparaison temporelle** : Compare le timestamp du message le plus récent avec celui mis en cache dans Redis
-3. **Déclenchement** : Retourne un code 0 (trigger) si un nouveau message est détecté
+1. **Periodic check**: The action queries the Slack API every 5 seconds (configurable via `SLACK_POLL_INTERVAL_MS`)
+2. **Temporal comparison**: Compares the timestamp of the most recent message with the one cached in Redis
+3. **Trigger**: Returns code 0 (trigger) if a new message is detected
 
-### Codes de retour
+### Return Codes
 
-- **0** : Nouveau message détecté (déclenchement de la réaction)
-- **1** : Aucun changement détecté ou initialisation de base
-- **-1** : Provider Slack non lié pour l'utilisateur
+- **0**: New message detected (triggers reaction)
+- **1**: No change detected or baseline initialization
+- **-1**: Slack provider not linked for the user
 
-### Cache Redis
+### Redis Cache
 
-- **Clé** : `slack:last_message_ts:${userId}:${channelId}`
-- **Valeur** : Timestamp du dernier message traité
-- **Gestion du vide** : Stocke une chaîne vide si le canal est vide
+- **Key**: `slack:last_message_ts:${userId}:${channelId}`
+- **Value**: Timestamp of the last processed message
+- **Empty handling**: Stores an empty string if the channel is empty
 
-## Placeholders disponibles
+## Available Placeholders
 
-L'action fournit les placeholders suivants pour les réactions :
+The action provides the following placeholders for reactions:
 
-| Placeholder | Description | Exemple |
+| Placeholder | Description | Example |
 |-------------|-------------|---------|
-| `message_text` | Contenu du nouveau message Slack | `"Hello everyone!"` |
-| `message_user` | ID de l'utilisateur qui a envoyé le message | `"U1234567890"` |
-| `message_timestamp` | Timestamp du message | `"1640995200.123456"` |
-| `channel_id` | ID du canal où le message a été posté | `"C1234567890"` |
+| `message_text` | Content of the new Slack message | `"Hello everyone!"` |
+| `message_user` | ID of the user who sent the message | `"U1234567890"` |
+| `message_timestamp` | Message timestamp | `"1640995200.123456"` |
+| `channel_id` | ID of the channel where the message was posted | `"C1234567890"` |
 
-## Utilisation dans les réactions
+## Usage in Reactions
 
-Vous pouvez utiliser ces placeholders dans la configuration de vos réactions :
+You can use these placeholders in your reaction configuration:
 
 ```json
 {
-  "subject": "Nouveau message Slack",
-  "body": "{{message_user}} a écrit dans {{channel_id}}: {{message_text}}"
+  "subject": "New Slack message",
+  "body": "{{message_user}} wrote in {{channel_id}}: {{message_text}}"
 }
 ```
 
-## Prérequis
+## Prerequisites
 
-### Authentification Slack
+### Slack Authentication
 
-L'utilisateur doit avoir lié son compte Slack via OAuth2. L'action utilise les tokens stockés pour accéder à l'API Slack.
+The user must have linked their Slack account via OAuth2. The action uses stored tokens to access the Slack API.
 
-### Permissions requises
+### Required Permissions
 
-Le bot/utilisateur doit avoir les permissions suivantes :
-- `channels:history` : Pour lire l'historique des messages publics
-- `groups:history` : Pour lire l'historique des canaux privés
-- `im:history` : Pour lire l'historique des messages directs
+The bot/user must have the following permissions:
+- `channels:history`: To read public message history
+- `groups:history`: To read private channel history
+- `im:history`: To read direct message history
 
-## Variables d'environnement
+## Environment Variables
 
-- `SLACK_POLL_INTERVAL_MS` : Intervalle de polling en millisecondes (défaut: 5000)
-- `SLACK_CLIENT_ID` : ID client de l'application Slack
-- `SLACK_REDIRECT_URI` : URI de redirection pour OAuth2
+- `SLACK_POLL_INTERVAL_MS`: Polling interval in milliseconds (default: 5000)
+- `SLACK_CLIENT_ID`: Slack application client ID
+- `SLACK_REDIRECT_URI`: OAuth2 redirect URI
 
-## Gestion des erreurs
+## Error Handling
 
-### Erreurs temporaires
+### Temporary Errors
 
-Les erreurs temporaires de l'API Slack (timeouts, erreurs réseau) sont traitées comme "aucun changement" pour éviter de déclencher des réactions en boucle.
+Temporary Slack API errors (timeouts, network errors) are treated as "no change" to avoid triggering reactions in a loop.
 
-### Provider non lié
+### Provider Not Linked
 
-Si l'utilisateur n'a pas lié son compte Slack, l'action retourne `-1` et log un message de debug.
+If the user hasn't linked their Slack account, the action returns `-1` and logs a debug message.
 
-### Canal introuvable
+### Channel Not Found
 
-Si le canal spécifié n'existe pas ou si l'utilisateur n'y a pas accès, l'API Slack retournera une liste vide, traitée comme "aucun message".
+If the specified channel doesn't exist or the user doesn't have access to it, the Slack API will return an empty list, treated as "no messages".
 
-## Exemple d'utilisation
+## Usage Example
 
 ```typescript
-// Configuration de l'action
+// Action configuration
 const actionConfig = {
-  channelId: "C1234567890" // Canal #general
+  channelId: "C1234567890" // #general channel
 };
 
-// L'action détectera automatiquement les nouveaux messages
-// et déclenchera la réaction configurée avec les placeholders
+// The action will automatically detect new messages
+// and trigger the configured reaction with placeholders
 ```
 
 ## Limitations
 
-1. **Fréquence de polling** : Limitée par les rate limits de l'API Slack
-2. **Historique** : Ne déclenche pas sur les messages historiques lors de la première initialisation
-3. **Types de messages** : Détecte tous les types de messages (ne filtre pas par type)
-4. **Canaux multiples** : Une instance par canal (pas de surveillance multi-canaux)
+1. **Polling frequency**: Limited by Slack API rate limits
+2. **History**: Doesn't trigger on historical messages during first initialization
+3. **Message types**: Detects all message types (doesn't filter by type)
+4. **Multiple channels**: One instance per channel (no multi-channel monitoring)
 
 ## Debugging
 
-Activez les logs debug pour voir le détail des opérations :
+Enable debug logs to see operation details:
 
 ```typescript
 this.logger.debug(`[Slack] Listing latest messages for user=${userId} channel=${channelId}`);

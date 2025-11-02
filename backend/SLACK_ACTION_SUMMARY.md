@@ -1,120 +1,120 @@
-# Résumé de l'implémentation de l'action Slack
+# Slack Action Implementation Summary
 
-## ✅ Fonctionnalités implémentées
+## ✅ Implemented Features
 
-### 1. Service d'action Slack (`SlackNewMessageService`)
-- **Fichier** : `/src/modules/actions/slack/new-message.service.ts`
-- **Fonctionnalité** : Détection de nouveaux messages dans les canaux Slack
-- **Type** : Action de polling (vérification périodique)
-- **Interface** : Implémente `PollingAction`
+### 1. Slack Action Service (`SlackNewMessageService`)
+- **File** : `/src/modules/actions/slack/new-message.service.ts`
+- **Functionality** : Detection of new messages in Slack channels
+- **Type** : Polling action (periodic verification)
+- **Interface** : Implements `PollingAction`
 
-### 2. Intégration dans le système AREA
-- **Enum d'actions** : Ajout de `SLACK_NEW_MESSAGE` dans `ActionNamesEnum`
-- **Provider OAuth2** : Ajout de `Slack` dans `ProviderKeyEnum`
-- **Manager service** : Intégration complète dans le système de polling et de callbacks
+### 2. AREA System Integration
+- **Action Enum** : Added `SLACK_NEW_MESSAGE` in `ActionNamesEnum`
+- **OAuth2 Provider** : Added `Slack` in `ProviderKeyEnum`
+- **Manager service** : Complete integration in polling and callback system
 
-### 3. Configuration et placeholders
-- **Configuration requise** : `channelId` (ID du canal Slack)
-- **Configuration optionnelle** : Canal par défaut = `general`
-- **Placeholders disponibles** :
-  - `message_text` : Contenu du message
-  - `message_user` : ID de l'utilisateur
-  - `message_timestamp` : Timestamp du message
-  - `channel_id` : ID du canal
+### 3. Configuration and placeholders
+- **Required configuration** : `channelId` (Slack channel ID)
+- **Optional configuration** : Default channel = `general`
+- **Available placeholders** :
+  - `message_text` : Message content
+  - `message_user` : User ID
+  - `message_timestamp` : Message timestamp
+  - `channel_id` : Channel ID
 
-### 4. Tests complets
-- **Tests unitaires** : `/test/actions/slack/new-message.service.spec.ts` (11 tests)
-- **Tests d'intégration** : `/test/actions/slack/slack-integration.e2e.spec.ts`
-- **Couverture** : Tous les cas de figure (provider non lié, erreurs API, messages nouveaux/existants)
+### 4. Complete Tests
+- **Unit tests** : `/test/actions/slack/new-message.service.spec.ts` (11 tests)
+- **Integration tests** : `/test/actions/slack/slack-integration.e2e.spec.ts`
+- **Coverage** : All scenarios (unlinked provider, API errors, new/existing messages)
 
 ### 5. Documentation
-- **README détaillé** : `/src/modules/actions/slack/README.md`
-- **Exemples d'utilisation** : Configuration et intégration
-- **Guide de debugging** : Logs et gestion des erreurs
+- **Detailed README** : `/src/modules/actions/slack/README.md`
+- **Usage examples** : Configuration and integration
+- **Debugging guide** : Logs and error handling
 
-## 🔧 Modifications apportées
+## 🔧 Changes Made
 
-### Fichiers créés
-1. `/src/modules/actions/slack/new-message.service.ts` - Service principal
+### Created Files
+1. `/src/modules/actions/slack/new-message.service.ts` - Main service
 2. `/src/modules/actions/slack/README.md` - Documentation
-3. `/test/actions/slack/new-message.service.spec.ts` - Tests unitaires
-4. `/test/actions/slack/slack-integration.e2e.spec.ts` - Tests d'intégration
+3. `/test/actions/slack/new-message.service.spec.ts` - Unit tests
+4. `/test/actions/slack/slack-integration.e2e.spec.ts` - Integration tests
 
-### Fichiers modifiés
-1. `/src/common/interfaces/action-names.enum.ts` - Ajout de l'action Slack
-2. `/src/common/interfaces/oauth2.type.ts` - Ajout du provider Slack
-3. `/src/modules/manager/manager.module.ts` - Ajout du service dans le module
-4. `/src/modules/manager/manager.service.ts` - Intégration complète du polling et callbacks
+### Modified Files
+1. `/src/common/interfaces/action-names.enum.ts` - Added Slack action
+2. `/src/common/interfaces/oauth2.type.ts` - Added Slack provider
+3. `/src/modules/manager/manager.module.ts` - Added service to module
+4. `/src/modules/manager/manager.service.ts` - Complete polling and callback integration
 
-## 🚀 Fonctionnement
+## 🚀 How it Works
 
-### Workflow de détection
-1. **Polling périodique** : Vérification toutes les 5 secondes (configurable)
-2. **API Slack** : Appel à `conversations.history` avec limite de 1 message
-3. **Cache Redis** : Stockage du timestamp du dernier message traité
-4. **Comparaison** : Détection des nouveaux messages par comparaison de timestamps
-5. **Déclenchement** : Émission d'un événement avec les données du message
+### Detection Workflow
+1. **Periodic polling** : Check every 5 seconds (configurable)
+2. **Slack API** : Call to `conversations.history` with limit of 1 message
+3. **Redis Cache** : Store timestamp of last processed message
+4. **Comparison** : Detect new messages by timestamp comparison
+5. **Trigger** : Emit event with message data
 
-### Gestion des états
-- **Code 0** : Nouveau message détecté → Déclenche la réaction
-- **Code 1** : Aucun changement → Pas de déclenchement
-- **Code -1** : Provider non lié → Erreur de configuration
+### State Management
+- **Code 0** : New message detected → Triggers reaction
+- **Code 1** : No change → No trigger
+- **Code -1** : Provider not linked → Configuration error
 
-### Stratégie de cache
-- **Clé Redis** : `slack:last_message_ts:${userId}:${channelId}`
-- **Baseline** : Initialisation sans déclenchement sur les messages historiques
-- **Canal vide** : Gestion spéciale avec chaîne vide
+### Caching Strategy
+- **Redis Key** : `slack:last_message_ts:${userId}:${channelId}`
+- **Baseline** : Initialize without triggering on historical messages
+- **Empty Channel** : Special handling with empty string
 
-## 🔗 Intégration avec le système existant
+## 🔗 Integration with Existing System
 
-### Compatibilité avec les réactions
-L'action Slack fonctionne avec toutes les réactions existantes :
-- **Email** : Envoi d'emails avec contenu du message
-- **Discord** : Relais vers Discord
-- **Spotify** : Actions conditionnelles
-- **Log** : Journalisation
+### Compatibility with Reactions
+The Slack action works with all existing reactions:
+- **Email** : Send emails with message content
+- **Discord** : Relay to Discord
+- **Spotify** : Conditional actions
+- **Log** : Logging
 
-### Exemple d'utilisation complète
+### Complete Usage Example
 ```typescript
-// Configuration d'une AREA Slack → Email
+// Configuration of a Slack → Email AREA
 const areaConfig = {
   action: {
-    channelId: "C1234567890" // Canal #general
+    channelId: "C1234567890" // #general channel
   },
   reaction: {
     to: "admin@company.com",
-    subject: "Nouveau message Slack",
-    body: "{{message_user}} a écrit: {{message_text}}"
+    subject: "New Slack message",
+    body: "{{message_user}} wrote: {{message_text}}"
   }
 };
 ```
 
-## ✅ Tests et validation
+## ✅ Tests and Validation
 
-### Résultats des tests
-- **Tests unitaires** : 11/11 passés ✅
-- **Tests d'intégration** : 11/11 passés ✅
-- **Tests Auth Slack** : 23/23 passés ✅
-- **Compilation** : Succès sans erreurs ✅
+### Test Results
+- **Unit tests** : 11/11 passed ✅
+- **Integration tests** : 11/11 passed ✅
+- **Slack Auth tests** : 23/23 passed ✅
+- **Compilation** : Success without errors ✅
 
-### Scénarios testés
-- Provider non lié
-- Canal vide
-- Premiers messages (baseline)
-- Nouveaux messages
-- Messages identiques
-- Erreurs API
-- Configuration par défaut
-- Validation des placeholders
+### Tested Scenarios
+- Provider not linked
+- Empty channel
+- First messages (baseline)
+- New messages
+- Identical messages
+- API errors
+- Default configuration
+- Placeholder validation
 
-## 🎯 Prêt pour la production
+## 🎯 Production Ready
 
-L'action Slack est maintenant complètement intégrée et prête à être utilisée :
+The Slack action is now completely integrated and ready to be used:
 
-1. **Configuration OAuth2** : Utilise l'infrastructure Slack existante
-2. **Monitoring** : Logs détaillés pour le debugging
-3. **Résilience** : Gestion des erreurs temporaires
-4. **Performance** : Polling optimisé avec cache Redis
-5. **Extensibilité** : Architecture modulaire pour futures améliorations
+1. **OAuth2 Configuration** : Uses existing Slack infrastructure
+2. **Monitoring** : Detailed logs for debugging
+3. **Resilience** : Temporary error handling
+4. **Performance** : Optimized polling with Redis cache
+5. **Extensibility** : Modular architecture for future improvements
 
-L'action peut être immédiatement utilisée par les utilisateurs ayant lié leur compte Slack pour créer des automatisations sophistiquées basées sur l'activité des canaux Slack.
+The action can be immediately used by users who have linked their Slack account to create sophisticated automations based on Slack channel activity.
