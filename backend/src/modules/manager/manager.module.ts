@@ -10,6 +10,7 @@ import { SpotifyLikeService } from '../actions/spotify/like.service';
 import { DiscordMessageService } from '../actions/discord/message.service';
 import { GmailNewMailService } from '../actions/gmail/new-mail.service';
 import { NotionDatabaseItemService } from '../actions/notion/database-item.service';
+import { GoogleDriveNewFileService } from '../actions/google-drive/new-file.service';
 import { GmailSendService } from '../reactions/gmail/send.service';
 import { DiscordSendService } from '../reactions/discord/send.service';
 import { SpotifyLikeReactionService } from '../reactions/spotify/like.service';
@@ -33,6 +34,7 @@ import { PlaceholderReplacementService } from '../../common/services/placeholder
     DiscordMessageService,
     GmailNewMailService,
     NotionDatabaseItemService,
+    GoogleDriveNewFileService,
     GmailSendService,
     DiscordSendService,
     SpotifyLikeReactionService,

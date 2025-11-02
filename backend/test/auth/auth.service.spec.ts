@@ -270,16 +270,16 @@ describe('AuthService', () => {
             mockUsersService.findById.mockResolvedValue({ id: 'u1', email: 'e' });
             mockUsersService.getLinkedAccounts.mockResolvedValue([
                 { oauth_providers: { name: 'google' } },
-                { oauth_providers: { name: 'slack' } },
-                { oauth_providers: { name: 'slack_bot' } },
+                { oauth_providers: { name: 'discord' } },
+                { oauth_providers: { name: 'discord_bot' } },
                 { oauth_providers: { name: 'spotify' } },
             ]);
 
             const res = await service.getLinkedProviders('u1');
 
             expect(mockUsersService.getLinkedAccounts).toHaveBeenCalledWith('u1');
-            expect(res).toEqual({ providers: ['google', 'slack', 'spotify'] });
-            expect(res.providers).not.toContain('slack_bot');
+            expect(res).toEqual({ providers: ['google', 'discord', 'spotify'] });
+            expect(res.providers).not.toContain('discord_bot');
         });
 
         it('should return empty array if no linked providers', async () => {
