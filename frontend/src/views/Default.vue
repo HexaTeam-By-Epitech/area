@@ -1,4 +1,16 @@
 <script setup>
+import { onMounted } from 'vue';
+import useAuthStore from '@/stores/webauth';
+import { useRouter } from 'vue-router';
+
+const authStore = useAuthStore();
+const router = useRouter();
+
+onMounted(() => {
+  if (authStore.isAuth()) {
+    router.replace('/home');
+  }
+});
 </script>
 
 <template>

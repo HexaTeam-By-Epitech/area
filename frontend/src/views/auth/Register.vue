@@ -2,8 +2,12 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { handleGoogleResponse, googleLoading, googleError, googleSuccess } from '@/utils/googleAuth'
 import useAuthStore from "@/stores/webauth";
+import useToastStore from '@/stores/toast';
+import { useRouter } from 'vue-router';
 
 const authStore = useAuthStore();
+const router = useRouter();
+const toast = useToastStore();
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
@@ -35,7 +39,26 @@ onMounted(() => {
     }
   }, 100)
   setTimeout(() => clearInterval(interval), 5000)
+
+  // Prefill email from authStore if available (coming from Login)
+  if (!email.value && authStore.email) {
+    email.value = authStore.email;
+  }
 })
+
+// When switching back to the register form (after 'Change email'), clear fields and code
+watch(() => authStore.page, (val) => {
+  if (val === 'register') {
+    // Clear inputs to let the user type a new email or the same intentionally
+    email.value = '';
+    password.value = '';
+    emailError.value = '';
+    passwordError.value = '';
+    // Reset OTP
+    codeDigits.value = Array(CODE_LENGTH).fill('');
+    emailCode.value = '';
+  }
+});
 
 const email = ref('')
 const password = ref('')
@@ -46,7 +69,76 @@ const apiError = ref('')
 const successMessage = ref('')
 
 const emailCode = ref('')
+// Track if the account was created during this session (not a 409 reuse)
+const createdHere = ref(false)
 
+// Resend verification code UX
+const RESEND_COOLDOWN = 30;
+const resendCooldown = ref(0);
+const resendLoading = ref(false);
+let resendInterval: any = null;
+
+function startResendCooldown() {
+  stopResendCooldown();
+  resendCooldown.value = RESEND_COOLDOWN;
+  resendInterval = setInterval(() => {
+    resendCooldown.value = Math.max(0, resendCooldown.value - 1);
+    if (resendCooldown.value === 0) {
+      stopResendCooldown();
+    }
+  }, 1000);
+}
+
+function stopResendCooldown() {
+  if (resendInterval) {
+    clearInterval(resendInterval);
+    resendInterval = null;
+  }
+}
+
+function maskEmail(value: string) {
+  if (!value) return '';
+  const [user, domain] = value.split('@');
+  if (!user || !domain) return value;
+  const visible = user.slice(0, 1);
+  return `${visible}${'*'.repeat(Math.max(1, user.length - 1))}@${domain}`;
+}
+
+async function resendVerification() {
+  if (resendCooldown.value > 0 || resendLoading.value) return;
+  resendLoading.value = true;
+  apiError.value = '';
+  successMessage.value = '';
+  try {
+    const res = await fetch('/auth/resend-verification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: authStore.email || email.value })
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.message || 'Failed to resend code');
+    }
+    successMessage.value = 'Verification code resent. Please check your inbox.';
+    startResendCooldown();
+  } catch (err) {
+    apiError.value = err instanceof Error ? err.message : 'Failed to resend code';
+  } finally {
+    resendLoading.value = false;
+  }
+}
+
+function changeEmail() {
+  // Reset code and go back to email/password form
+  codeDigits.value = Array(CODE_LENGTH).fill('');
+  emailCode.value = '';
+  stopResendCooldown();
+  authStore.setPage('register');
+}
+
+onUnmounted(() => {
+  stopResendCooldown();
+})
 
 const CODE_LENGTH = 6
 const codeDigits = ref<string[]>(Array(CODE_LENGTH).fill(''))
@@ -75,6 +167,10 @@ function handleCodeInput(idx: number, e: Event) {
   updateEmailCode()
   if (v && idx < CODE_LENGTH - 1) {
     focusIndex(idx + 1)
+  }
+  // Auto-submit when last digit is entered
+  if (emailCode.value.length === CODE_LENGTH && !verifyLoading.value) {
+    handleVerificationCode()
   }
 }
 
@@ -119,6 +215,11 @@ function handleCodePaste(e: ClipboardEvent) {
   updateEmailCode()
   const nextIdx = Math.min(digits.length, CODE_LENGTH - 1)
   focusIndex(nextIdx)
+
+  // Auto-submit if full code after paste
+  if (emailCode.value.length === CODE_LENGTH && !verifyLoading.value) {
+    handleVerificationCode()
+  }
 }
 
 
@@ -150,12 +251,43 @@ const handleSubmit = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.value, password: password.value })
     })
+
+    if (!response.ok && response.status === 409) {
+      // Existing account: try to resend verification; if already verified, route to login
+      authStore.email = email.value;
+      // Attempt resend directly to branch by status
+      const rv = await fetch('/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: authStore.email })
+      });
+
+      if (rv.ok) {
+        createdHere.value = false;
+        authStore.setPage('waitingcode');
+        password.value = '';
+        startResendCooldown();
+        successMessage.value = 'We sent you a new verification code.';
+      } else if (rv.status === 400) {
+        // Account already verified → go to login
+        toast.show('Account already exists. Please log in.', 'info', 3500);
+        authStore.setPage('login');
+        await router.replace('/webauth');
+      } else {
+        const data = await rv.json().catch(() => ({}));
+        apiError.value = data.message || 'Unable to resend verification code';
+      }
+      return;
+    }
+
     if (!response.ok) {
       const data = await response.json().catch(() => ({}))
       throw new Error(data.message || 'Registration failed')
     }
+
     const data = await response.json();
     if (data.userId) {
+      createdHere.value = true;
       // Store email temporarily for verification
       authStore.email = email.value;
       authStore.userId = data.userId;
@@ -165,7 +297,6 @@ const handleSubmit = async () => {
   } catch (err) {
     apiError.value = err instanceof Error ? err.message : 'Error'
   } finally { isLoading.value = false }
-  //} finally {}
 }
 
 const handleVerificationCode = async () => {
@@ -183,20 +314,31 @@ const handleVerificationCode = async () => {
       throw new Error(data.message || 'Verification failed')
     }
 
-    // Now login the user
-    const loginRes = await fetch('/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: authStore.email, password: password.value })
-    });
+    if (createdHere.value) {
+      // Auto-login only for accounts created in this session
+      const loginRes = await fetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: authStore.email, password: password.value })
+      });
 
-    if (!loginRes.ok) {
-      throw new Error('Auto-login failed after verification');
-    }
+      if (!loginRes.ok) {
+        // If auto-login fails unexpectedly, fall back to manual login flow
+        toast.show('Email verified. Please log in.', 'success', 3500);
+        authStore.setPage('login');
+        await router.replace('/webauth');
+        return;
+      }
 
-    const loginData = await loginRes.json();
-    if (loginData.accessToken && loginData.userId) {
-      authStore.login(loginData.email || authStore.email, loginData.accessToken, loginData.userId);
+      const loginData = await loginRes.json();
+      if (loginData.accessToken && loginData.userId) {
+        authStore.login(loginData.email || authStore.email, loginData.accessToken, loginData.userId);
+      }
+    } else {
+      // Account existed: don't try with potentially wrong password, guide user to login
+      toast.show('Email verified. Please log in.', 'success', 3500);
+      authStore.setPage('login');
+      await router.replace('/webauth');
     }
   } catch (e) {
     console.log(`Error while verifying email: ${e}`);
@@ -205,7 +347,6 @@ const handleVerificationCode = async () => {
     verifyLoading.value = false
   }
 }
-
 </script>
 
 <template>
@@ -250,6 +391,13 @@ const handleVerificationCode = async () => {
 
       <div v-if="authStore.page === 'waitingcode'">
         <h2>Verification code</h2>
+        <p class="section-hint">We sent a 6-digit code to <strong>{{ maskEmail(authStore.email || email) }}</strong>.</p>
+        <div class="actions-row">
+          <button type="button" class="link-btn" @click="changeEmail">Change email</button>
+          <button type="button" class="link-btn" :disabled="resendLoading || resendCooldown > 0" @click="resendVerification">
+            {{ resendLoading ? 'Resending…' : (resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code') }}
+          </button>
+        </div>
         <form @submit.prevent="handleVerificationCode" class="code-container" @paste="handleCodePaste">
           <div class="code-inputs">
             <input
@@ -348,4 +496,25 @@ const handleVerificationCode = async () => {
   -moz-appearance: textfield;
 }
 
+.section-hint {
+  margin: 0.5rem 0 0.75rem;
+  color: var(--text-secondary);
+}
+.actions-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.link-btn {
+  background: transparent;
+  border: none;
+  color: var(--button-color);
+  font-weight: 600;
+  cursor: pointer;
+}
+.link-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 </style>
