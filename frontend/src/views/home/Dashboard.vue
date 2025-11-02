@@ -220,7 +220,7 @@ onMounted(() => {
 }
 
 .area-card {
-  background: linear-gradient(180deg, var(--button-color), var(--button-gradient-color));
+  background: var(--button-color);
   border-radius: 1rem;
   padding: 1.5rem;
   display: flex;
