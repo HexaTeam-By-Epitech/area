@@ -19,6 +19,7 @@ import { SpotifyResumeService } from '../reactions/spotify/resume.service';
 import { GoogleDriveCreateFolderService } from '../reactions/google-drive/create-folder.service';
 import { ActionPollingService } from './polling/action-polling.service';
 import { PlaceholderReplacementService } from '../../common/services/placeholder-replacement.service';
+import { NotionCreateDatabaseItemService } from '../reactions/notion/create-item.service';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { PlaceholderReplacementService } from '../../common/services/placeholder
     GoogleDriveCreateFolderService,
     ActionPollingService,
     PlaceholderReplacementService,
+    NotionCreateDatabaseItemService,
   ],
   exports: [ManagerService],
 })

@@ -106,6 +106,9 @@ export default function CreateAreaScreen({ navigation }) {
                         handleActionConfigChange={logic.handleActionConfigChange}
                         getDisplayStepNumber={nav.getDisplayStepNumber}
                         isLoading={logic.isActionSchemaLoading}
+                        notionDatabases={logic.notionDatabases}
+                        loadingNotionDatabases={logic.loadingNotionDatabases}
+                        loadNotionDatabaseSchema={logic.loadNotionDatabaseSchema}
                     />
                 );
             case 3:
@@ -120,6 +123,9 @@ export default function CreateAreaScreen({ navigation }) {
                         actionPlaceholders={logic.actionPlaceholders}
                         getDisplayStepNumber={nav.getDisplayStepNumber}
                         isLoading={logic.isReactionSchemaLoading}
+                        notionDatabases={logic.notionDatabases}
+                        loadingNotionDatabases={logic.loadingNotionDatabases}
+                        loadNotionDatabaseSchema={logic.loadNotionDatabaseSchema}
                     />
                 );
             case 5:

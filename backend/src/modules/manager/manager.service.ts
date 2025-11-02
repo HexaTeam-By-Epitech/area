@@ -16,6 +16,7 @@ import { GoogleDriveCreateFolderService } from '../reactions/google-drive/create
 import { PlaceholderReplacementService } from '../../common/services/placeholder-replacement.service';
 import type { ActionCallback, ReactionCallback, AreaExecution } from '../../common/interfaces/area.type';
 import { ActionNamesEnum, ReactionNamesEnum } from '../../common/interfaces/action-names.enum';
+import { NotionCreateDatabaseItemService } from '../reactions/notion/create-item.service';
 
 /**
  * Orchestrates the AREA engine: registers actions/reactions, binds them for users,
@@ -45,6 +46,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         [ReactionNamesEnum.SPOTIFY_PAUSE_PLAYBACK]: 'spotify',
         [ReactionNamesEnum.SPOTIFY_RESUME_PLAYBACK]: 'spotify',
         [ReactionNamesEnum.GDRIVE_CREATE_FOLDER]: 'google_drive',
+        [ReactionNamesEnum.NOTION_CREATE_DATABASE_ITEM]: 'notion',
     };
 
     constructor(
@@ -63,6 +65,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         private readonly googleDriveNewFileService: GoogleDriveNewFileService,
         private readonly googleDriveCreateFolderService: GoogleDriveCreateFolderService,
         private readonly placeholderService: PlaceholderReplacementService,
+        private readonly notionCreateDatabaseItemService: NotionCreateDatabaseItemService,
     ) {}
 
     /**
@@ -84,6 +87,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         [ReactionNamesEnum.SPOTIFY_PAUSE_PLAYBACK]: 'Pause Spotify Playback',
         [ReactionNamesEnum.SPOTIFY_RESUME_PLAYBACK]: 'Resume Spotify Playback',
         [ReactionNamesEnum.GDRIVE_CREATE_FOLDER]: 'Create Google Drive Folder',
+        [ReactionNamesEnum.NOTION_CREATE_DATABASE_ITEM]: 'Create Notion Page',
     };
 
     /**
@@ -327,6 +331,46 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
                     required: false,
                     label: 'Parent Folder ID (Optional)',
                     placeholder: '1abc2def3ghi4jkl5mno'
+                }
+            ]
+        });
+
+        // Notion create database item reaction
+        this.reactionCallbacks.set(ReactionNamesEnum.NOTION_CREATE_DATABASE_ITEM, {
+            name: ReactionNamesEnum.NOTION_CREATE_DATABASE_ITEM,
+            callback: async (userId: string, actionResult: any, config: { databaseId: string; titlePropertyName?: string; title?: string; propertiesJson?: string }) => {
+                // Placeholders are already replaced prior to callback invocation
+                return await this.notionCreateDatabaseItemService.run(userId, config);
+            },
+            description: 'Create a new page in a Notion database',
+            configSchema: [
+                {
+                    name: 'databaseId',
+                    type: 'string',
+                    required: true,
+                    label: 'Notion Database',
+                    placeholder: 'Select a database (use the same selector as the Notion action)'
+                },
+                {
+                    name: 'titlePropertyName',
+                    type: 'string',
+                    required: false,
+                    label: 'Title Property Name',
+                    placeholder: 'e.g., Name'
+                },
+                {
+                    name: 'title',
+                    type: 'string',
+                    required: false,
+                    label: 'Title',
+                    placeholder: 'Page title text or {{PLACEHOLDER}}'
+                },
+                {
+                    name: 'propertiesJson',
+                    type: 'string',
+                    required: false,
+                    label: 'Raw Notion Properties (JSON)',
+                    placeholder: '{ "Name": { "title": [{"text": {"content": "My page"}}] } }'
                 }
             ]
         });
