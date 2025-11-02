@@ -11,6 +11,7 @@ import { GmailSendService } from '../../src/modules/reactions/gmail/send.service
 import { DiscordSendService } from '../../src/modules/reactions/discord/send.service';
 import { SpotifyLikeReactionService } from '../../src/modules/reactions/spotify/like.service';
 import { SpotifyPauseService } from '../../src/modules/reactions/spotify/pause.service';
+import { SpotifyResumeService } from '../../src/modules/reactions/spotify/resume.service';
 import { ActionPollingService } from '../../src/modules/manager/polling/action-polling.service';
 import { PlaceholderReplacementService } from '../../src/common/services/placeholder-replacement.service';
 import { ActionNamesEnum, ReactionNamesEnum } from '../../src/common/interfaces/action-names.enum';
@@ -100,6 +101,10 @@ describe('ManagerService', () => {
     run: jest.fn(),
   };
 
+  const mockSpotifyResumeService = {
+    run: jest.fn(),
+  };
+
   const mockDiscordMessageService = {
     supports: jest.fn(),
     start: jest.fn(),
@@ -136,6 +141,7 @@ describe('ManagerService', () => {
         { provide: DiscordSendService, useValue: mockDiscordSendService },
         { provide: SpotifyLikeReactionService, useValue: mockSpotifyLikeReactionService },
         { provide: SpotifyPauseService, useValue: mockSpotifyPauseService },
+        { provide: SpotifyResumeService, useValue: mockSpotifyResumeService },
         { provide: ActionPollingService, useValue: mockActionPollingService },
         { provide: PlaceholderReplacementService, useValue: mockPlaceholderService },
       ],
@@ -403,6 +409,10 @@ describe('ManagerService', () => {
           name: ReactionNamesEnum.SPOTIFY_PAUSE_PLAYBACK,
           services: { name: 'spotify' },
         },
+        {
+          name: ReactionNamesEnum.SPOTIFY_RESUME_PLAYBACK,
+          services: { name: 'spotify' },
+        },
       ]);
 
       const result = await service.getAvailableReactionsGrouped(userId);
@@ -450,6 +460,11 @@ describe('ManagerService', () => {
               name: ReactionNamesEnum.SPOTIFY_PAUSE_PLAYBACK,
               displayName: 'Pause Spotify Playback',
               description: 'Pause the current Spotify playback',
+            },
+            {
+              name: ReactionNamesEnum.SPOTIFY_RESUME_PLAYBACK,
+              displayName: 'Resume Spotify Playback',
+              description: 'Resume the current Spotify playback',
             },
           ],
         },
