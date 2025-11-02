@@ -246,6 +246,8 @@ describe('UsersService', () => {
                 user_id: 'user-123',
                 provider_id: 1,
                 provider_user_id: 'google-123',
+                is_active: true,
+                deleted_at: null,
             };
 
             (prisma.oauth_providers.findFirst as jest.Mock).mockResolvedValue({
