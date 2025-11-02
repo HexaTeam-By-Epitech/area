@@ -21,6 +21,7 @@ export enum ReactionNamesEnum {
   SPOTIFY_LIKE_TRACK = 'spotify_like_track',
   SPOTIFY_PAUSE_PLAYBACK = 'spotify_pause_playback',
   SPOTIFY_RESUME_PLAYBACK = 'spotify_resume_playback',
+  SLACK_SEND_MESSAGE = 'slack_send_message',
 }
 
 /**

@@ -9,6 +9,7 @@ import { DiscordSendService } from '../reactions/discord/send.service';
 import { SpotifyLikeReactionService } from '../reactions/spotify/like.service';
 import { SpotifyPauseService } from '../reactions/spotify/pause.service';
 import { SpotifyResumeService } from '../reactions/spotify/resume.service';
+import { SlackSendService } from '../reactions/slack/send.service';
 import { GmailNewMailService } from '../actions/gmail/new-mail.service';
 import { NotionDatabaseItemService } from '../actions/notion/database-item.service';
 import { SlackNewMessageService } from '../actions/slack/new-message.service';
@@ -43,6 +44,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         [ReactionNamesEnum.SPOTIFY_LIKE_TRACK]: 'spotify',
         [ReactionNamesEnum.SPOTIFY_PAUSE_PLAYBACK]: 'spotify',
         [ReactionNamesEnum.SPOTIFY_RESUME_PLAYBACK]: 'spotify',
+        [ReactionNamesEnum.SLACK_SEND_MESSAGE]: 'slack',
     };
 
     constructor(
@@ -56,6 +58,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         private readonly spotifyLikeReactionService: SpotifyLikeReactionService,
         private readonly spotifyPauseService: SpotifyPauseService,
         private readonly spotifyResumeService: SpotifyResumeService,
+        private readonly slackSendService: SlackSendService,
         private readonly gmailNewMailService: GmailNewMailService,
         private readonly notionDatabaseItemService: NotionDatabaseItemService,
         private readonly slackNewMessageService: SlackNewMessageService,
@@ -80,6 +83,7 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
         [ReactionNamesEnum.SPOTIFY_LIKE_TRACK]: 'Like Spotify Track',
         [ReactionNamesEnum.SPOTIFY_PAUSE_PLAYBACK]: 'Pause Spotify Playback',
         [ReactionNamesEnum.SPOTIFY_RESUME_PLAYBACK]: 'Resume Spotify Playback',
+        [ReactionNamesEnum.SLACK_SEND_MESSAGE]: 'Send Slack Message',
     };
 
     /**
@@ -309,6 +313,45 @@ export class ManagerService implements OnModuleInit, OnModuleDestroy {
             },
             description: 'Resume the current Spotify playback',
             configSchema: [] // No configuration needed
+        });
+
+        // Slack send message reaction
+        this.reactionCallbacks.set(ReactionNamesEnum.SLACK_SEND_MESSAGE, {
+            name: ReactionNamesEnum.SLACK_SEND_MESSAGE,
+            callback: async (userId: string, actionResult: any, config?: any) => {
+                return await this.slackSendService.run(userId, actionResult, config);
+            },
+            description: 'Send a message to a Slack channel',
+            configSchema: [
+                {
+                    name: 'channelId',
+                    type: 'string',
+                    required: true,
+                    label: 'Slack Channel ID',
+                    placeholder: 'C1234567890'
+                },
+                {
+                    name: 'message',
+                    type: 'string',
+                    required: true,
+                    label: 'Message',
+                    placeholder: 'Your message here...'
+                },
+                {
+                    name: 'username',
+                    type: 'string',
+                    required: false,
+                    label: 'Bot Username (optional)',
+                    placeholder: 'AREA Bot'
+                },
+                {
+                    name: 'iconEmoji',
+                    type: 'string',
+                    required: false,
+                    label: 'Bot Icon Emoji (optional)',
+                    placeholder: ':robot_face:'
+                }
+            ]
         });
 
         this.logger.log(`Registered ${this.reactionCallbacks.size} reaction callbacks`);

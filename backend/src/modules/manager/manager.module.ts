@@ -16,6 +16,7 @@ import { DiscordSendService } from '../reactions/discord/send.service';
 import { SpotifyLikeReactionService } from '../reactions/spotify/like.service';
 import { SpotifyPauseService } from '../reactions/spotify/pause.service';
 import { SpotifyResumeService } from '../reactions/spotify/resume.service';
+import { SlackSendService } from '../reactions/slack/send.service';
 import { ActionPollingService } from './polling/action-polling.service';
 import { PlaceholderReplacementService } from '../../common/services/placeholder-replacement.service';
 
@@ -40,6 +41,7 @@ import { PlaceholderReplacementService } from '../../common/services/placeholder
     SpotifyLikeReactionService,
     SpotifyPauseService,
     SpotifyResumeService,
+    SlackSendService,
     ActionPollingService,
     PlaceholderReplacementService,
   ],
