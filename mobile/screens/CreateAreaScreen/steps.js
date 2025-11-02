@@ -1,7 +1,7 @@
 // Step components for CreateAreaScreen
 
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import styles from '../../styles';
 import Card from '../../components/Card';
 import { serviceCardStyle, itemCardStyle, configFieldStyle } from './styles';
@@ -137,10 +137,21 @@ export const ActionConfig = ({
     selectedAction,
     actionConfig,
     handleActionConfigChange,
-    getDisplayStepNumber 
+    getDisplayStepNumber,
+    isLoading
 }) => {
     const schema = getActionConfigSchema();
-    if (schema.length === 0) return null;
+
+    if (isLoading) {
+        return (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <ActivityIndicator size="large" color="#fff" />
+                <Text style={[styles.text, { marginTop: 12 }]}>Loading configuration...</Text>
+            </View>
+        );
+    }
+
+    if (!schema || schema.length === 0) return null;
 
     return (
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
@@ -151,27 +162,30 @@ export const ActionConfig = ({
                 Configure the parameters for your action "{selectedAction?.name}"
             </Text>
 
-            {schema.map((field) => (
-                <View key={field.key || field.name} style={{ marginBottom: 16 }}>
-                    <Text style={configFieldStyle.label}>
-                        {field.label || field.name}
-                        {field.required && <Text style={{ color: '#d32f2f' }}> *</Text>}
-                    </Text>
-                    {field.description && (
-                        <Text style={configFieldStyle.description}>
-                            {field.description}
+            {schema.map((field) => {
+                const fieldKey = field.key || field.name;
+                return (
+                    <View key={fieldKey} style={{ marginBottom: 16 }}>
+                        <Text style={configFieldStyle.label}>
+                            {field.label || field.name}
+                            {field.required && <Text style={{ color: '#d32f2f' }}> *</Text>}
                         </Text>
-                    )}
-                    <TextInput
-                        style={configFieldStyle.input}
-                        placeholder={field.placeholder || field.label || field.name}
-                        placeholderTextColor="#c3c9d5"
-                        value={actionConfig[field.key || field.name] || ''}
-                        onChangeText={(value) => handleActionConfigChange(field.key || field.name, value)}
-                        keyboardType={field.type === 'number' ? 'numeric' : 'default'}
-                    />
-                </View>
-            ))}
+                        {field.description && (
+                            <Text style={configFieldStyle.description}>
+                                {field.description}
+                            </Text>
+                        )}
+                        <TextInput
+                            style={configFieldStyle.input}
+                            placeholder={field.placeholder || field.label || field.name}
+                            placeholderTextColor="#c3c9d5"
+                            value={actionConfig[fieldKey] || ''}
+                            onChangeText={(value) => handleActionConfigChange(fieldKey, value)}
+                            keyboardType={field.type === 'number' ? 'numeric' : 'default'}
+                        />
+                    </View>
+                );
+            })}
         </ScrollView>
     );
 };
@@ -182,10 +196,21 @@ export const ReactionConfig = ({
     reactionConfig,
     handleReactionConfigChange,
     actionPlaceholders,
-    getDisplayStepNumber 
+    getDisplayStepNumber,
+    isLoading
 }) => {
     const schema = getReactionConfigSchema();
-    if (schema.length === 0) return null;
+
+    if (isLoading) {
+        return (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <ActivityIndicator size="large" color="#fff" />
+                <Text style={[styles.text, { marginTop: 12 }]}>Loading configuration...</Text>
+            </View>
+        );
+    }
+
+    if (!schema || schema.length === 0) return null;
 
     return (
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>

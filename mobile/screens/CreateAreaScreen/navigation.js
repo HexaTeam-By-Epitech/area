@@ -14,7 +14,10 @@ export const useNavigation = (state, actions) => {
         actionConfig,
         reactionConfig,
         getActionConfigSchema,
-        getReactionConfigSchema
+        getReactionConfigSchema,
+        // New: loading flags exposed by hook
+        isActionSchemaLoading = false,
+        isReactionSchemaLoading = false,
     } = state;
 
     const {
@@ -23,7 +26,7 @@ export const useNavigation = (state, actions) => {
         setReactionSubStep
     } = actions;
 
-    // Safe wrappers to prevent null errors
+    // Helpers to safely access schemas
     const safeGetActionConfigSchema = () => {
         try {
             return getActionConfigSchema() || [];
@@ -40,6 +43,9 @@ export const useNavigation = (state, actions) => {
         }
     };
 
+    const hasActionConfig = () => isActionSchemaLoading || (safeGetActionConfigSchema().length > 0);
+    const hasReactionConfig = () => isReactionSchemaLoading || (safeGetReactionConfigSchema().length > 0);
+
     const validateStep = (step) => {
         if (step === 1) {
             if (actionSubStep === 1 && !selectedActionProvider) {
@@ -52,9 +58,14 @@ export const useNavigation = (state, actions) => {
             }
         }
         if (step === 2) {
+            if (isActionSchemaLoading) {
+                Alert.alert('Please wait', 'Loading action configuration...');
+                return false;
+            }
             const schema = safeGetActionConfigSchema();
             for (const field of schema) {
-                if (field.required && !actionConfig[field.key || field.name]) {
+                const key = field.key || field.name;
+                if (field.required && !actionConfig[key]) {
                     Alert.alert('Error', `Please fill the required field: ${field.label || field.name}`);
                     return false;
                 }
@@ -71,9 +82,14 @@ export const useNavigation = (state, actions) => {
             }
         }
         if (step === 4) {
+            if (isReactionSchemaLoading) {
+                Alert.alert('Please wait', 'Loading reaction configuration...');
+                return false;
+            }
             const schema = safeGetReactionConfigSchema();
             for (const field of schema) {
-                if (field.required && !reactionConfig[field.key || field.name]) {
+                const key = field.key || field.name;
+                if (field.required && !reactionConfig[key]) {
                     Alert.alert('Error', `Please fill the required field: ${field.label || field.name}`);
                     return false;
                 }
@@ -104,16 +120,37 @@ export const useNavigation = (state, actions) => {
 
         // Main step validation and navigation
         if (validateStep(currentStep)) {
-            if (currentStep === 1 && safeGetActionConfigSchema().length === 0) {
-                setCurrentStep(3); // Skip action config if not needed
-                setReactionSubStep(1); // Reset reaction sub-step
-            } else if (currentStep === 3 && safeGetReactionConfigSchema().length === 0) {
-                setCurrentStep(5); // Skip reaction config if not needed
-            } else {
-                setCurrentStep(currentStep + 1);
-                if (currentStep === 2) {
-                    setReactionSubStep(1); // Reset reaction sub-step when moving to reaction selection
+            if (currentStep === 1) {
+                // If an action is selected and it has or may have config, go to step 2
+                if (selectedAction && hasActionConfig()) {
+                    setCurrentStep(2);
+                    return;
                 }
+                // Otherwise skip to reaction selection
+                if (!hasActionConfig()) {
+                    setCurrentStep(3);
+                    setReactionSubStep(1); // Reset reaction sub-step
+                    return;
+                }
+            }
+
+            if (currentStep === 3) {
+                // If a reaction is selected and it has or may have config, go to step 4
+                if (selectedReaction && hasReactionConfig()) {
+                    setCurrentStep(4);
+                    return;
+                }
+                // Otherwise skip to summary
+                if (!hasReactionConfig()) {
+                    setCurrentStep(5);
+                    return;
+                }
+            }
+
+            // Generic advance
+            setCurrentStep(currentStep + 1);
+            if (currentStep === 2) {
+                setReactionSubStep(1); // Reset reaction sub-step when moving to reaction selection
             }
         }
     };
@@ -131,10 +168,10 @@ export const useNavigation = (state, actions) => {
         }
 
         // Main step navigation
-        if (currentStep === 3 && safeGetActionConfigSchema().length === 0) {
+        if (currentStep === 3 && !hasActionConfig()) {
             setCurrentStep(1); // Skip action config if not needed
             setActionSubStep(2); // Go back to action selection
-        } else if (currentStep === 5 && safeGetReactionConfigSchema().length === 0) {
+        } else if (currentStep === 5 && !hasReactionConfig()) {
             setCurrentStep(3); // Skip reaction config if not needed
             setReactionSubStep(2); // Go back to reaction selection
         } else {
@@ -155,17 +192,17 @@ export const useNavigation = (state, actions) => {
         // Step 1: Action provider + selection
         if (actualStep === 1) return 1;
 
-        // Step 2: Action config - only count if action has config
+        // Step 2: Action config - count if action has config (or still loading)
         if (actualStep === 2) return 2;
-        if (actualStep >= 3 && safeGetActionConfigSchema().length > 0) displayStep = 3;
+        if (actualStep >= 3 && hasActionConfig()) displayStep = 3;
         else if (actualStep >= 3) displayStep = 2;
 
         // Step 3: Reaction provider + selection
         if (actualStep === 3) return displayStep;
 
-        // Step 4: Reaction config - only count if reaction has config
+        // Step 4: Reaction config - count if reaction has config (or still loading)
         if (actualStep === 4) return displayStep + 1;
-        if (actualStep >= 5 && safeGetReactionConfigSchema().length > 0) displayStep += 2;
+        if (actualStep >= 5 && hasReactionConfig()) displayStep += 2;
         else if (actualStep >= 5) displayStep += 1;
 
         // Step 5: Summary
@@ -176,8 +213,8 @@ export const useNavigation = (state, actions) => {
 
     const getTotalDisplaySteps = () => {
         let total = 3; // Always have: action selection, reaction selection, summary
-        if (safeGetActionConfigSchema().length > 0) total++;
-        if (safeGetReactionConfigSchema().length > 0) total++;
+        if (hasActionConfig()) total++;
+        if (hasReactionConfig()) total++;
         return total;
     };
 

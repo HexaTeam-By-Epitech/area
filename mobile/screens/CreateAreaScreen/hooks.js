@@ -19,6 +19,14 @@ export const useCreateAreaLogic = () => {
     const [reactionConfig, setReactionConfig] = useState({});
     const [actionPlaceholders, setActionPlaceholders] = useState([]);
 
+    // New: keep schema state locally; backend provides dedicated endpoints
+    const [actionConfigSchema, setActionConfigSchema] = useState([]);
+    const [reactionConfigSchema, setReactionConfigSchema] = useState([]);
+
+    // Optional: loading flags for schemas (could be used by UI later)
+    const [actionSchemaLoading, setActionSchemaLoading] = useState(false);
+    const [reactionSchemaLoading, setReactionSchemaLoading] = useState(false);
+
     // Sub-steps for action and reaction selection
     const [actionSubStep, setActionSubStep] = useState(1); // 1: provider, 2: action
     const [reactionSubStep, setReactionSubStep] = useState(1); // 1: provider, 2: reaction
@@ -90,6 +98,8 @@ export const useCreateAreaLogic = () => {
 
     const getActionConfigSchema = () => {
         try {
+            // Prefer fetched schema; fallback to selectedAction if present (legacy)
+            if (Array.isArray(actionConfigSchema)) return actionConfigSchema;
             if (!selectedAction || typeof selectedAction !== 'object') {
                 return [];
             }
@@ -102,6 +112,7 @@ export const useCreateAreaLogic = () => {
 
     const getReactionConfigSchema = () => {
         try {
+            if (Array.isArray(reactionConfigSchema)) return reactionConfigSchema;
             if (!selectedReaction || typeof selectedReaction !== 'object') {
                 return [];
             }
@@ -110,6 +121,20 @@ export const useCreateAreaLogic = () => {
             console.warn('Error getting reaction config schema:', error);
             return [];
         }
+    };
+
+    const initializeConfigFromSchema = (schemaArray) => {
+        const initialConfig = {};
+        if (Array.isArray(schemaArray)) {
+            schemaArray.forEach(field => {
+                const key = field.key || field.name;
+                if (key) {
+                    // If defaultValue provided, use it; otherwise empty string
+                    initialConfig[key] = field.defaultValue !== undefined ? field.defaultValue : '';
+                }
+            });
+        }
+        return initialConfig;
     };
 
     const handleActionConfigChange = (key, value) => {
@@ -136,39 +161,56 @@ export const useCreateAreaLogic = () => {
         setReactionSubStep(2); // Go to reaction selection
     };
 
+    const fetchAndSetActionSchema = async (actionName) => {
+        try {
+            setActionSchemaLoading(true);
+            const res = await apiDirect.get(`/manager/actions/${actionName}/config-schema`);
+            const schema = Array.isArray(res.data) ? res.data : [];
+            setActionConfigSchema(schema);
+            setActionConfig(initializeConfigFromSchema(schema));
+        } catch (err) {
+            // If endpoint returns 404 or error, assume no config required
+            console.warn(`No action config schema for '${actionName}' or failed to load.`, err?.response?.data || err?.message);
+            setActionConfigSchema([]);
+            setActionConfig({});
+        } finally {
+            setActionSchemaLoading(false);
+        }
+    };
+
+    const fetchAndSetReactionSchema = async (reactionName) => {
+        try {
+            setReactionSchemaLoading(true);
+            const res = await apiDirect.get(`/manager/reactions/${reactionName}/config-schema`);
+            const schema = Array.isArray(res.data) ? res.data : [];
+            setReactionConfigSchema(schema);
+            setReactionConfig(initializeConfigFromSchema(schema));
+        } catch (err) {
+            console.warn(`No reaction config schema for '${reactionName}' or failed to load.`, err?.response?.data || err?.message);
+            setReactionConfigSchema([]);
+            setReactionConfig({});
+        } finally {
+            setReactionSchemaLoading(false);
+        }
+    };
+
     const selectAction = (action) => {
         setSelectedAction(action);
+        // Reset current config and schema before fetching new one
         setActionConfig({});
-        // Initialize config with default values
-        if (action && action.configSchema && Array.isArray(action.configSchema)) {
-            try {
-                const initialConfig = {};
-                action.configSchema.forEach(field => {
-                    initialConfig[field.key || field.name] = field.defaultValue || '';
-                });
-                setActionConfig(initialConfig);
-            } catch (error) {
-                console.warn('Error initializing action config:', error);
-                setActionConfig({});
-            }
+        setActionConfigSchema([]);
+        if (action && action.name) {
+            fetchAndSetActionSchema(action.name);
         }
     };
 
     const selectReaction = (reaction) => {
         setSelectedReaction(reaction);
+        // Reset current config and schema before fetching new one
         setReactionConfig({});
-        // Initialize config with default values
-        if (reaction && reaction.configSchema && Array.isArray(reaction.configSchema)) {
-            try {
-                const initialConfig = {};
-                reaction.configSchema.forEach(field => {
-                    initialConfig[field.key || field.name] = field.defaultValue || '';
-                });
-                setReactionConfig(initialConfig);
-            } catch (error) {
-                console.warn('Error initializing reaction config:', error);
-                setReactionConfig({});
-            }
+        setReactionConfigSchema([]);
+        if (reaction && reaction.name) {
+            fetchAndSetReactionSchema(reaction.name);
         }
     };
 
@@ -220,6 +262,9 @@ export const useCreateAreaLogic = () => {
         actionPlaceholders,
         actionSubStep,
         reactionSubStep,
+        // expose schema loading flags
+        isActionSchemaLoading: actionSchemaLoading,
+        isReactionSchemaLoading: reactionSchemaLoading,
 
         // Setters
         setCurrentStep,

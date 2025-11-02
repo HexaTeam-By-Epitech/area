@@ -105,6 +105,7 @@ export default function CreateAreaScreen({ navigation }) {
                         actionConfig={logic.actionConfig}
                         handleActionConfigChange={logic.handleActionConfigChange}
                         getDisplayStepNumber={nav.getDisplayStepNumber}
+                        isLoading={logic.isActionSchemaLoading}
                     />
                 );
             case 3:
@@ -118,6 +119,7 @@ export default function CreateAreaScreen({ navigation }) {
                         handleReactionConfigChange={logic.handleReactionConfigChange}
                         actionPlaceholders={logic.actionPlaceholders}
                         getDisplayStepNumber={nav.getDisplayStepNumber}
+                        isLoading={logic.isReactionSchemaLoading}
                     />
                 );
             case 5:
@@ -143,7 +145,8 @@ export default function CreateAreaScreen({ navigation }) {
         // Validate required action config fields
         const actionSchema = logic.getActionConfigSchema();
         for (const field of actionSchema) {
-            if (field.required && !logic.actionConfig[field.name]) {
+            const key = field.key || field.name;
+            if (field.required && !logic.actionConfig[key]) {
                 Alert.alert('Error', `Please fill in the required action field: ${field.label || field.name}`);
                 return;
             }
@@ -152,7 +155,8 @@ export default function CreateAreaScreen({ navigation }) {
         // Validate required reaction config fields
         const reactionSchema = logic.getReactionConfigSchema();
         for (const field of reactionSchema) {
-            if (field.required && !logic.reactionConfig[field.name]) {
+            const key = field.key || field.name;
+            if (field.required && !logic.reactionConfig[key]) {
                 Alert.alert('Error', `Please fill in the required reaction field: ${field.label || field.name}`);
                 return;
             }
