@@ -131,7 +131,8 @@ export class UsersService {
     }
 
     /**
-     * Delete a user from the database.
+     * Delete a user from the database with full cleanup of related data (GDPR hard delete).
+     * Order matters due to FK constraints (onDelete: NoAction).
      * @param id - User's unique identifier
      * @returns The deleted user object
      */
@@ -141,11 +142,35 @@ export class UsersService {
             if (!user) {
                 throw new NotFoundException('User not found');
             }
+
+            // 1) Find all areas owned by the user and delete related event_logs by area_id first
+            const areas = await tx.areas.findMany({ where: { user_id: id }, select: { id: true } });
+            const areaIds = areas.map(a => a.id);
+            if (areaIds.length > 0) {
+                await tx.event_logs.deleteMany({ where: { area_id: { in: areaIds } } });
+                await tx.areas.deleteMany({ where: { id: { in: areaIds } } });
+            }
+
+            // 2) Delete any remaining event logs linked directly to the user
             await tx.event_logs.deleteMany({ where: { user_id: id } });
+
+            // 3) Delete identities and linked accounts
             await tx.auth_identities.deleteMany({ where: { user_id: id } });
             await tx.linked_accounts.deleteMany({ where: { user_id: id } });
-            await tx.areas.deleteMany({ where: { user_id: id } });
-            return tx.users.delete({ where: { id } });
+
+            // 4) Finally, delete the user row
+            return tx.users.delete({
+                where: { id },
+                select: {
+                    id: true,
+                    email: true,
+                    is_verified: true,
+                    is_active: true,
+                    created_at: true,
+                    updated_at: true,
+                    deleted_at: true,
+                },
+            });
         });
     }
 
