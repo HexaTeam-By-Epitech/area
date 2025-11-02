@@ -144,6 +144,70 @@ Each component has its own detailed documentation:
   - Migrations
   - PostgreSQL troubleshooting
 
+## Backend API - about.json
+
+The backend exposes a public health/metadata endpoint that describes the server and available services.
+
+- Method and path: `GET /about.json`
+- Authentication: none (public)
+- Where to access:
+  - Local dev: `http://localhost:3000/about.json`
+  - Docker (prod compose): `http://localhost:8080/about.json`
+
+### Response
+
+- client.host: the client IP detected in this order:
+  1) First IP from `X-Forwarded-For` header if present
+  2) `X-Real-IP` header if present
+  3) Fallback to socket `remoteAddress`
+- server.current_time: Unix timestamp in seconds (number)
+- server.services: array of services. Each service groups its actions and reactions:
+  - name: string (service/provider name, e.g., "google", "spotify")
+  - actions: array of `{ name: string, description: string }`
+  - reactions: array of `{ name: string, description: string }`
+
+Example:
+
+```json
+{
+  "client": { "host": "10.101.53.35" },
+  "server": {
+    "current_time": 1730540000,
+    "services": [
+      {
+        "name": "spotify",
+        "actions": [
+          {
+            "name": "spotify_has_likes",
+            "description": "Check if user has liked songs on Spotify"
+          }
+        ],
+        "reactions": []
+      },
+      {
+        "name": "google",
+        "actions": [
+          {
+            "name": "gmail_new_email",
+            "description": "Detect new incoming email in Gmail inbox"
+          }
+        ],
+        "reactions": [
+          {
+            "name": "send_email",
+            "description": "Send email notification"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Notes:
+- Service lists are generated dynamically by the backend Manager service.
+- Descriptions may vary or be "No description available" when not provided.
+
 ## Docker Deployment
 
 See [`DOCKER_DEPLOYMENT.md`](DOCKER_DEPLOYMENT.md) for complete guide.
